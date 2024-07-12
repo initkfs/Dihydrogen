@@ -1,0 +1,39 @@
+{
+    "authors": [
+        "user"
+    ],
+    "copyright": "Copyright © 2024, user",
+    "description": "",
+    "license": " ",
+    "name": "dihydrogen",
+    "configurations": [
+        {
+            "name": "dev",
+            "lflags": [
+                "-Bstatic",
+                "./libs/liburing/lib/liburing-ffi.a",
+                "-rpath=./libs/liburing/lib"
+            ],
+            "targetType": "executable",
+            "targetName": "dn",
+            "platforms": [
+                "linux"
+            ],
+            "sourcePaths": [
+                "./src"
+            ],
+            "importPaths": [
+                "./src",
+                "./libs"
+            ],
+            "postBuildCommands": [],
+            "libs": []
+        }
+    ],
+    "dflags": [
+        "-dip1000",
+        "-preview=in",
+        "-preview=fixAliasThis"
+    ],
+    "dependencies": {}
+}
