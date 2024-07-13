@@ -1,4 +1,4 @@
-module dn.net.connects.sockets.socket_connect;
+module dn.net.sockets.socket_connect;
 
 /**
  * Authors: initkfs
