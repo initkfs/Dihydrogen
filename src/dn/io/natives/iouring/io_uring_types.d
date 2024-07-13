@@ -1,4 +1,4 @@
-module dn.io.native.iouring.io_uring_types;
+module dn.io.natives.iouring.io_uring_types;
 /**
  * Authors: initkfs
  */

@@ -1,8 +1,8 @@
-module dn.io.native.iouring.io_uring;
+module dn.io.natives.iouring.io_uring;
 /**
  * Authors: initkfs
  */
-import dn.io.native.iouring.io_uring_types;
+import dn.io.natives.iouring.io_uring_types;
 
 import io_uring_libs;
 import socket_libs;
