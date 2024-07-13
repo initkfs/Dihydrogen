@@ -6,8 +6,8 @@ import std.string : toStringz, fromStringz;
 import io_uring_libs;
 import socket_libs;
 
-import core.stdc.stdlib: malloc, exit;
-import  core.stdc.string: memset, strerror;
+import core.stdc.stdlib : malloc, exit;
+import core.stdc.string : memset, strerror;
 
 import dn.io.natives.iouring.io_uring;
 import dn.io.natives.iouring.io_uring_types;
@@ -16,20 +16,27 @@ import std.conv : to;
 import std.string : toStringz, fromStringz;
 import std.logger;
 
-import core.components.units.services.loggable_unit: LoggableUnit;
+import core.components.units.services.loggable_unit : LoggableUnit;
 import dn.net.connects.pools.linear_connect_pool : LinearConnectPool;
 import dn.net.connects.fd_connect : FdConnect, FdConnectType;
-import dn.net.sockets.socket_connect: SocketConnectState;
+import dn.net.sockets.socket_connect : SocketConnectState;
 
-class EventLoop: LoggableUnit
+/**
+ * Authors: initkfs
+ */
+class EventLoop : LoggableUnit
 {
     enum backlog = 512;
     enum maxMessageLen = 2048;
     enum iourintFeatFastPollFlag = (1U << 5);
 
+    bool isTraceEvents;
+
     int serverSocket;
 
     FdConnect!maxMessageLen* socketConnect;
+
+    io_uring ring;
 
     this(Logger logger, int serverSocket)
     {
@@ -64,7 +71,7 @@ class EventLoop: LoggableUnit
         logger.infof("Listen: 127.0.0.1:%d", portno);
 
         io_uring_params params;
-        io_uring ring;
+
         memset(&params, 0, params.sizeof);
 
         auto initRet = io_uring_queue_init_params(4096, &ring, &params);
@@ -161,7 +168,11 @@ class EventLoop: LoggableUnit
 
                         if (bytes_read <= 0)
                         {
-                            logger.trace("End read, close connection");
+                            if (isTraceEvents)
+                            {
+                                logger.trace("End read, close connection");
+                            }
+
                             connPool.set(connection.fd, null);
                             addSocketClose(&ring, connection);
                             //free(connection);
@@ -184,7 +195,11 @@ class EventLoop: LoggableUnit
                         }
                         break;
                     case write:
-                        logger.trace("End write, close connection");
+                        if (isTraceEvents)
+                        {
+                            logger.trace("End write, close connection");
+                        }
+
                         connPool.set(connection.fd, null);
                         addSocketClose(&ring, connection);
                         //close(connection.fd);
@@ -203,7 +218,8 @@ class EventLoop: LoggableUnit
         logger.info("Exit");
     }
 
-    FdConnect!maxMessageLen* newConnection(int fd = -1, SocketConnectState state = SocketConnectState.none)
+    FdConnect!maxMessageLen* newConnection(int fd = -1, SocketConnectState state = SocketConnectState
+            .none)
     {
         auto mustBePtr = malloc(FdConnect!maxMessageLen.sizeof);
         if (!mustBePtr)
@@ -252,6 +268,14 @@ class EventLoop: LoggableUnit
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
         io_uring_prep_send(sqe, conn.fd, cast(const(void*)) response.ptr, response.length, 0);
         io_uring_sqe_set_data(sqe, conn);
+    }
+
+    override void stop()
+    {
+        super.stop;
+
+        io_uring_queue_exit(&ring);
+        io_uring_close_ring_fd(&ring);
     }
 
 }

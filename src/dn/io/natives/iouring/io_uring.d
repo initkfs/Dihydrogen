@@ -9,6 +9,7 @@ import socket_libs;
 
 extern (C):
 
+void io_uring_close_ring_fd(io_uring* ring);
 void io_uring_cq_advance(io_uring* ring, unsigned nr);
 void io_uring_sqe_set_flags(io_uring_sqe* sqe,
     unsigned flags);
