@@ -4,6 +4,9 @@
 
 int main(string[] args)
 {
+    enum errorCode = 1;
+    enum successCode = 0;
+
     version (linux)
     {
         version (DigitalMars)
@@ -19,16 +22,29 @@ int main(string[] args)
 
     auto app = new ServerApp;
     app.isStrictConfigs = true;
-    if (app.initialize(args))
+    auto initRes = app.initialize(args);
+    if (!initRes)
     {
-        import std;
+        import std.stdio : stderr;
 
-        writeln("Not initialized!");
-        return 1;
+        stderr.writeln("Not initialized!");
+        return errorCode;
     }
 
-    app.create;
-    app.run;
+    if (initRes.isExit)
+    {
+        import std.stdio : writeln;
 
-    return 0;
+        writeln("App exit");
+        return successCode;
+    }
+
+    assert(app.isInitialized);
+
+    app.create;
+    assert(app.isCreated);
+    app.run;
+    assert(app.isRunning);
+
+    return successCode;
 }

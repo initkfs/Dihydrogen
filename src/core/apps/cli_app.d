@@ -81,7 +81,7 @@ class CliApp : SimpleUnit
             if (cliResult.helpWanted)
             {
                 cli.printHelp(cliResult);
-                return AppExit(true);
+                return AppExit(true, false);
             }
 
             if (cliStartupDelayMs > 0)
@@ -141,7 +141,7 @@ class CliApp : SimpleUnit
             consumeThrowable(e, true);
         }
 
-        return AppExit();
+        return AppExit(false, true);
     }
 
     UniComponent newUniServices()
