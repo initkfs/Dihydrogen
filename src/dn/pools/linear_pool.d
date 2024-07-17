@@ -1,4 +1,4 @@
-module dn.channels.pools.linear_channel_pool;
+module dn.pools.linear_pool;
 
 import core.stdc.stdlib : malloc, realloc, free;
 import core.stdc.string : memset;
@@ -10,7 +10,7 @@ debug
 /**
  * Authors: initkfs
  */
-class LinearChannelPool(V)
+class LinearPool(V)
 {
     size_t growFactor = 2;
 
@@ -157,7 +157,7 @@ unittest
 {
     enum v1Count = 2;
     enum growFactor = 2;
-    auto poolPtr1 = new ConnectionpoolPtr!(int)(v1Count);
+    auto poolPtr1 = new LinearPool!(int)(v1Count);
     scope (exit)
     {
         poolPtr1.destroy;
@@ -180,6 +180,8 @@ unittest
     poolPtr1.set(1, v2);
     assert(poolPtr1.get(0) == v1);
     assert(poolPtr1.get(1) == v2);
+
+    assert(poolPtr1.increase);
 
     assert(poolPtr1.set(2, v3));
     assert(poolPtr1.get(2) == v3);
@@ -212,3 +214,44 @@ unittest
     assert(poolPtr1.count == newCount - 2);
     assert(poolPtr1.sizeBytes == (newCount - 2) * int.sizeof);
 }
+
+unittest
+{
+    enum v1Count = 2;
+    auto poolPtr1 = new LinearPool!(int*)(v1Count);
+    scope (exit)
+    {
+        poolPtr1.destroy;
+    }
+    poolPtr1.growFactor = 2;
+
+    assert(poolPtr1.create);
+    assert(poolPtr1.count == 2);
+    assert(poolPtr1.sizeBytes == (int*).sizeof * 2);
+    assert(poolPtr1.hasIndex(0));
+    assert(poolPtr1.hasIndex(1));
+    assert(!poolPtr1.hasIndex(2));
+
+    int v1 = 3;
+    int v2 = 4;
+    int v3 = 5;
+    int v4 = 6;
+
+    poolPtr1.set(0, &v1);
+    poolPtr1.set(1, &v2);
+    assert(poolPtr1.get(0) == &v1);
+    assert(poolPtr1.get(1) == &v2);
+
+    poolPtr1.increase;
+
+    assert(poolPtr1.set(2, &v3));
+    assert(poolPtr1.get(2) == &v3);
+    assert(poolPtr1.set(3, &v4));
+    assert(poolPtr1.get(3) == &v4);
+
+    auto newCount = v1Count * poolPtr1.growFactor;
+
+    assert(poolPtr1.count == newCount);
+    assert((poolPtr1.sizeBytes / poolPtr1.growFactor) == v1Count * (int*).sizeof);
+}
+

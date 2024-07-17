@@ -1,14 +1,16 @@
 module dn.channels.fd_channel;
 
-enum FdChannelType {
+enum FdChannelType
+{
     socket
 }
 
-struct FdChannel(size_t BuffSize)
+struct FdChannel
 {
     int fd;
     FdChannelType type;
     int state;
-    ubyte[BuffSize] buff;
+    ubyte* buff;
+    size_t buffLength;
     size_t availableBytes;
 }

@@ -17,7 +17,7 @@ import std.string : toStringz, fromStringz;
 import std.logger;
 
 import core.components.units.services.loggable_unit : LoggableUnit;
-import dn.channels.pools.linear_channel_pool : LinearChannelPool;
+import dn.pools.linear_pool : LinearPool;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
 
@@ -34,7 +34,9 @@ class EventLoop : LoggableUnit
 
     int serverSocket;
 
-    FdChannel!maxMessageLen* socketConnect;
+    FdChannel* socketConnect;
+
+    LinearPool!(FdChannel*) channelsPool;
 
     io_uring ring;
 
@@ -50,19 +52,15 @@ class EventLoop : LoggableUnit
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
-        auto connPoolSize = 100;
+        auto channelsPoolSize = 100;
 
-        LinearChannelPool!(FdChannel!maxMessageLen*) connPool = new LinearChannelPool!(
-            FdChannel!maxMessageLen*)(
-            connPoolSize);
-        connPool.create;
+        channelsPool = new LinearPool!(FdChannel*)(channelsPoolSize);
+        channelsPool.create;
 
-        foreach (i; 0 .. connPool.count)
+        foreach (i; 0 .. channelsPool.count)
         {
-            connPool.set(i, newConnection);
+            channelsPool.set(i, newChannel);
         }
-
-        // signal(SIGINT, &sigintHandler);
 
         ushort portno = 8080;
         sockaddr_in client_addr;
@@ -87,8 +85,7 @@ class EventLoop : LoggableUnit
             return;
         }
 
-        socketConnect = newConnection;
-        socketConnect.fd = serverSocket;
+        socketConnect = newChannel(serverSocket);
         addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
 
         while (true)
@@ -108,7 +105,7 @@ class EventLoop : LoggableUnit
 
             if (cqe.res < 0)
             {
-                auto errorConn = cast(FdChannel!maxMessageLen*) io_uring_cqe_get_data(cqe);
+                auto errorConn = cast(FdChannel*) io_uring_cqe_get_data(cqe);
                 assert(errorConn);
                 logger.errorf("Async request failed with fd %s, state '%s': %s", errorConn.fd, errorConn.state, strerror(
                         -cqe.res).fromStringz);
@@ -124,7 +121,7 @@ class EventLoop : LoggableUnit
             {
                 cqe = cqes[i];
 
-                auto connection = cast(FdChannel!maxMessageLen*) io_uring_cqe_get_data(cqe);
+                auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
 
                 unsigned type = connection.state;
                 final switch (type) with (SocketConnectState)
@@ -132,28 +129,25 @@ class EventLoop : LoggableUnit
                     case accept:
                         int acceptSocketFd = cqe.res;
 
-                        if (!connPool.hasIndex(acceptSocketFd))
+                        if (!channelsPool.hasIndex(acceptSocketFd))
                         {
-                            if (!connPool.increase)
+                            if (!channelsPool.increase)
                             {
                                 logger.error("Error change buffer size");
                                 exit(1);
                             }
                         }
 
-                        auto conn = connPool.get(acceptSocketFd);
+                        auto conn = channelsPool.get(acceptSocketFd);
                         if (!conn)
                         {
-                            auto newConnect = newConnection(acceptSocketFd);
-                            connPool.set(acceptSocketFd, newConnect);
+                            auto newConnect = newChannel(acceptSocketFd);
+                            channelsPool.set(acceptSocketFd, newConnect);
                             conn = newConnect;
                         }
                         else
                         {
-                            if (conn.fd == -1)
-                            {
-                                conn.fd = acceptSocketFd;
-                            }
+                            conn.fd = acceptSocketFd;
                             conn.state = SocketConnectState.none;
                             conn.availableBytes = 0;
                         }
@@ -173,7 +167,7 @@ class EventLoop : LoggableUnit
                                 logger.trace("End read, close connection");
                             }
 
-                            connPool.set(connection.fd, null);
+                            channelsPool.set(connection.fd, null);
                             addSocketClose(&ring, connection);
                             //free(connection);
                             //shutdown(connection.fd, SHUT_RDWR);
@@ -181,9 +175,9 @@ class EventLoop : LoggableUnit
                         else
                         {
                             auto buffSize = bytes_read;
-                            if (buffSize > connection.buff.sizeof)
+                            if (buffSize > connection.buffLength)
                             {
-                                connection.availableBytes = connection.buff.sizeof;
+                                connection.availableBytes = connection.buffLength;
                             }
                             else
                             {
@@ -200,7 +194,7 @@ class EventLoop : LoggableUnit
                             logger.trace("End write, close connection");
                         }
 
-                        connPool.set(connection.fd, null);
+                        channelsPool.set(connection.fd, null);
                         addSocketClose(&ring, connection);
                         //close(connection.fd);
                         //free(connection);
@@ -218,25 +212,44 @@ class EventLoop : LoggableUnit
         logger.info("Exit");
     }
 
-    FdChannel!maxMessageLen* newConnection(int fd = -1, SocketConnectState state = SocketConnectState
+    FdChannel* newChannel(int fd = -1, SocketConnectState state = SocketConnectState
             .none)
     {
-        auto mustBePtr = malloc(FdChannel!maxMessageLen.sizeof);
-        if (!mustBePtr)
+
+        auto mustBeChanPtr = malloc(FdChannel.sizeof);
+        if (!mustBeChanPtr)
         {
-            logger.error("Allocate connection error");
+            logger.error("Allocate channel error");
             exit(1);
         }
-        auto newConn = cast(FdChannel!maxMessageLen*) mustBePtr;
-        newConn.type = FdChannelType.socket;
-        newConn.fd = fd;
-        newConn.state = state;
-        newConn.availableBytes = 0;
-        //newConn.buff = 0;
-        return newConn;
+
+        auto newChan = cast(FdChannel*) mustBeChanPtr;
+        newChan.type = FdChannelType.socket;
+        newChan.fd = fd;
+        newChan.state = state;
+        newChan.buffLength = maxMessageLen;
+        newChan.availableBytes = 0;
+
+        if (newChan.buffLength > 0)
+        {
+            auto mustBeBuffPtr = malloc(newChan.buffLength);
+            if (!mustBeBuffPtr)
+            {
+                logger.error("Allocate channel buffer error");
+                exit(1);
+            }
+
+            newChan.buff = cast(ubyte*) mustBeBuffPtr;
+        }
+        else
+        {
+            newChan.buff = null;
+        }
+
+        return newChan;
     }
 
-    void addSocketClose(io_uring* ring, FdChannel!maxMessageLen* conn)
+    void addSocketClose(io_uring* ring, FdChannel* conn)
     {
         conn.state = SocketConnectState.close;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
@@ -244,7 +257,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketAccept(io_uring* ring, FdChannel!maxMessageLen* conn, sockaddr* client_addr, socklen_t* client_len)
+    void addSocketAccept(io_uring* ring, FdChannel* conn, sockaddr* client_addr, socklen_t* client_len)
     {
         conn.state = SocketConnectState.accept;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
@@ -252,17 +265,17 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketReadv(io_uring* ring, FdChannel!maxMessageLen* conn)
+    void addSocketReadv(io_uring* ring, FdChannel* conn)
     {
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
-        io_uring_prep_recv(sqe, conn.fd, &conn.buff, conn.buff.sizeof, 0);
+        io_uring_prep_recv(sqe, conn.fd, conn.buff, conn.buffLength, 0);
         conn.state = SocketConnectState.read;
         io_uring_sqe_set_data(sqe, conn);
     }
 
     enum response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
 
-    void addSocketWrite(io_uring* ring, FdChannel!maxMessageLen* conn)
+    void addSocketWrite(io_uring* ring, FdChannel* conn)
     {
         conn.state = SocketConnectState.write;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
