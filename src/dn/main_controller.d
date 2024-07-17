@@ -5,6 +5,8 @@ import core.components.uni_component : UniComponent;
 
 import dn.net.sockets.socket_tcp_server : SocketTcpServer;
 import dn.io.loops.event_loop : EventLoop;
+import dn.channels.pipes.pipleline : Pipeline;
+import dn.channels.handlers.channel_handler: ChannelHandler;
 
 import core.stdc.stdlib : exit;
 
@@ -32,7 +34,11 @@ class MainController : Controller!UniComponent
         serverSocket.create;
         serverSocket.run;
 
-        loop = new EventLoop(logger, serverSocket.fd);
+        auto pipeline = new Pipeline;
+
+        pipeline.add(new ChannelHandler);
+
+        loop = new EventLoop(logger, serverSocket.fd, pipeline);
         loop.initialize;
         loop.create;
         loop.run;

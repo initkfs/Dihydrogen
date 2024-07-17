@@ -1,7 +1,9 @@
 module dn.channels.pipes.pipleline;
 
 import dn.channels.handlers.channel_handler : ChannelHandler;
-import dn.channels.fd_channel: FdChannel, FdChannelType;
+import dn.channels.fd_channel : FdChannel, FdChannelType;
+
+import dn.channels.contexts.channel_context : ChannelContext;
 
 /**
  * Authors: initkfs
@@ -10,15 +12,69 @@ class Pipeline
 {
     ChannelHandler first;
 
-    void run()
+    protected void onHandler(scope bool delegate(ChannelHandler) onHandlerIsContinue)
     {
         ChannelHandler curr = first;
         while (curr)
         {
+            if (!onHandlerIsContinue(curr))
+            {
+                break;
+            }
 
-
-            curr = first.next;
+            curr = curr.next;
         }
+    }
+
+    ChannelContext onAccept(FdChannel* chan)
+    {
+        ChannelContext ctx = ChannelContext(this, chan);
+        onHandler((h) { h.onAccept(ctx); return true; });
+        return ctx;
+    }
+
+    ChannelContext onRead(FdChannel* chan)
+    {
+        ChannelContext ctx = ChannelContext(this, chan);
+        onHandler((h) { h.onRead(ctx); return true; });
+        return ctx;
+    }
+
+    ChannelContext onReadComplete(FdChannel* chan)
+    {
+        ChannelContext ctx = ChannelContext(this, chan);
+        onHandler((h) { h.onReadComplete(ctx); return true; });
+        return ctx;
+    }
+
+    ChannelContext onClose(FdChannel* chan)
+    {
+        ChannelContext ctx = ChannelContext(this, chan);
+        onHandler((h) { h.onClose(ctx); return true; });
+        return ctx;
+    }
+
+    ChannelContext onWrite(FdChannel* chan)
+    {
+        ChannelContext ctx = ChannelContext(this, chan);
+        onHandler((h) { h.onWrite(ctx); return true; });
+        return ctx;
+    }
+
+    bool add(ChannelHandler handler)
+    {
+        if (!first)
+        {
+            first = handler;
+            return true;
+        }
+
+        assert(first != handler);
+
+        first.next = handler;
+        handler.prev = first;
+
+        return true;
     }
 
 }

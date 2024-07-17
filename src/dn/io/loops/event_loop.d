@@ -20,6 +20,9 @@ import core.components.units.services.loggable_unit : LoggableUnit;
 import dn.pools.linear_pool : LinearPool;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
+import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
+
+import dn.channels.pipes.pipleline : Pipeline;
 
 /**
  * Authors: initkfs
@@ -40,10 +43,15 @@ class EventLoop : LoggableUnit
 
     io_uring ring;
 
-    this(Logger logger, int serverSocket)
+    Pipeline pipeline;
+
+    this(Logger logger, int serverSocket, Pipeline pipeline)
     {
         super(logger);
         this.serverSocket = serverSocket;
+
+        assert(pipeline);
+        this.pipeline = pipeline;
     }
 
     override void run()
@@ -129,7 +137,7 @@ class EventLoop : LoggableUnit
                     case accept:
                         int acceptSocketFd = cqe.res;
 
-                        if (!channelsPool.hasIndex(acceptSocketFd))
+                        while (!channelsPool.hasIndex(acceptSocketFd))
                         {
                             if (!channelsPool.increase)
                             {
@@ -154,7 +162,10 @@ class EventLoop : LoggableUnit
 
                         assert(conn);
 
-                        addSocketReadv(&ring, conn);
+                        auto ctx = pipeline.onAccept(conn);
+                        runContext(ctx);
+
+                        //addSocketReadv(&ring, conn);
                         addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
                         break;
                     case read:
@@ -167,8 +178,10 @@ class EventLoop : LoggableUnit
                                 logger.trace("End read, close connection");
                             }
 
-                            channelsPool.set(connection.fd, null);
-                            addSocketClose(&ring, connection);
+                            auto ctx = pipeline.onReadComplete(connection);
+                            runContext(ctx);
+                            //channelsPool.set(connection.fd, null);
+                            //addSocketClose(&ring, connection);
                             //free(connection);
                             //shutdown(connection.fd, SHUT_RDWR);
                         }
@@ -184,8 +197,10 @@ class EventLoop : LoggableUnit
                                 connection.availableBytes = buffSize;
                             }
 
+                            auto ctx = pipeline.onRead(connection);
+                            runContext(ctx);
                             //writefln("Recieved fd %s: [%s]", connection.fd, bufs[connection.fd][0..bytes_read]);
-                            addSocketWrite(&ring, connection);
+                            //addSocketWrite(&ring, connection);
                         }
                         break;
                     case write:
@@ -194,14 +209,18 @@ class EventLoop : LoggableUnit
                             logger.trace("End write, close connection");
                         }
 
-                        channelsPool.set(connection.fd, null);
-                        addSocketClose(&ring, connection);
+                        auto ctx = pipeline.onWrite(connection);
+                        runContext(ctx);
+                        //channelsPool.set(connection.fd, null);
+                        //addSocketClose(&ring, connection);
                         //close(connection.fd);
                         //free(connection);
                         //shutdown(connection.fd, SHUT_RDWR);
                         // addSocketReadv(&ring, connection.fd, maxMessageLen);
                         break;
                     case close:
+                        auto ctx = pipeline.onClose(connection);
+                        runContext(ctx);
                         break;
                 }
             }
@@ -249,6 +268,24 @@ class EventLoop : LoggableUnit
         return newChan;
     }
 
+    void runContext(ref ChannelContext ctx)
+    {
+        final switch (ctx.type) with (ChannelContextType)
+        {
+            case read:
+                addSocketReadv(&ring, ctx.channel);
+                break;
+            case write:
+                addSocketWrite(&ring, ctx.channel, ctx.buff, ctx.buffLen);
+                break;
+            case close:
+                addSocketClose(&ring, ctx.channel);
+                break;
+            case none:
+                break;
+        }
+    }
+
     void addSocketClose(io_uring* ring, FdChannel* conn)
     {
         conn.state = SocketConnectState.close;
@@ -273,13 +310,13 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    enum response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
-
-    void addSocketWrite(io_uring* ring, FdChannel* conn)
+    void addSocketWrite(io_uring* ring, FdChannel* conn, const(void*) buff, size_t len)
     {
+        assert(buff);
+        assert(len >= 0);
         conn.state = SocketConnectState.write;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
-        io_uring_prep_send(sqe, conn.fd, cast(const(void*)) response.ptr, response.length, 0);
+        io_uring_prep_send(sqe, conn.fd, buff, len, 0);
         io_uring_sqe_set_data(sqe, conn);
     }
 
