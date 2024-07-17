@@ -1,4 +1,4 @@
-module dn.net.connects.pools.linear_connect_pool;
+module dn.channels.pools.linear_channel_pool;
 
 import core.stdc.stdlib : malloc, realloc, free;
 import core.stdc.string : memset;
@@ -10,7 +10,7 @@ debug
 /**
  * Authors: initkfs
  */
-class LinearConnectPool(V)
+class LinearChannelPool(V)
 {
     size_t growFactor = 2;
 

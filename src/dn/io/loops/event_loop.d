@@ -17,8 +17,8 @@ import std.string : toStringz, fromStringz;
 import std.logger;
 
 import core.components.units.services.loggable_unit : LoggableUnit;
-import dn.net.connects.pools.linear_connect_pool : LinearConnectPool;
-import dn.net.connects.fd_connect : FdConnect, FdConnectType;
+import dn.channels.pools.linear_channel_pool : LinearChannelPool;
+import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
 
 /**
@@ -34,7 +34,7 @@ class EventLoop : LoggableUnit
 
     int serverSocket;
 
-    FdConnect!maxMessageLen* socketConnect;
+    FdChannel!maxMessageLen* socketConnect;
 
     io_uring ring;
 
@@ -52,8 +52,8 @@ class EventLoop : LoggableUnit
 
         auto connPoolSize = 100;
 
-        LinearConnectPool!(FdConnect!maxMessageLen*) connPool = new LinearConnectPool!(
-            FdConnect!maxMessageLen*)(
+        LinearChannelPool!(FdChannel!maxMessageLen*) connPool = new LinearChannelPool!(
+            FdChannel!maxMessageLen*)(
             connPoolSize);
         connPool.create;
 
@@ -108,7 +108,7 @@ class EventLoop : LoggableUnit
 
             if (cqe.res < 0)
             {
-                auto errorConn = cast(FdConnect!maxMessageLen*) io_uring_cqe_get_data(cqe);
+                auto errorConn = cast(FdChannel!maxMessageLen*) io_uring_cqe_get_data(cqe);
                 assert(errorConn);
                 logger.errorf("Async request failed with fd %s, state '%s': %s", errorConn.fd, errorConn.state, strerror(
                         -cqe.res).fromStringz);
@@ -124,7 +124,7 @@ class EventLoop : LoggableUnit
             {
                 cqe = cqes[i];
 
-                auto connection = cast(FdConnect!maxMessageLen*) io_uring_cqe_get_data(cqe);
+                auto connection = cast(FdChannel!maxMessageLen*) io_uring_cqe_get_data(cqe);
 
                 unsigned type = connection.state;
                 final switch (type) with (SocketConnectState)
@@ -218,17 +218,17 @@ class EventLoop : LoggableUnit
         logger.info("Exit");
     }
 
-    FdConnect!maxMessageLen* newConnection(int fd = -1, SocketConnectState state = SocketConnectState
+    FdChannel!maxMessageLen* newConnection(int fd = -1, SocketConnectState state = SocketConnectState
             .none)
     {
-        auto mustBePtr = malloc(FdConnect!maxMessageLen.sizeof);
+        auto mustBePtr = malloc(FdChannel!maxMessageLen.sizeof);
         if (!mustBePtr)
         {
             logger.error("Allocate connection error");
             exit(1);
         }
-        auto newConn = cast(FdConnect!maxMessageLen*) mustBePtr;
-        newConn.type = FdConnectType.socket;
+        auto newConn = cast(FdChannel!maxMessageLen*) mustBePtr;
+        newConn.type = FdChannelType.socket;
         newConn.fd = fd;
         newConn.state = state;
         newConn.availableBytes = 0;
@@ -236,7 +236,7 @@ class EventLoop : LoggableUnit
         return newConn;
     }
 
-    void addSocketClose(io_uring* ring, FdConnect!maxMessageLen* conn)
+    void addSocketClose(io_uring* ring, FdChannel!maxMessageLen* conn)
     {
         conn.state = SocketConnectState.close;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
@@ -244,7 +244,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketAccept(io_uring* ring, FdConnect!maxMessageLen* conn, sockaddr* client_addr, socklen_t* client_len)
+    void addSocketAccept(io_uring* ring, FdChannel!maxMessageLen* conn, sockaddr* client_addr, socklen_t* client_len)
     {
         conn.state = SocketConnectState.accept;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
@@ -252,7 +252,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketReadv(io_uring* ring, FdConnect!maxMessageLen* conn)
+    void addSocketReadv(io_uring* ring, FdChannel!maxMessageLen* conn)
     {
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
         io_uring_prep_recv(sqe, conn.fd, &conn.buff, conn.buff.sizeof, 0);
@@ -262,7 +262,7 @@ class EventLoop : LoggableUnit
 
     enum response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
 
-    void addSocketWrite(io_uring* ring, FdConnect!maxMessageLen* conn)
+    void addSocketWrite(io_uring* ring, FdChannel!maxMessageLen* conn)
     {
         conn.state = SocketConnectState.write;
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
