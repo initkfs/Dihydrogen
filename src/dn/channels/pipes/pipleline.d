@@ -47,11 +47,10 @@ class Pipeline
         return ctx;
     }
 
-    ChannelContext onClose(FdChannel* chan)
+    void onClose(FdChannel* chan)
     {
         ChannelContext ctx = ChannelContext(this, chan);
         onHandler((h) { h.onClose(ctx); return true; });
-        return ctx;
     }
 
     ChannelContext onWrite(FdChannel* chan)

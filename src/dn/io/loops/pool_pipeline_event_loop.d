@@ -22,7 +22,7 @@ import dn.pools.linear_pool : LinearPool;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
 import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
-
+import dn.channels.server_channel: ServerChannel;
 import dn.channels.pipes.pipleline : Pipeline;
 
 /**
@@ -39,11 +39,10 @@ class PoolPipelineEventLoop : EventLoop
 
     bool isDestroyPipeAfterClose = true;
 
-    this(Logger logger, int serverSocket, Pipeline delegate() pipelineFactory, void delegate(
+    this(Logger logger, ServerChannel[] serverSockets, Pipeline delegate() pipelineFactory, void delegate(
             Pipeline) pipelineDestroyer)
     {
-        super(logger, serverSocket);
-        this.serverSocket = serverSocket;
+        super(logger, serverSockets);
 
         assert(pipelineFactory);
         this.pipelineFactory = pipelineFactory;
@@ -105,7 +104,6 @@ class PoolPipelineEventLoop : EventLoop
         onClose = (chan) {
             auto pipeline = pipelinePool.get(chan.fd);
             assert(pipeline);
-            return pipeline.onClose(chan);
 
             //TODO calling before context runs can be destructive.
             if (isDestroyPipeAfterClose)

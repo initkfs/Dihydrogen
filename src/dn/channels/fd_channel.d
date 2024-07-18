@@ -13,4 +13,5 @@ struct FdChannel
     ubyte* buff;
     size_t buffLength;
     size_t availableBytes;
+    void* data;
 }

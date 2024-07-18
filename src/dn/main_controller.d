@@ -8,7 +8,7 @@ import dn.io.loops.event_loop : EventLoop;
 import dn.io.loops.pool_pipeline_event_loop : PoolPipelineEventLoop;
 import dn.channels.pipes.pipleline : Pipeline;
 import dn.channels.handlers.channel_handler : ChannelHandler;
-
+import dn.channels.server_channel: ServerChannel;
 import core.stdc.stdlib : exit;
 
 import signal_libs;
@@ -20,7 +20,8 @@ class MainController : Controller!UniComponent
 {
     protected
     {
-        static SocketTcpServer serverSocket;
+        static SocketTcpServer serverSocket1;
+        static SocketTcpServer serverSocket2;
         static PoolPipelineEventLoop loop;
     }
 
@@ -30,12 +31,21 @@ class MainController : Controller!UniComponent
 
         signal(SIGINT, &sigintHandler);
 
-        serverSocket = new SocketTcpServer(logger);
-        serverSocket.initialize;
-        serverSocket.create;
-        serverSocket.run;
+        serverSocket1 = new SocketTcpServer(logger);
+        serverSocket1.initialize;
+        serverSocket1.create;
+        serverSocket1.run;
 
-        loop = new PoolPipelineEventLoop(logger, serverSocket.fd, () {
+        serverSocket2 = new SocketTcpServer(logger);
+        serverSocket2.port = 8081;
+        serverSocket2.initialize;
+        serverSocket2.create;
+        serverSocket2.run;
+
+        loop = new PoolPipelineEventLoop(logger, [
+            ServerChannel(serverSocket1.fd, serverSocket1.port), 
+            ServerChannel(serverSocket2.fd, serverSocket2.port)
+            ], () {
             
             import core.stdc.stdlib : malloc;
             import core.lifetime: emplace;
@@ -72,15 +82,19 @@ class MainController : Controller!UniComponent
         import std.stdio : writefln;
 
         assert(loop);
-        assert(serverSocket);
+        assert(serverSocket1);
+        assert(serverSocket2);
 
-        writefln("^C pressed. Server socket '%s'", serverSocket.fd);
+        writefln("^C pressed. Server socket '%s'", [serverSocket1.fd, serverSocket2.fd]);
 
         loop.stop;
         loop.dispose;
 
-        serverSocket.stop;
-        serverSocket.dispose;
+        serverSocket1.stop;
+        serverSocket1.dispose;
+
+        serverSocket2.stop;
+        serverSocket2.dispose;
 
         exit(0);
     }

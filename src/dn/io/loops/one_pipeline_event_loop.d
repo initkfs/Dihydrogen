@@ -4,6 +4,7 @@ import dn.io.loops.event_loop : EventLoop;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
 import dn.channels.pipes.pipleline : Pipeline;
+import dn.channels.server_channel: ServerChannel;
 
 import std.logger: Logger;
 
@@ -14,9 +15,9 @@ class OnePipelineEventLoop : EventLoop
 {
     Pipeline pipeline;
 
-    this(Logger logger, int serverSocket, Pipeline pipeline)
+    this(Logger logger, ServerChannel[] serverSockets, Pipeline pipeline)
     {
-        super(logger, serverSocket);
+        super(logger, serverSockets);
 
         assert(pipeline);
         this.pipeline = pipeline;
@@ -34,6 +35,6 @@ class OnePipelineEventLoop : EventLoop
 
         onWrite = (chan) { return pipeline.onReadEnd(chan); };
 
-        onClose = (chan) { return pipeline.onClose(chan); };
+        onClose = (chan) { pipeline.onClose(chan); };
     }
 }

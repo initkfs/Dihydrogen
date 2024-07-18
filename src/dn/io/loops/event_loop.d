@@ -22,6 +22,8 @@ import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
 import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
 
+import dn.channels.server_channel : ServerChannel;
+
 /**
  * Authors: initkfs
  */
@@ -33,49 +35,46 @@ class EventLoop : LoggableUnit
 
     bool isTraceEvents;
 
-    int serverSocket;
+    int channelsPoolSize = 100;
 
-    FdChannel* socketConnect;
-
-    LinearPool!(FdChannel*) channelsPool;
+    ServerChannelData[int] channelsMap;
 
     io_uring ring;
 
-    this(Logger logger, int serverSocket)
+    this(Logger logger, ServerChannel[] serverChannels)
     {
         super(logger);
-        this.serverSocket = serverSocket;
+        //TODO move to create()
+        foreach (serverChannel; serverChannels)
+        {
+            assert(serverChannel.fd >= 0);
+            auto serverSocket = newChannel(serverChannel.fd);
+            auto pool = new LinearPool!(FdChannel*)(channelsPoolSize);
+
+            channelsMap[serverSocket.fd] = ServerChannelData(serverSocket, pool, serverChannel.port);
+        }
     }
 
     ChannelContext delegate(FdChannel*) onAccept;
     ChannelContext delegate(FdChannel*) onRead;
     ChannelContext delegate(FdChannel*) onReadEnd;
     ChannelContext delegate(FdChannel*) onWrite;
-    ChannelContext delegate(FdChannel*) onClose;
+    void delegate(FdChannel*) onClose;
 
-    sockaddr_in client_addr;
-    socklen_t client_len;
+    struct ServerChannelData
+    {
+        FdChannel* chan;
+        LinearPool!(FdChannel*) pool;
+        ushort port;
+        sockaddr_in client_addr;
+        socklen_t client_len = (client_addr).sizeof;
+    }
 
     override void create()
     {
         super.create;
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
-
-        auto channelsPoolSize = 100;
-
-        channelsPool = new LinearPool!(FdChannel*)(channelsPoolSize);
-        channelsPool.create;
-
-        foreach (i; 0 .. channelsPool.count)
-        {
-            channelsPool.set(i, newChannel);
-        }
-
-        ushort portno = 8080;
-        client_len = (client_addr).sizeof;
-
-        logger.infof("Listen: 127.0.0.1:%d", portno);
 
         io_uring_params params;
 
@@ -94,8 +93,25 @@ class EventLoop : LoggableUnit
             return;
         }
 
-        socketConnect = newChannel(serverSocket);
-        addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
+        foreach (int fd, ServerChannelData serverData; channelsMap)
+        {
+            assert(serverData.chan);
+            assert(fd == serverData.chan.fd);
+            auto pool = serverData.pool;
+            pool.create;
+            foreach (i; 0 .. pool.count)
+            {
+                pool.set(i, newChannel);
+            }
+
+            auto socket = serverData.chan;
+            assert(socket);
+
+            logger.infof("Listen: 127.0.0.1:%d fd: %d", serverData.port, fd);
+            addSocketAccept(&ring, socket, cast(sockaddr*)&(serverData.client_addr), &(
+                    serverData.client_len));
+        }
+
     }
 
     override void run()
@@ -148,6 +164,8 @@ class EventLoop : LoggableUnit
                     case accept:
                         int acceptSocketFd = cqe.res;
 
+                        auto channelsPool = channelsMap[connection.fd].pool;
+
                         while (!channelsPool.hasIndex(acceptSocketFd))
                         {
                             if (!channelsPool.increase)
@@ -175,7 +193,10 @@ class EventLoop : LoggableUnit
 
                         auto ctx = onAccept(conn);
                         runContext(ctx);
-                        addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
+
+                        auto chanData = channelsMap[connection.fd];
+                        addSocketAccept(&ring, chanData.chan, cast(sockaddr*)&(chanData.client_addr), &(
+                                chanData.client_len));
                         break;
                     case read:
                         int bytes_read = cqe.res;
@@ -216,8 +237,7 @@ class EventLoop : LoggableUnit
                         runContext(ctx);
                         break;
                     case close:
-                        auto ctx = onClose(connection);
-                        runContext(ctx);
+                        onClose(connection);
                         break;
                 }
             }
