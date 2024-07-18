@@ -5,8 +5,9 @@ import core.components.uni_component : UniComponent;
 
 import dn.net.sockets.socket_tcp_server : SocketTcpServer;
 import dn.io.loops.event_loop : EventLoop;
+import dn.io.loops.pool_pipeline_event_loop : PoolPipelineEventLoop;
 import dn.channels.pipes.pipleline : Pipeline;
-import dn.channels.handlers.channel_handler: ChannelHandler;
+import dn.channels.handlers.channel_handler : ChannelHandler;
 
 import core.stdc.stdlib : exit;
 
@@ -20,7 +21,7 @@ class MainController : Controller!UniComponent
     protected
     {
         static SocketTcpServer serverSocket;
-        static EventLoop loop;
+        static PoolPipelineEventLoop loop;
     }
 
     override void run()
@@ -34,11 +35,33 @@ class MainController : Controller!UniComponent
         serverSocket.create;
         serverSocket.run;
 
-        auto pipeline = new Pipeline;
+        loop = new PoolPipelineEventLoop(logger, serverSocket.fd, () {
+            
+            import core.stdc.stdlib : malloc;
+            import core.lifetime: emplace;
 
-        pipeline.add(new ChannelHandler);
+            auto pipelineSize = __traits(classInstanceSize, Pipeline);
+            auto pipelinePtr = malloc(pipelineSize)[0..pipelineSize];
+            auto pipeline = emplace!(Pipeline)(pipelinePtr);
 
-        loop = new EventLoop(logger, serverSocket.fd, pipeline);
+            auto handlerSize = __traits(classInstanceSize, ChannelHandler);
+            auto handlerPtr = malloc(handlerSize)[0..handlerSize];
+            auto handler = emplace!(ChannelHandler)(handlerPtr);
+
+            pipeline.add(handler);
+            return pipeline;
+        }, (pipeline){
+            auto currHandler = pipeline.first;
+            while(currHandler){
+                import core.stdc.stdlib : free;
+                auto curr = currHandler;
+                currHandler = currHandler.next;
+                destroy(curr);
+                free(cast(void*) curr);
+
+                free(cast(void*) pipeline);
+            }
+        });
         loop.initialize;
         loop.create;
         loop.run;
