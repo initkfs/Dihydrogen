@@ -22,8 +22,6 @@ import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.net.sockets.socket_connect : SocketConnectState;
 import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
 
-import dn.channels.pipes.pipleline : Pipeline;
-
 /**
  * Authors: initkfs
  */
@@ -43,20 +41,24 @@ class EventLoop : LoggableUnit
 
     io_uring ring;
 
-    Pipeline pipeline;
-
-    this(Logger logger, int serverSocket, Pipeline pipeline)
+    this(Logger logger, int serverSocket)
     {
         super(logger);
         this.serverSocket = serverSocket;
-
-        assert(pipeline);
-        this.pipeline = pipeline;
     }
 
-    override void run()
+    ChannelContext delegate(FdChannel*) onAccept;
+    ChannelContext delegate(FdChannel*) onRead;
+    ChannelContext delegate(FdChannel*) onReadEnd;
+    ChannelContext delegate(FdChannel*) onWrite;
+    ChannelContext delegate(FdChannel*) onClose;
+
+    sockaddr_in client_addr;
+    socklen_t client_len;
+
+    override void create()
     {
-        super.run;
+        super.create;
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
@@ -71,8 +73,7 @@ class EventLoop : LoggableUnit
         }
 
         ushort portno = 8080;
-        sockaddr_in client_addr;
-        socklen_t client_len = (client_addr).sizeof;
+        client_len = (client_addr).sizeof;
 
         logger.infof("Listen: 127.0.0.1:%d", portno);
 
@@ -95,6 +96,16 @@ class EventLoop : LoggableUnit
 
         socketConnect = newChannel(serverSocket);
         addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
+    }
+
+    override void run()
+    {
+        super.run;
+
+        assert(onAccept);
+        assert(onRead);
+        assert(onReadEnd);
+        assert(onClose);
 
         while (true)
         {
@@ -162,10 +173,8 @@ class EventLoop : LoggableUnit
 
                         assert(conn);
 
-                        auto ctx = pipeline.onAccept(conn);
+                        auto ctx = onAccept(conn);
                         runContext(ctx);
-
-                        //addSocketReadv(&ring, conn);
                         addSocketAccept(&ring, socketConnect, cast(sockaddr*)&client_addr, &client_len);
                         break;
                     case read:
@@ -178,12 +187,8 @@ class EventLoop : LoggableUnit
                                 logger.trace("End read, close connection");
                             }
 
-                            auto ctx = pipeline.onReadComplete(connection);
+                            auto ctx = onReadEnd(connection);
                             runContext(ctx);
-                            //channelsPool.set(connection.fd, null);
-                            //addSocketClose(&ring, connection);
-                            //free(connection);
-                            //shutdown(connection.fd, SHUT_RDWR);
                         }
                         else
                         {
@@ -197,10 +202,8 @@ class EventLoop : LoggableUnit
                                 connection.availableBytes = buffSize;
                             }
 
-                            auto ctx = pipeline.onRead(connection);
+                            auto ctx = onRead(connection);
                             runContext(ctx);
-                            //writefln("Recieved fd %s: [%s]", connection.fd, bufs[connection.fd][0..bytes_read]);
-                            //addSocketWrite(&ring, connection);
                         }
                         break;
                     case write:
@@ -209,17 +212,11 @@ class EventLoop : LoggableUnit
                             logger.trace("End write, close connection");
                         }
 
-                        auto ctx = pipeline.onWrite(connection);
+                        auto ctx = onWrite(connection);
                         runContext(ctx);
-                        //channelsPool.set(connection.fd, null);
-                        //addSocketClose(&ring, connection);
-                        //close(connection.fd);
-                        //free(connection);
-                        //shutdown(connection.fd, SHUT_RDWR);
-                        // addSocketReadv(&ring, connection.fd, maxMessageLen);
                         break;
                     case close:
-                        auto ctx = pipeline.onClose(connection);
+                        auto ctx = onClose(connection);
                         runContext(ctx);
                         break;
                 }

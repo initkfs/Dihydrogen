@@ -40,7 +40,7 @@ class Pipeline
         return ctx;
     }
 
-    ChannelContext onReadComplete(FdChannel* chan)
+    ChannelContext onReadEnd(FdChannel* chan)
     {
         ChannelContext ctx = ChannelContext(this, chan);
         onHandler((h) { h.onReadComplete(ctx); return true; });
