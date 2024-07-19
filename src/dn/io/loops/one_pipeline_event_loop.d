@@ -1,6 +1,6 @@
 module dn.io.loops.one_pipeline_event_loop;
 
-import dn.io.loops.event_loop : EventLoop;
+import dn.io.loops.server_loop: ServerLoop;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
 import dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
 import dn.channels.pipes.pipleline : Pipeline;
@@ -11,7 +11,7 @@ import std.logger: Logger;
 /**
  * Authors: initkfs
  */
-class OnePipelineEventLoop : EventLoop
+class OnePipelineEventLoop : ServerLoop
 {
     Pipeline pipeline;
 

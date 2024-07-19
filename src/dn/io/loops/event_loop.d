@@ -37,22 +37,11 @@ class EventLoop : LoggableUnit
 
     int channelsPoolSize = 100;
 
-    ServerChannelData[int] channelsMap;
-
     io_uring ring;
 
-    this(Logger logger, ServerChannel[] serverChannels)
+    this(Logger logger)
     {
         super(logger);
-        //TODO move to create()
-        foreach (serverChannel; serverChannels)
-        {
-            assert(serverChannel.fd >= 0);
-            auto serverSocket = newChannel(serverChannel.fd);
-            auto pool = new LinearPool!(FdChannel*)(channelsPoolSize);
-
-            channelsMap[serverSocket.fd] = ServerChannelData(serverSocket, pool, serverChannel.port);
-        }
     }
 
     ChannelContext delegate(FdChannel*) onAccept;
@@ -61,13 +50,9 @@ class EventLoop : LoggableUnit
     ChannelContext delegate(FdChannel*) onWrite;
     void delegate(FdChannel*) onClose;
 
-    struct ServerChannelData
+    void addServerAccept(int fd)
     {
-        FdChannel* chan;
-        LinearPool!(FdChannel*) pool;
-        ushort port;
-        sockaddr_in client_addr;
-        socklen_t client_len = (client_addr).sizeof;
+        throw new Exception("Not supported");
     }
 
     override void create()
@@ -92,26 +77,6 @@ class EventLoop : LoggableUnit
             logger.error("io_urint fast poll not available in the kernel, quiting...\n");
             return;
         }
-
-        foreach (int fd, ServerChannelData serverData; channelsMap)
-        {
-            assert(serverData.chan);
-            assert(fd == serverData.chan.fd);
-            auto pool = serverData.pool;
-            pool.create;
-            foreach (i; 0 .. pool.count)
-            {
-                pool.set(i, newChannel);
-            }
-
-            auto socket = serverData.chan;
-            assert(socket);
-
-            logger.infof("Listen: 127.0.0.1:%d fd: %d", serverData.port, fd);
-            addSocketAccept(&ring, socket, cast(sockaddr*)&(serverData.client_addr), &(
-                    serverData.client_len));
-        }
-
     }
 
     override void run()
@@ -163,40 +128,16 @@ class EventLoop : LoggableUnit
                 {
                     case accept:
                         int acceptSocketFd = cqe.res;
+                        assert(acceptSocketFd >= 0);
 
-                        auto channelsPool = channelsMap[connection.fd].pool;
-
-                        while (!channelsPool.hasIndex(acceptSocketFd))
-                        {
-                            if (!channelsPool.increase)
-                            {
-                                logger.error("Error change buffer size");
-                                exit(1);
-                            }
-                        }
-
-                        auto conn = channelsPool.get(acceptSocketFd);
-                        if (!conn)
-                        {
-                            auto newConnect = newChannel(acceptSocketFd);
-                            channelsPool.set(acceptSocketFd, newConnect);
-                            conn = newConnect;
-                        }
-                        else
-                        {
-                            conn.fd = acceptSocketFd;
-                            conn.state = SocketConnectState.none;
-                            conn.availableBytes = 0;
-                        }
+                        auto conn = getChannel(connection.fd, acceptSocketFd);
 
                         assert(conn);
 
                         auto ctx = onAccept(conn);
                         runContext(ctx);
 
-                        auto chanData = channelsMap[connection.fd];
-                        addSocketAccept(&ring, chanData.chan, cast(sockaddr*)&(chanData.client_addr), &(
-                                chanData.client_len));
+                        addServerAccept(connection.fd);
                         break;
                     case read:
                         int bytes_read = cqe.res;
@@ -283,6 +224,11 @@ class EventLoop : LoggableUnit
         }
 
         return newChan;
+    }
+
+    FdChannel* getChannel(int serverFd, int activeChannelFd)
+    {
+        throw new Exception("Not supported pool");
     }
 
     void runContext(ref ChannelContext ctx)

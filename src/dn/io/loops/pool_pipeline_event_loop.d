@@ -16,7 +16,7 @@ import std.conv : to;
 import std.string : toStringz, fromStringz;
 import std.logger;
 
-import dn.io.loops.event_loop : EventLoop;
+import dn.io.loops.server_loop: ServerLoop;
 import core.components.units.services.loggable_unit : LoggableUnit;
 import dn.pools.linear_pool : LinearPool;
 import dn.channels.fd_channel : FdChannel, FdChannelType;
@@ -28,7 +28,7 @@ import dn.channels.pipes.pipleline : Pipeline;
 /**
  * Authors: initkfs
  */
-class PoolPipelineEventLoop : EventLoop
+class PoolPipelineEventLoop : ServerLoop
 {
     int pipelinePoolSize = 100;
 
@@ -104,6 +104,8 @@ class PoolPipelineEventLoop : EventLoop
         onClose = (chan) {
             auto pipeline = pipelinePool.get(chan.fd);
             assert(pipeline);
+
+            pipeline.onClose(chan);
 
             //TODO calling before context runs can be destructive.
             if (isDestroyPipeAfterClose)

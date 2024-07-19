@@ -43,7 +43,8 @@ class ChannelHandler
 
     void onClose(ref ChannelContext ctx)
     {
-
+        //import std.stdio;
+        //writefln("Close: %s", ctx.channel.fd);
     }
 
 }
