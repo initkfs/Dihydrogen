@@ -3,7 +3,7 @@ module app.dn.io.loops.one_pipeline_event_loop;
 import app.dn.io.loops.server_loop: ServerLoop;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
-import app.dn.channels.pipes.pipleline : Pipeline;
+import app.dn.channels.pipes.pipeline : Pipeline;
 import app.dn.channels.server_channel: ServerChannel;
 
 import std.logger: Logger;

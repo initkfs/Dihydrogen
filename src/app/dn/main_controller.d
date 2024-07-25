@@ -8,7 +8,7 @@ import app.dn.io.loops.event_loop : EventLoop;
 import app.dn.io.loops.pool_pipeline_event_loop : PoolPipelineEventLoop;
 import app.dn.io.loops.multi_event_loop : MultiEventLoop;
 import app.dn.io.loops.one_pipeline_event_loop: OnePipelineEventLoop;
-import app.dn.channels.pipes.pipleline : Pipeline;
+import app.dn.channels.pipes.pipeline : Pipeline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.server_channel : ServerChannel;
 import core.stdc.stdlib : exit;

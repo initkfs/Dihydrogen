@@ -23,7 +23,7 @@ import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
 import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
 import app.dn.channels.server_channel: ServerChannel;
-import app.dn.channels.pipes.pipleline : Pipeline;
+import app.dn.channels.pipes.pipeline : Pipeline;
 
 /**
  * Authors: initkfs

@@ -1,9 +1,10 @@
-module app.dn.channels.pipes.pipleline;
+module app.dn.channels.pipes.pipeline;
 
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
 import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
+import app.dn.channels.contexts.channel_context: ChannelContext;
 
 /**
  * Authors: initkfs
@@ -63,7 +64,7 @@ class Pipeline
     void onAccept(ChannelCommand cmd)
     {
         onHandler((h) {
-            h.onAccept(cmd, onOutputCommandRun);
+            h.onAccept(ChannelContext(this, cmd, onOutputCommandRun));
             return true;
         });
     }
@@ -71,7 +72,7 @@ class Pipeline
     void onRead(ChannelCommand cmd)
     {
         onHandler((h) {
-            h.onRead(cmd, onOutputCommandRun);
+            h.onRead(ChannelContext(this, cmd, onOutputCommandRun));
             return true;
         });
     }
@@ -79,7 +80,7 @@ class Pipeline
     void onReadEnd(ChannelCommand cmd)
     {
         onHandler((h) {
-            h.onReadEnd(cmd, onOutputCommandRun);
+            h.onReadEnd(ChannelContext(this, cmd, onOutputCommandRun));
             return true;
         });
     }
@@ -87,7 +88,7 @@ class Pipeline
     void onWrite(ChannelCommand cmd)
     {
         onHandler((h) {
-            h.onWrite(cmd, onOutputCommandRun);
+            h.onWrite(ChannelContext(this, cmd, onOutputCommandRun));
             return true;
         });
     }
@@ -95,7 +96,7 @@ class Pipeline
     void onClose(ChannelCommand cmd)
     {
         onHandler((h) {
-            h.onClose(cmd, onOutputCommandRun);
+            h.onClose(ChannelContext(this, cmd, onOutputCommandRun));
             return true;
         });
     }

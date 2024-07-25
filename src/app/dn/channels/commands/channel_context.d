@@ -1,7 +1,7 @@
 module app.dn.channels.commands.channel_context;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
-import app.dn.channels.pipes.pipleline : Pipeline;
+import app.dn.channels.pipes.pipeline : Pipeline;
 
 /**
  * Authors: initkfs

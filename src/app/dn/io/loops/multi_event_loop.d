@@ -7,7 +7,7 @@ import app.dn.channels.server_channel : ServerChannel;
 import app.dn.io.loops.event_loop : EventLoop;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
-import app.dn.channels.pipes.pipleline : Pipeline;
+import app.dn.channels.pipes.pipeline : Pipeline;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
 
 import io_uring_libs;
