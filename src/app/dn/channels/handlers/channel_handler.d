@@ -2,7 +2,7 @@ module app.dn.channels.handlers.channel_handler;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import app.dn.channels.commands.channel_context : ChannelCommand;
+import app.dn.channels.commands.channel_command : ChannelCommand;
 import app.dn.channels.contexts.channel_context : ChannelContext;
 
 /**

@@ -1,4 +1,4 @@
-module app.dn.channels.commands.channel_context;
+module app.dn.channels.commands.channel_command;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.channels.pipes.pipeline : Pipeline;
