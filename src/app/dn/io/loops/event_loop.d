@@ -3,7 +3,6 @@ module app.dn.io.loops.event_loop;
 import std.stdio : writeln, writefln;
 import std.string : toStringz, fromStringz;
 
-
 import socket_libs;
 
 import core.stdc.stdlib : malloc, exit;
@@ -21,7 +20,7 @@ import app.core.components.units.services.loggable_unit : LoggableUnit;
 import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
-import app.dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
+import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
 
 import app.dn.channels.server_channel : ServerChannel;
 
@@ -45,11 +44,7 @@ class EventLoop : LoggableUnit
         super(logger);
     }
 
-    ChannelContext delegate(FdChannel*) onAccept;
-    ChannelContext delegate(FdChannel*) onRead;
-    ChannelContext delegate(FdChannel*) onReadEnd;
-    ChannelContext delegate(FdChannel*) onWrite;
-    void delegate(FdChannel*) onClose;
+    void delegate(ChannelCommand) onInputCommand;
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
@@ -114,7 +109,8 @@ class EventLoop : LoggableUnit
         return getEventsWait(ring, cqes, isError);
     }
 
-    FdChannel* channelFromCQE(io_uring_cqe* cqe){
+    FdChannel* channelFromCQE(io_uring_cqe* cqe)
+    {
         auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
         assert(connection);
         return connection;
@@ -122,6 +118,8 @@ class EventLoop : LoggableUnit
 
     bool runStepIsContinue()
     {
+        assert(onInputCommand);
+
         io_uring_cqe* cqe;
         int ret;
 
@@ -157,13 +155,15 @@ class EventLoop : LoggableUnit
 
         int cqe_count = io_uring_peek_batch_cqe(&ring, cqes.ptr, cqes.length);
 
-        if(onBatchIsContinue && !onBatchIsContinue(cqes[0..cqe_count])){
+        if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqe_count]))
+        {
             auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
 
-            if(connection.state == SocketConnectState.accept){
+            if (connection.state == SocketConnectState.accept)
+            {
                 addServerAccept(connection.fd);
             }
-            
+
             io_uring_cq_advance(&ring, cqe_count);
             return true;
         }
@@ -185,11 +185,7 @@ class EventLoop : LoggableUnit
 
                     assert(conn);
 
-                    if (onAccept)
-                    {
-                        auto ctx = onAccept(conn);
-                        runContext(ctx);
-                    }
+                    onInputCommand(ChannelCommand(conn, ChannelCommandType.accepted));
 
                     addServerAccept(connection.fd);
                     break;
@@ -203,11 +199,7 @@ class EventLoop : LoggableUnit
                             logger.trace("End read, close connection");
                         }
 
-                        if (onReadEnd)
-                        {
-                            auto ctx = onReadEnd(connection);
-                            runContext(ctx);
-                        }
+                        onInputCommand(ChannelCommand(connection, ChannelCommandType.readedAll));
                     }
                     else
                     {
@@ -221,11 +213,7 @@ class EventLoop : LoggableUnit
                             connection.availableBytes = buffSize;
                         }
 
-                        if (onRead)
-                        {
-                            auto ctx = onRead(connection);
-                            runContext(ctx);
-                        }
+                        onInputCommand(ChannelCommand(connection, ChannelCommandType.readed));
                     }
                     break;
                 case write:
@@ -234,34 +222,22 @@ class EventLoop : LoggableUnit
                         logger.trace("End write, close connection");
                     }
 
-                    if (onWrite)
-                    {
-                        auto ctx = onWrite(connection);
-                        runContext(ctx);
-                    }
+                    onInputCommand(ChannelCommand(connection, ChannelCommandType.writed));
                     break;
                 case close:
-                    if (onClose)
-                    {
-                        onClose(connection);
-                    }
+                    onInputCommand(ChannelCommand(connection, ChannelCommandType.closed));
                     break;
             }
         }
 
         io_uring_cq_advance(&ring, cqe_count);
-        
+
         return true;
     }
 
     override void run()
     {
         super.run;
-
-        // assert(onAccept);
-        // assert(onRead);
-        // assert(onReadEnd);
-        // assert(onClose);
 
         while (true)
         {
@@ -316,25 +292,25 @@ class EventLoop : LoggableUnit
         throw new Exception("Not supported pool");
     }
 
-    void runContext(ref ChannelContext ctx)
+    void runCommand(ChannelCommand cmd)
     {
-        if (ctx.isConsumed)
+        if (cmd.isConsumed)
         {
             return;
         }
 
-        final switch (ctx.type) with (ChannelContextType)
+        switch (cmd.type) with (ChannelCommandType)
         {
             case read:
-                addSocketReadv(&ring, ctx.channel);
+                addSocketReadv(&ring, cmd.channel);
                 break;
             case write:
-                addSocketWrite(&ring, ctx.channel, ctx.buff, ctx.buffLen);
+                addSocketWrite(&ring, cmd.channel, cmd.buff, cmd.buffLen);
                 break;
             case close:
-                addSocketClose(&ring, ctx.channel);
+                addSocketClose(&ring, cmd.channel);
                 break;
-            case none:
+            default:
                 break;
         }
     }

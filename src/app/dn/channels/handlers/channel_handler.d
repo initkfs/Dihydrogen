@@ -2,7 +2,7 @@ module app.dn.channels.handlers.channel_handler;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import app.dn.channels.contexts.channel_context : ChannelContext;
+import app.dn.channels.commands.channel_context : ChannelCommand;
 
 /**
  * Authors: initkfs
@@ -16,32 +16,35 @@ class ChannelHandler
 
     static response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
 
-    void onAccept(ref ChannelContext ctx)
+    void onAccept(ChannelCommand inCmd, void delegate(ChannelCommand) onOutCmd)
     {
-        ctx.read;
+        inCmd.setRead;
+        onOutCmd(inCmd);
     }
 
-    void onRead(ref ChannelContext ctx)
+    void onRead(ChannelCommand inCmd, void delegate(ChannelCommand) onOutCmd)
     {
-        //ctx.read
-        ctx.buff = cast(ubyte*) response.ptr;
-        ctx.buffLen = response.length;
-        ctx.write;
+        inCmd.setWrite;
+        inCmd.buff = cast(ubyte*) response.ptr;
+        inCmd.buffLen = response.length;
+        onOutCmd(inCmd);
     }
 
-    void onReadComplete(ref ChannelContext ctx)
+    void onReadEnd(ChannelCommand inCmd, void delegate(ChannelCommand) onOutCmd)
     {
-        ctx.buff = cast(ubyte*) response.ptr;
-        ctx.buffLen = response.length;
-        ctx.write;
+        inCmd.setWrite;
+        inCmd.buff = cast(ubyte*) response.ptr;
+        inCmd.buffLen = response.length;
+        onOutCmd(inCmd);
     }
 
-    void onWrite(ref ChannelContext ctx)
+    void onWrite(ChannelCommand inCmd, void delegate(ChannelCommand) onOutCmd)
     {
-        ctx.close;
+        inCmd.setClose;
+        onOutCmd(inCmd);
     }
 
-    void onClose(ref ChannelContext ctx)
+    void onClose(ChannelCommand inCmd, void delegate(ChannelCommand) onOutCmd)
     {
         //import std.stdio;
         //writefln("Close: %s", ctx.channel.fd);

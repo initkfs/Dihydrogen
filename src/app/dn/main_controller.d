@@ -7,6 +7,7 @@ import app.dn.net.sockets.socket_tcp_server : SocketTcpServer;
 import app.dn.io.loops.event_loop : EventLoop;
 import app.dn.io.loops.pool_pipeline_event_loop : PoolPipelineEventLoop;
 import app.dn.io.loops.multi_event_loop : MultiEventLoop;
+import app.dn.io.loops.one_pipeline_event_loop: OnePipelineEventLoop;
 import app.dn.channels.pipes.pipleline : Pipeline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.server_channel : ServerChannel;
@@ -23,7 +24,7 @@ class MainController : Controller!UniComponent
     {
         static SocketTcpServer serverSocket1;
         static SocketTcpServer serverSocket2;
-        static MultiEventLoop loop;
+        static OnePipelineEventLoop loop;
     }
 
     static Pipeline createPipeline()
@@ -50,11 +51,10 @@ class MainController : Controller!UniComponent
         serverSocket2.create;
         serverSocket2.run;
 
-        loop = new MultiEventLoop(logger, [
+        loop = new OnePipelineEventLoop(logger, [
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
-        ],
-        () { auto pipe = new Pipeline; pipe.add(new ChannelHandler); return pipe; });
+        ], createPipeline);
 
         // loop = new PoolPipelineEventLoop(logger, [
         //     ServerChannel(serverSocket1.fd, serverSocket1.port), 

@@ -6,7 +6,7 @@ import app.dn.io.loops.one_pipeline_event_loop : OnePipelineEventLoop;
 import app.dn.channels.server_channel : ServerChannel;
 import app.dn.io.loops.event_loop : EventLoop;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
-import app.dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
+import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
 import app.dn.channels.pipes.pipleline : Pipeline;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
 
@@ -69,99 +69,99 @@ class EventLoopThread : Thread
 
     void addAcept(int fd)
     {
-        while (!pool.hasIndex(fd))
-        {
-            if (!pool.increase)
-            {
-                newLogger.error("Error change buffer size");
-                exit(1);
-            }
-        }
+        // while (!pool.hasIndex(fd))
+        // {
+        //     if (!pool.increase)
+        //     {
+        //         newLogger.error("Error change buffer size");
+        //         exit(1);
+        //     }
+        // }
 
-        auto conn = pool.get(fd);
-        if (!conn)
-        {
-            auto newConnect = loop.newChannel(fd);
-            pool.set(fd, newConnect);
-            conn = newConnect;
-        }
-        else
-        {
-            conn.fd = fd;
-            conn.state = SocketConnectState.none;
-            conn.availableBytes = 0;
-        }
+        // auto conn = pool.get(fd);
+        // if (!conn)
+        // {
+        //     auto newConnect = loop.newChannel(fd);
+        //     pool.set(fd, newConnect);
+        //     conn = newConnect;
+        // }
+        // else
+        // {
+        //     conn.fd = fd;
+        //     conn.state = SocketConnectState.none;
+        //     conn.availableBytes = 0;
+        // }
 
-        auto acceptCtx = pipeline.onAccept(conn);
-        loop.runContext(acceptCtx);
+        // auto acceptCtx = pipeline.onAccept(conn);
+        // loop.runContext(acceptCtx);
     }
 
     private void run()
     {
-        newLogger = new FileLogger(stdout, LogLevel.trace);
-        try
-        {
+        // newLogger = new FileLogger(stdout, LogLevel.trace);
+        // try
+        // {
 
-            loop = new class EventLoop
-            {
-                this()
-                {
-                    super(newLogger);
-                }
+        //     loop = new class EventLoop
+        //     {
+        //         this()
+        //         {
+        //             super(newLogger);
+        //         }
 
-                override int getEvents(io_uring* ring, io_uring_cqe** cqes, out bool isError)
-                {
-                    return getEventsPeek(ring, cqes, isError);
-                }
-            };
+        //         override int getEvents(io_uring* ring, io_uring_cqe** cqes, out bool isError)
+        //         {
+        //             return getEventsPeek(ring, cqes, isError);
+        //         }
+        //     };
 
-            pool = new LinearPool!(FdChannel*)(2048);
-            pool.create;
-            foreach (i; 0 .. pool.count)
-            {
-                pool.set(i, loop.newChannel);
-            }
-            newLogger.infof("Create worker pool with id %d", workerIndex);
+        //     pool = new LinearPool!(FdChannel*)(2048);
+        //     pool.create;
+        //     foreach (i; 0 .. pool.count)
+        //     {
+        //         pool.set(i, loop.newChannel);
+        //     }
+        //     newLogger.infof("Create worker pool with id %d", workerIndex);
 
-            pipeline = workerPipelineProvider();
-            newLogger.infof("Create worker pipeline");
+        //     pipeline = workerPipelineProvider();
+        //     newLogger.infof("Create worker pipeline");
 
-            loop.onRead = (chan) { return pipeline.onRead(chan); };
-            loop.onReadEnd = (chan) { return pipeline.onReadEnd(chan); };
-            loop.onWrite = (chan) { return pipeline.onWrite(chan); };
-            loop.onClose = (chan) { pipeline.onClose(chan); };
+        //     loop.onRead = (chan) { return pipeline.onRead(chan); };
+        //     loop.onReadEnd = (chan) { return pipeline.onReadEnd(chan); };
+        //     loop.onWrite = (chan) { return pipeline.onWrite(chan); };
+        //     loop.onClose = (chan) { pipeline.onClose(chan); };
 
-            loop.initialize;
-            loop.create;
+        //     loop.initialize;
+        //     loop.create;
 
-            newLogger.infof("Run worker loop №%d", workerIndex);
+        //     newLogger.infof("Run worker loop №%d", workerIndex);
 
-            while (true)
-            {
-                if (isComplete)
-                {
-                    foreach (int fd; queue[0 .. queueSize])
-                    {
-                        addAcept(fd);
-                    }
+        //     while (true)
+        //     {
+        //         if (isComplete)
+        //         {
+        //             foreach (int fd; queue[0 .. queueSize])
+        //             {
+        //                 addAcept(fd);
+        //             }
 
-                    atomicExchange(&queueIdx, 0);
-                    atomicExchange(&queueSize, 0);
-                    atomicExchange(&isComplete, false);
-                }
+        //             atomicExchange(&queueIdx, 0);
+        //             atomicExchange(&queueSize, 0);
+        //             atomicExchange(&isComplete, false);
+        //         }
 
-                if (!loop.runStepIsContinue)
-                {
-                    break;
-                }
-            }
-        }
-        catch (Throwable e)
-        {
-            import std;
+        //         if (!loop.runStepIsContinue)
+        //         {
+        //             break;
+        //         }
+        //     }
+        // }
+        // catch (Throwable e)
+        // {
+        //     import std;
 
-            writefln("Worker id %d error: %s", workerIndex, e);
-        }
+        //     writefln("Worker id %d error: %s", workerIndex, e);
+        // }
     }
 }
 

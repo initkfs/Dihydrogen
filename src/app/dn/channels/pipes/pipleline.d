@@ -3,7 +3,7 @@ module app.dn.channels.pipes.pipleline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import app.dn.channels.contexts.channel_context : ChannelContext;
+import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
 
 /**
  * Authors: initkfs
@@ -12,8 +12,42 @@ class Pipeline
 {
     ChannelHandler first;
 
+    void delegate(ChannelCommand) onOutputCommandRun;
+
+    void runInputCommand(ChannelCommand cmd)
+    {
+        switch (cmd.type) with (ChannelCommandType)
+        {
+            case accepted:
+                onAccept(cmd);
+                break;
+            case readed:
+                onRead(cmd);
+                break;
+            case readedAll:
+                onReadEnd(cmd);
+                break;
+            case writed:
+                onWrite(cmd);
+                break;
+            case closed:
+                onClose(cmd);
+                break;
+            default:
+                break;
+        }
+    }
+
+    void runOutputCommand(ChannelCommand cmd)
+    {
+        assert(onOutputCommandRun);
+        onOutputCommandRun(cmd);
+    }
+
     protected void onHandler(scope bool delegate(ChannelHandler) onHandlerIsContinue)
     {
+        assert(onOutputCommandRun);
+
         ChannelHandler curr = first;
         while (curr)
         {
@@ -26,38 +60,44 @@ class Pipeline
         }
     }
 
-    ChannelContext onAccept(FdChannel* chan)
+    void onAccept(ChannelCommand cmd)
     {
-        ChannelContext ctx = ChannelContext(this, chan);
-        onHandler((h) { h.onAccept(ctx); return true; });
-        return ctx;
+        onHandler((h) {
+            h.onAccept(cmd, onOutputCommandRun);
+            return true;
+        });
     }
 
-    ChannelContext onRead(FdChannel* chan)
+    void onRead(ChannelCommand cmd)
     {
-        ChannelContext ctx = ChannelContext(this, chan);
-        onHandler((h) { h.onRead(ctx); return true; });
-        return ctx;
+        onHandler((h) {
+            h.onRead(cmd, onOutputCommandRun);
+            return true;
+        });
     }
 
-    ChannelContext onReadEnd(FdChannel* chan)
+    void onReadEnd(ChannelCommand cmd)
     {
-        ChannelContext ctx = ChannelContext(this, chan);
-        onHandler((h) { h.onReadComplete(ctx); return true; });
-        return ctx;
+        onHandler((h) {
+            h.onReadEnd(cmd, onOutputCommandRun);
+            return true;
+        });
     }
 
-    void onClose(FdChannel* chan)
+    void onWrite(ChannelCommand cmd)
     {
-        ChannelContext ctx = ChannelContext(this, chan);
-        onHandler((h) { h.onClose(ctx); return true; });
+        onHandler((h) {
+            h.onWrite(cmd, onOutputCommandRun);
+            return true;
+        });
     }
 
-    ChannelContext onWrite(FdChannel* chan)
+    void onClose(ChannelCommand cmd)
     {
-        ChannelContext ctx = ChannelContext(this, chan);
-        onHandler((h) { h.onWrite(ctx); return true; });
-        return ctx;
+        onHandler((h) {
+            h.onClose(cmd, onOutputCommandRun);
+            return true;
+        });
     }
 
     bool add(ChannelHandler handler)

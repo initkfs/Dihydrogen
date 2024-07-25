@@ -21,7 +21,7 @@ import app.core.components.units.services.loggable_unit : LoggableUnit;
 import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
-import app.dn.channels.contexts.channel_context : ChannelContext, ChannelContextType;
+import app.dn.channels.commands.channel_context : ChannelCommand, ChannelCommandType;
 import app.dn.channels.server_channel: ServerChannel;
 import app.dn.channels.pipes.pipleline : Pipeline;
 
@@ -55,65 +55,65 @@ class PoolPipelineEventLoop : ServerLoop
     {
         super.create;
 
-        pipelinePool = new LinearPool!(Pipeline)(pipelinePoolSize);
-        pipelinePool.create;
+        // pipelinePool = new LinearPool!(Pipeline)(pipelinePoolSize);
+        // pipelinePool.create;
 
-        onAccept = (chan) {
-            while (!pipelinePool.hasIndex(chan.fd))
-            {
-                if (!pipelinePool.increase)
-                {
-                    logger.error("Error change pipeline pool size");
-                    exit(1);
-                }
-            }
+        // onAccept = (chan) {
+        //     while (!pipelinePool.hasIndex(chan.fd))
+        //     {
+        //         if (!pipelinePool.increase)
+        //         {
+        //             logger.error("Error change pipeline pool size");
+        //             exit(1);
+        //         }
+        //     }
 
-            auto pipeline = pipelinePool.get(chan.fd);
-            if (!pipeline)
-            {
-                auto newPipeline = pipelineFactory();
-                pipelinePool.set(chan.fd, newPipeline);
-                pipeline = newPipeline;
-            }
+        //     auto pipeline = pipelinePool.get(chan.fd);
+        //     if (!pipeline)
+        //     {
+        //         auto newPipeline = pipelineFactory();
+        //         pipelinePool.set(chan.fd, newPipeline);
+        //         pipeline = newPipeline;
+        //     }
 
-            return pipeline.onAccept(chan);
+        //     return pipeline.onAccept(chan);
 
-        };
+        // };
 
-        onRead = (chan) {
-            auto pipeline = pipelinePool.get(chan.fd);
-            assert(pipeline);
+        // onRead = (chan) {
+        //     auto pipeline = pipelinePool.get(chan.fd);
+        //     assert(pipeline);
 
-            return pipeline.onRead(chan);
-        };
+        //     return pipeline.onRead(chan);
+        // };
 
-        onReadEnd = (chan) {
-            auto pipeline = pipelinePool.get(chan.fd);
-            assert(pipeline);
+        // onReadEnd = (chan) {
+        //     auto pipeline = pipelinePool.get(chan.fd);
+        //     assert(pipeline);
 
-            return pipeline.onReadEnd(chan);
-        };
+        //     return pipeline.onReadEnd(chan);
+        // };
 
-        onWrite = (chan) {
-            auto pipeline = pipelinePool.get(chan.fd);
-            assert(pipeline);
+        // onWrite = (chan) {
+        //     auto pipeline = pipelinePool.get(chan.fd);
+        //     assert(pipeline);
 
-            return pipeline.onWrite(chan);
-        };
+        //     return pipeline.onWrite(chan);
+        // };
 
-        onClose = (chan) {
-            auto pipeline = pipelinePool.get(chan.fd);
-            assert(pipeline);
+        // onClose = (chan) {
+        //     auto pipeline = pipelinePool.get(chan.fd);
+        //     assert(pipeline);
 
-            pipeline.onClose(chan);
+        //     pipeline.onClose(chan);
 
-            //TODO calling before context runs can be destructive.
-            if (isDestroyPipeAfterClose)
-            {
-                pipelineDestroyer(pipeline);
-                pipelinePool.set(chan.fd, null);
-            }
-        };
+        //     //TODO calling before context runs can be destructive.
+        //     if (isDestroyPipeAfterClose)
+        //     {
+        //         pipelineDestroyer(pipeline);
+        //         pipelinePool.set(chan.fd, null);
+        //     }
+        // };
 
     }
 }
