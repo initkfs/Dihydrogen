@@ -1,6 +1,6 @@
 module app.dn.channels.contexts.channel_context;
 
-import app.dn.channels.commands.channel_command : ChannelCommand, ChannelCommandType;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.channels.pipes.pipeline: Pipeline;
 
 /**
@@ -9,11 +9,14 @@ import app.dn.channels.pipes.pipeline: Pipeline;
 struct ChannelContext
 {
     Pipeline pipe;
-    ChannelCommand inCmd;
-    void delegate(ChannelCommand) onOutputCmd;
+    ChanInEvent inEvent;
+    ChanOutEvent outEvent;
+    void delegate(ChanOutEvent) onOutEvent;
 
-    void run(){
-        assert(onOutputCmd);
-        onOutputCmd(inCmd);
+    void send(){
+        assert(onOutEvent);
+        assert(outEvent.chan);
+        assert(outEvent.type != ChanOutEvent.ChanOutEventType.none);
+        onOutEvent(outEvent);
     }
 }

@@ -19,7 +19,7 @@ import std.logger;
 import app.core.components.units.services.loggable_unit : LoggableUnit;
 import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
-import app.dn.channels.commands.channel_command : ChannelCommand, ChannelCommandType;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
 
 import app.dn.io.loops.event_loop : EventLoop;

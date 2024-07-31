@@ -20,7 +20,7 @@ import app.core.components.units.services.loggable_unit : LoggableUnit;
 import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
-import app.dn.channels.commands.channel_command : ChannelCommand, ChannelCommandType;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 import app.dn.channels.server_channel : ServerChannel;
 
@@ -44,7 +44,7 @@ class EventLoop : LoggableUnit
         super(logger);
     }
 
-    void delegate(ChannelCommand) onInputCommand;
+    void delegate(ChanInEvent) onInEvent;
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
@@ -118,7 +118,7 @@ class EventLoop : LoggableUnit
 
     bool runStepIsContinue()
     {
-        assert(onInputCommand);
+        assert(onInEvent);
 
         io_uring_cqe* cqe;
         int ret;
@@ -185,7 +185,7 @@ class EventLoop : LoggableUnit
 
                     assert(conn);
 
-                    onInputCommand(ChannelCommand(conn, ChannelCommandType.accepted));
+                    onInEvent(ChanInEvent(conn, ChanInEvent.ChanInEventType.accepted));
 
                     addServerAccept(connection.fd);
                     break;
@@ -199,7 +199,7 @@ class EventLoop : LoggableUnit
                             logger.trace("End read, close connection");
                         }
 
-                        onInputCommand(ChannelCommand(connection, ChannelCommandType.readedAll));
+                        onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.readedAll));
                     }
                     else
                     {
@@ -213,7 +213,7 @@ class EventLoop : LoggableUnit
                             connection.availableBytes = buffSize;
                         }
 
-                        onInputCommand(ChannelCommand(connection, ChannelCommandType.readed));
+                        onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.readed));
                     }
                     break;
                 case write:
@@ -222,10 +222,10 @@ class EventLoop : LoggableUnit
                         logger.trace("End write, close connection");
                     }
 
-                    onInputCommand(ChannelCommand(connection, ChannelCommandType.writed));
+                    onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.writed));
                     break;
                 case close:
-                    onInputCommand(ChannelCommand(connection, ChannelCommandType.closed));
+                    onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.closed));
                     break;
             }
         }
@@ -292,23 +292,23 @@ class EventLoop : LoggableUnit
         throw new Exception("Not supported pool");
     }
 
-    void runCommand(ChannelCommand cmd)
+    void sendEvent(ChanOutEvent event)
     {
-        if (cmd.isConsumed)
+        if (event.isConsumed)
         {
             return;
         }
 
-        switch (cmd.type) with (ChannelCommandType)
+        switch (event.type) with (ChanOutEvent.ChanOutEventType)
         {
             case read:
-                addSocketReadv(&ring, cmd.channel);
+                addSocketReadv(&ring, event.chan);
                 break;
             case write:
-                addSocketWrite(&ring, cmd.channel, cmd.buff, cmd.buffLen);
+                addSocketWrite(&ring, event.chan, event.buff, event.buffLen);
                 break;
             case close:
-                addSocketClose(&ring, cmd.channel);
+                addSocketClose(&ring, event.chan);
                 break;
             default:
                 break;

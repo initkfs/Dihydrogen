@@ -3,8 +3,8 @@ module app.dn.channels.pipes.pipeline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import app.dn.channels.commands.channel_command : ChannelCommand, ChannelCommandType;
-import app.dn.channels.contexts.channel_context: ChannelContext;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
+import app.dn.channels.contexts.channel_context : ChannelContext;
 
 /**
  * Authors: initkfs
@@ -13,41 +13,41 @@ class Pipeline
 {
     ChannelHandler first;
 
-    void delegate(ChannelCommand) onOutputCommandRun;
+    void delegate(ChanOutEvent) onOutEvent;
 
-    void runInputCommand(ChannelCommand cmd)
+    void onInEvent(ChanInEvent event)
     {
-        switch (cmd.type) with (ChannelCommandType)
+        switch (event.type) with (ChanInEvent.ChanInEventType)
         {
             case accepted:
-                onAccept(cmd);
+                onAccept(event);
                 break;
             case readed:
-                onRead(cmd);
+                onRead(event);
                 break;
             case readedAll:
-                onReadEnd(cmd);
+                onReadEnd(event);
                 break;
             case writed:
-                onWrite(cmd);
+                onWrite(event);
                 break;
             case closed:
-                onClose(cmd);
+                onClose(event);
                 break;
             default:
                 break;
         }
     }
 
-    void runOutputCommand(ChannelCommand cmd)
+    void sendEvent(ChanOutEvent event)
     {
-        assert(onOutputCommandRun);
-        onOutputCommandRun(cmd);
+        assert(onOutEvent);
+        onOutEvent(event);
     }
 
     protected void onHandler(scope bool delegate(ChannelHandler) onHandlerIsContinue)
     {
-        assert(onOutputCommandRun);
+        assert(onOutEvent);
 
         ChannelHandler curr = first;
         while (curr)
@@ -61,42 +61,42 @@ class Pipeline
         }
     }
 
-    void onAccept(ChannelCommand cmd)
+    void onAccept(ChanInEvent event)
     {
         onHandler((h) {
-            h.onAccept(ChannelContext(this, cmd, onOutputCommandRun));
+            h.onAccept(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onRead(ChannelCommand cmd)
+    void onRead(ChanInEvent event)
     {
         onHandler((h) {
-            h.onRead(ChannelContext(this, cmd, onOutputCommandRun));
+            h.onRead(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onReadEnd(ChannelCommand cmd)
+    void onReadEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadEnd(ChannelContext(this, cmd, onOutputCommandRun));
+            h.onReadEnd(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onWrite(ChannelCommand cmd)
+    void onWrite(ChanInEvent event)
     {
         onHandler((h) {
-            h.onWrite(ChannelContext(this, cmd, onOutputCommandRun));
+            h.onWrite(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onClose(ChannelCommand cmd)
+    void onClose(ChanInEvent event)
     {
         onHandler((h) {
-            h.onClose(ChannelContext(this, cmd, onOutputCommandRun));
+            h.onClose(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }

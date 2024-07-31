@@ -2,7 +2,7 @@ module app.dn.io.loops.one_pipeline_event_loop;
 
 import app.dn.io.loops.server_loop: ServerLoop;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
-import app.dn.channels.commands.channel_command : ChannelCommand, ChannelCommandType;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.channels.pipes.pipeline : Pipeline;
 import app.dn.channels.server_channel: ServerChannel;
 
@@ -27,7 +27,7 @@ class OnePipelineEventLoop : ServerLoop
     {
         super.create;
 
-        onInputCommand = (cmd) => pipeline.runInputCommand(cmd);
-        pipeline.onOutputCommandRun = (cmd) => runCommand(cmd);
+        onInEvent = (event) => pipeline.onInEvent(event);
+        pipeline.onOutEvent = (event) => sendEvent(event);
     }
 }

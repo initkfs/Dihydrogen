@@ -2,7 +2,7 @@ module app.dn.channels.handlers.channel_handler;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import app.dn.channels.commands.channel_command : ChannelCommand;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.channels.contexts.channel_context : ChannelContext;
 
 /**
@@ -19,30 +19,30 @@ class ChannelHandler
 
     void onAccept(ChannelContext ctx)
     {
-        ctx.inCmd.setRead;
-        ctx.run;
+        ctx.outEvent.setRead;
+        ctx.send;
     }
 
     void onRead(ChannelContext ctx)
     {
-        ctx.inCmd.setWrite;
-        ctx.inCmd.buff = cast(ubyte*) response.ptr;
-        ctx.inCmd.buffLen = response.length;
-        ctx.run;
+        ctx.outEvent.setWrite;
+        ctx.outEvent.buff = cast(ubyte*) response.ptr;
+        ctx.outEvent.buffLen = response.length;
+        ctx.send;
     }
 
     void onReadEnd(ChannelContext ctx)
     {
-        ctx.inCmd.setWrite;
-        ctx.inCmd.buff = cast(ubyte*) response.ptr;
-        ctx.inCmd.buffLen = response.length;
-        ctx.run;
+        ctx.outEvent.setWrite;
+        ctx.outEvent.buff = cast(ubyte*) response.ptr;
+        ctx.outEvent.buffLen = response.length;
+        ctx.send;
     }
 
     void onWrite(ChannelContext ctx)
     {
-        ctx.inCmd.setClose;
-        ctx.run;
+        ctx.outEvent.setClose;
+        ctx.send;
     }
 
     void onClose(ChannelContext ctx)
