@@ -25,11 +25,11 @@ class Pipeline
             case readed:
                 onRead(event);
                 break;
-            case readedAll:
+            case readedEnd:
                 onReadEnd(event);
                 break;
-            case writed:
-                onWrite(event);
+            case wrote:
+                onWrote(event);
                 break;
             case closed:
                 onClose(event);
@@ -85,7 +85,7 @@ class Pipeline
         });
     }
 
-    void onWrite(ChanInEvent event)
+    void onWrote(ChanInEvent event)
     {
         onHandler((h) {
             h.onWrite(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));

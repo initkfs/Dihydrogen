@@ -12,8 +12,8 @@ struct ChanInEvent
         none,
         accepted,
         readed,
-        readedAll,
-        writed,
+        readedEnd,
+        wrote,
         closed,
     }
 

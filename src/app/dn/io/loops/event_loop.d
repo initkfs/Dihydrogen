@@ -20,7 +20,6 @@ import app.core.components.units.services.loggable_unit : LoggableUnit;
 import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
-import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 import app.dn.channels.server_channel : ServerChannel;
 
@@ -44,7 +43,11 @@ class EventLoop : LoggableUnit
         super(logger);
     }
 
-    void delegate(ChanInEvent) onInEvent;
+    void delegate(FdChannel*) onAccepted;
+    void delegate(FdChannel*) onReaded;
+    void delegate(FdChannel*) onReadedEnd;
+    void delegate(FdChannel*) onWrote;
+    void delegate(FdChannel*) onClosed;
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
@@ -57,6 +60,12 @@ class EventLoop : LoggableUnit
     override void create()
     {
         super.create;
+
+        assert(onAccepted, "On accept listener must be not null");
+        assert(onReaded, "On read listener must be not null");
+        assert(onReadedEnd, "On read end listener must be not null");
+        assert(onWrote, "On write listener must be not null");
+        assert(onClosed, "On close listener must be not null");
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
@@ -118,8 +127,6 @@ class EventLoop : LoggableUnit
 
     bool runStepIsContinue()
     {
-        assert(onInEvent);
-
         io_uring_cqe* cqe;
         int ret;
 
@@ -185,7 +192,7 @@ class EventLoop : LoggableUnit
 
                     assert(conn);
 
-                    onInEvent(ChanInEvent(conn, ChanInEvent.ChanInEventType.accepted));
+                    onAccepted(conn);
 
                     addServerAccept(connection.fd);
                     break;
@@ -194,12 +201,7 @@ class EventLoop : LoggableUnit
 
                     if (bytes_read <= 0)
                     {
-                        if (isTraceEvents)
-                        {
-                            logger.trace("End read, close connection");
-                        }
-
-                        onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.readedAll));
+                        onReadedEnd(connection);
                     }
                     else
                     {
@@ -212,20 +214,14 @@ class EventLoop : LoggableUnit
                         {
                             connection.availableBytes = buffSize;
                         }
-
-                        onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.readed));
+                        onReaded(connection);
                     }
                     break;
                 case write:
-                    if (isTraceEvents)
-                    {
-                        logger.trace("End write, close connection");
-                    }
-
-                    onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.writed));
+                    onWrote(connection);
                     break;
                 case close:
-                    onInEvent(ChanInEvent(connection, ChanInEvent.ChanInEventType.closed));
+                    onClosed(connection);
                     break;
             }
         }
@@ -290,29 +286,6 @@ class EventLoop : LoggableUnit
     FdChannel* getChannel(int serverFd, int activeChannelFd)
     {
         throw new Exception("Not supported pool");
-    }
-
-    void sendEvent(ChanOutEvent event)
-    {
-        if (event.isConsumed)
-        {
-            return;
-        }
-
-        switch (event.type) with (ChanOutEvent.ChanOutEventType)
-        {
-            case read:
-                addSocketReadv(&ring, event.chan);
-                break;
-            case write:
-                addSocketWrite(&ring, event.chan, event.buff, event.buffLen);
-                break;
-            case close:
-                addSocketClose(&ring, event.chan);
-                break;
-            default:
-                break;
-        }
     }
 
     void addSocketClose(io_uring* ring, FdChannel* conn)

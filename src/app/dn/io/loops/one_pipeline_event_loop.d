@@ -28,6 +28,6 @@ class OnePipelineEventLoop : ServerLoop
         super.create;
 
         onInEvent = (event) => pipeline.onInEvent(event);
-        pipeline.onOutEvent = (event) => sendEvent(event);
+        pipeline.onOutEvent = (event) => sendOutEvent(event);
     }
 }
