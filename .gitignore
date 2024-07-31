@@ -2,3 +2,5 @@
 /.vscode
 /dn
 /build.sh
+/trace.def
+/trace.log

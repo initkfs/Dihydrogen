@@ -7,6 +7,7 @@ import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.channels.events.routes.event_router : EventRouter;
 import app.dn.channels.events.translators.event_translator : EventTranslator;
 import app.dn.channels.events.monitors.event_monitor : EventMonitor;
+import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 import std.logger : Logger;
 
@@ -31,12 +32,51 @@ class EndpointableEventLoop : EventableEventLoop
 
     override void create()
     {
-        onInEvent = (chanInEvent) { eventRouter.routeInEvent(chanInEvent); };
-        
+        onInEvent = (chanInEvent) {
+
+            if (eventMonitor)
+            {
+                eventMonitor.onInEvent(chanInEvent);
+            }
+
+            if (!eventTranslator)
+            {
+                eventRouter.routeInEvent(chanInEvent);
+                return;
+            }
+
+            ChanInEvent transInEvent = eventTranslator.translateInEvent(chanInEvent);
+            if (eventMonitor)
+            {
+                eventMonitor.onTranslatedInEvent(chanInEvent, transInEvent);
+            }
+
+            eventRouter.routeInEvent(transInEvent);
+        };
+
         super.create;
 
         assert(eventRouter);
-        eventRouter.onOutEvent = (outEvent) => sendOutEvent(outEvent);
-        
+        eventRouter.onOutEvent = (outEvent) {
+
+            if (eventMonitor)
+            {
+                eventMonitor.onOutFromRouterEvent(outEvent);
+            }
+
+            if (!eventTranslator)
+            {
+                sendOutEvent(outEvent);
+                return;
+            }
+
+            ChanOutEvent transOutEvent = eventTranslator.translateOutEvent(outEvent);
+            if (eventMonitor)
+            {
+                eventMonitor.onTranslatedOutEvent(outEvent, transOutEvent);
+            }
+
+            eventRouter.routeOutEvent(transOutEvent);
+        };
     }
 }
