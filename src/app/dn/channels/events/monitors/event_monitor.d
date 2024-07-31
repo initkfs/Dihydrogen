@@ -15,7 +15,7 @@ class EventMonitor {
 
     }
 
-    void onOutFromRouterEvent(ChanOutEvent inEvent){
+    void onOutRouterEvent(ChanOutEvent inEvent){
 
     }
 

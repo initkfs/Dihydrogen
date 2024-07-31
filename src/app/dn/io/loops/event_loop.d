@@ -201,6 +201,7 @@ class EventLoop : LoggableUnit
 
                     if (bytes_read <= 0)
                     {
+                        connection.availableBytes = 0;
                         onReadedEnd(connection);
                     }
                     else

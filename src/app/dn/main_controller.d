@@ -5,15 +5,16 @@ import app.core.components.uni_component : UniComponent;
 
 import app.dn.net.sockets.socket_tcp_server : SocketTcpServer;
 import app.dn.io.loops.event_loop : EventLoop;
-import app.dn.io.loops.server_loop: ServerLoop;
+import app.dn.io.loops.server_loop : ServerLoop;
 import app.dn.channels.pipes.pipeline : Pipeline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.server_channel : ServerChannel;
 import core.stdc.stdlib : exit;
 import app.dn.channels.events.routes.event_router : EventRouter;
-import app.dn.channels.events.routes.pipeline_router: PipelineRouter;
+import app.dn.channels.events.routes.pipeline_router : PipelineRouter;
 import app.dn.channels.events.translators.event_translator : EventTranslator;
 import app.dn.channels.events.monitors.event_monitor : EventMonitor;
+import app.dn.channels.events.monitors.log_event_monitor: LogEventMonitor;
 
 import signal_libs;
 
@@ -55,10 +56,13 @@ class MainController : Controller!UniComponent
 
         auto eventRouter = new PipelineRouter(createPipeline);
 
+        auto monitor = new LogEventMonitor(logger);
+
         loop = new ServerLoop(logger, [
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
-        ], eventRouter);
+        ], eventRouter, translator:
+        null, monitor);
 
         loop.initialize;
         loop.create;

@@ -17,4 +17,11 @@ struct FdChannel
     size_t buffLength;
     size_t availableBytes;
     void* data;
+
+    string toSimpleString() const
+    {
+        import std.format : format;
+        
+        return format("[%s:%s]", typeof(this).stringof, fd);
+    }
 }

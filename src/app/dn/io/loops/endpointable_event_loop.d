@@ -61,7 +61,7 @@ class EndpointableEventLoop : EventableEventLoop
 
             if (eventMonitor)
             {
-                eventMonitor.onOutFromRouterEvent(outEvent);
+                eventMonitor.onOutRouterEvent(outEvent);
             }
 
             if (!eventTranslator)
