@@ -1,14 +1,14 @@
 module app.dn.channels.contexts.channel_context;
 
 import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
-import app.dn.channels.pipes.pipeline: Pipeline;
+import app.dn.channels.handlers.pipelines.handler_pipeline: HandlerPipeline;
 
 /**
  * Authors: initkfs
  */
 struct ChannelContext
 {
-    Pipeline pipe;
+    HandlerPipeline pipe;
     ChanInEvent inEvent;
     ChanOutEvent outEvent;
     void delegate(ChanOutEvent) onOutEvent;

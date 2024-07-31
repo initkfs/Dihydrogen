@@ -6,7 +6,7 @@ import app.core.components.uni_component : UniComponent;
 import app.dn.net.sockets.socket_tcp_server : SocketTcpServer;
 import app.dn.io.loops.event_loop : EventLoop;
 import app.dn.io.loops.server_loop : ServerLoop;
-import app.dn.channels.pipes.pipeline : Pipeline;
+import app.dn.channels.handlers.pipelines.handler_pipeline : HandlerPipeline;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.server_channel : ServerChannel;
 import core.stdc.stdlib : exit;
@@ -30,9 +30,9 @@ class MainController : Controller!UniComponent
         static ServerLoop loop;
     }
 
-    static Pipeline createPipeline()
+    static HandlerPipeline createPipeline()
     {
-        auto pipe = new Pipeline;
+        auto pipe = new HandlerPipeline;
         pipe.add(new ChannelHandler);
         return pipe;
     }

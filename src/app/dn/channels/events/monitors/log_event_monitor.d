@@ -20,27 +20,47 @@ class LogEventMonitor : EventMonitor
         this.logger = logger;
     }
 
+    //TODO best implementation
+    private dstring escape(dstring str)
+    {
+        import std;
+
+        dstring s = str.chunks(1).map!(c =>
+                (c == "\n") ? "\\n" : (c == "\r") ? "\\r" : (c == "\t") ? "\\t" : c)
+            .joiner.array;
+        return s;
+    }
+
     override void onInEvent(ChanInEvent inEvent)
     {
         if (inEvent.type == ChanInEvent.ChanInEventType.readed)
         {
-            logger.tracef("IN. fd:%s, type:%s, buff:%s", inEvent.chan.fd, inEvent.type, cast(string) inEvent.chan.buff[0 .. (
-                    inEvent.chan.availableBytes)]);
+            import std.conv : to;
+
+            dstring buffStr = (cast(string) inEvent
+                .chan.buff[0 .. (
+                        inEvent.chan.availableBytes)]).to!dstring;
+            logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.type, escape(
+                    buffStr));
             return;
         }
 
-        logger.tracef("IN. fd:%s, type: %s", inEvent.chan.fd, inEvent.type);
+        logger.tracef("%s:%s, %s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.type);
     }
 
     override void onOutRouterEvent(ChanOutEvent outEvent)
     {
         if (outEvent.type == ChanOutEvent.ChanOutEventType.write)
         {
-            logger.tracef("OUT. fd:%s, type:%s, buff:%s", outEvent.chan.fd, outEvent.type, cast(string) outEvent
-                    .buff[0 .. outEvent.buffLen]);
+            import std.conv: to;
+            //TODO utf, remove unsafe cast
+            dstring buffStr = (cast(string)outEvent
+                .buff[0 .. outEvent.buffLen]).to!dstring;
+            logger.tracef("%s:%s, %s, buff:%s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.type, escape(
+                    buffStr));
             return;
         }
 
-        logger.tracef("OUT. fd:%s, type:%s", outEvent.chan.fd, outEvent.type);
+        logger.tracef("%s:%s, %s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.type);
     }
 }

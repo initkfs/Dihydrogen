@@ -1,4 +1,4 @@
-module app.dn.channels.pipes.pipeline;
+module app.dn.channels.handlers.pipelines.handler_pipeline;
 
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
@@ -9,7 +9,7 @@ import app.dn.channels.contexts.channel_context : ChannelContext;
 /**
  * Authors: initkfs
  */
-class Pipeline
+class HandlerPipeline
 {
     ChannelHandler first;
 

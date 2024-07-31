@@ -1,7 +1,7 @@
 module app.dn.channels.events.routes.pipeline_router;
 
 import app.dn.channels.events.routes.event_router : EventRouter;
-import app.dn.channels.pipes.pipeline : Pipeline;
+import app.dn.channels.handlers.pipelines.handler_pipeline : HandlerPipeline;
 import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 /**
@@ -10,9 +10,9 @@ import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 class PipelineRouter : EventRouter
 {
-    Pipeline pipeline;
+    HandlerPipeline pipeline;
 
-    this(Pipeline pipeline)
+    this(HandlerPipeline pipeline)
     {
         assert(pipeline);
         this.pipeline = pipeline;
