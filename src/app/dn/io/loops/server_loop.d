@@ -21,14 +21,17 @@ import app.dn.pools.linear_pool : LinearPool;
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.net.sockets.socket_connect : SocketConnectState;
 
-import app.dn.io.loops.eventable_event_loop : EventableEventLoop;
+import app.dn.io.loops.endpointable_event_loop: EndpointableEventLoop;
 
 import app.dn.channels.server_channel : ServerChannel;
+import app.dn.channels.events.routes.event_router : EventRouter;
+import app.dn.channels.events.translators.event_translator : EventTranslator;
+import app.dn.channels.events.monitors.event_monitor : EventMonitor;
 
 /**
  * Authors: initkfs
  */
-class ServerLoop : EventableEventLoop
+class ServerLoop : EndpointableEventLoop
 {
 
     ServerChannelData[int] channelsMap;
@@ -38,9 +41,9 @@ class ServerLoop : EventableEventLoop
         ServerChannel[] serverChans;
     }
 
-    this(Logger logger, ServerChannel[] serverChans)
+    this(Logger logger, ServerChannel[] serverChans, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
     {
-        super(logger);
+        super(logger, router, translator, monitor);
         this.serverChans = serverChans;
     }
 

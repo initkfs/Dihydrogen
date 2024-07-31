@@ -1,5 +1,8 @@
 module app.dn.channels.fd_channel;
 
+/**
+ * Authors: initkfs
+ */
 enum FdChannelType
 {
     socket

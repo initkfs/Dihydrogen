@@ -32,7 +32,7 @@ class EventableEventLoop : EventLoop
         assert(onInEvent);
     }
 
-    protected void sendInEvent(FdChannel* conn, ChanInEvent.ChanInEventType type)
+    private void sendInEvent(FdChannel* conn, ChanInEvent.ChanInEventType type)
     {
         onInEvent(ChanInEvent(conn, type));
     }
