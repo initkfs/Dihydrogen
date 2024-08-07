@@ -18,9 +18,8 @@ enum StompControlСhars : byte
     colon = ':',
 }
 
-enum StompCommandType : string
+enum StompCommand : string
 {
-    UNKNOWN = "UNKNOWN",
     //client
     SEND = "SEND",
     SUBSCRIBE = "SUBSCRIBE",
@@ -41,18 +40,6 @@ enum StompCommandType : string
     ERROR = "ERROR"
 }
 
-struct StompCommand
-{
-    StompCommandType type;
-}
-
-struct StompFrame
-{
-    StompCommand frameCommand;
-    Nullable!StompHeaders frameHeaders;
-    Nullable!StompBody frameBody;
-}
-
 /**
  * Authors: initkfs
  */
@@ -64,14 +51,32 @@ class StompCodec : Codec
 
     StompCodecState state;
 
-    enum StompCodecState
+    char cr = StompControlСhars.cr;
+    char lf = StompControlСhars.lf;
+
+    size_t limitBodySizeBytes = size_t.max;
+
+    enum StompCodecState : string
     {
-        none,
-        error,
-        parseCmdEOL,
-        parseHeaders,
-        parseBody,
-        endFrame
+        none = "none",
+        ok = "ok",
+        error = "Common parser error",
+
+        parseCmd = "Command parsing",
+        parseCmdEOL = "Command EOL parsing",
+        parseHeaders = "Headers parsing",
+        parseBody = "Body parsing",
+        endFrame = "End STOMP frame",
+
+        errorEmptyBuffer = "Error. Input buffer is empty",
+        errorInvalidCommand = "Error. Invalid command",
+        errorParseCmdEOLEmpty = "Error. Received empty EOL line",
+        errorParseCmdEOLNotSpec = "Error. Command EOL starting with invalid symbols",
+        errorParseCmdEOLSpaceLimit = "Error. Command EOL exceeds the limit of empty chars after command",
+        errorMessageEndWithoutEOL = "Error. The message ends without a trailing EOL",
+        errorHeadersWithoutEOL = "Error. Header ends without a trailing EOL",
+
+        errorBodyIsOverLimit = "Error. Message body is over limit"
     }
 
     void decode(ubyte[] buff)
@@ -79,40 +84,49 @@ class StompCodec : Codec
         ubyte[] buffSlice = buff;
         parseLoop: while (buffSlice.length > 0)
         {
-            final switch (state) with (StompCodecState)
+            switch (state) with (StompCodecState)
             {
                 case none:
-                    command = parseCommand(buff);
-                    if (command.type == StompCommandType.UNKNOWN)
+                    state = StompCodecState.parseCmd;
+
+                    StompCommand mustBeCmd;
+                    state = parseFrameCommand(buff, mustBeCmd);
+                    if (state != StompCodecState.ok)
                     {
-                        state = StompCodecState.error;
-                        return;
+                        continue;
                     }
 
-                    auto offset = command.type.length;
-                    buffSlice = buff[offset .. $];
+                    command = mustBeCmd;
+                    buffSlice = buff[(command.length) .. $];
                     if (buffSlice.length == 0)
                     {
                         state = StompCodecState.endFrame;
                         continue;
                     }
+
                     state = parseCmdEOL;
                     continue;
                     break;
                 case parseCmdEOL:
-                    auto offset = parseEOL(buffSlice, isAllowSpaces:
-                        true);
+                    size_t offset;
+                    state = parseFrameCommandEOL(buffSlice, offset);
+                    if (state != StompCodecState.ok)
+                    {
+                        continue;
+                    }
+
                     if (offset == 0)
                     {
-                        state = StompCodecState.error;
-                        return;
+                        state = StompCodecState.errorParseCmdEOLEmpty;
+                        continue;
                     }
 
                     buffSlice = buffSlice[offset .. $];
                     if (buffSlice.length == 0)
                     {
-                        state = StompCodecState.error;
-                        return;
+                        //state = StompCodecState.errorMessageEndWithoutEOL;
+                        state = StompCodecState.endFrame;
+                        continue;
                     }
 
                     if (auto startOffset = isStartFromEOL(buffSlice))
@@ -121,8 +135,9 @@ class StompCodec : Codec
                         if (buffSlice.length == 0)
                         {
                             state = StompCodecState.endFrame;
-                            return;
+                            continue;
                         }
+
                         state = parseBody;
                         continue;
                     }
@@ -132,13 +147,20 @@ class StompCodec : Codec
                     break;
                 case parseHeaders:
                     size_t headersEOLSize;
-                    auto offset = parseHeadersLine(buffSlice, headersEOLSize);
+                    size_t headersOffset;
+                    state = parseFrameHeadersLine(buffSlice, headersOffset, headersEOLSize);
+                    if (state != StompCodecState.ok)
+                    {
+                        continue;
+                    }
+
                     if (headersEOLSize == 0)
                     {
-                        state = StompCodecState.error;
-                        return;
+                        state = StompCodecState.errorHeadersWithoutEOL;
+                        continue;
                     }
-                    if (offset == 0)
+
+                    if (headersOffset == 0)
                     {
                         //TODO validate command
                         state = StompCodecState.endFrame;
@@ -147,22 +169,29 @@ class StompCodec : Codec
 
                     import std.conv : to;
 
-                    headersLine = (cast(char[]) buffSlice[0 .. offset]).to!string;
+                    headersLine = (cast(char[]) buffSlice[0 .. headersOffset]).to!string;
 
-                    buffSlice = buffSlice[offset + headersEOLSize .. $];
+                    buffSlice = buffSlice[headersOffset + headersEOLSize .. $];
                     if (buffSlice.length == 0)
                     {
                         state = StompCodecState.endFrame;
                         return;
                     }
+
                     state = parseBody;
+
                     break;
                 case parseBody:
-                    auto offset = parseBodyLine(buffSlice);
+                    size_t offset; 
+                    state = parseFrameBodyLine(buffSlice, offset);
+                    if(state != StompCodecState.ok){
+                        continue;
+                    }
+
                     if (offset == 0)
                     {
                         state = StompCodecState.endFrame;
-                        return;
+                        continue;
                     }
 
                     import std.conv : to;
@@ -170,16 +199,13 @@ class StompCodec : Codec
                     bodyLine = (cast(char[]) buffSlice[0 .. offset]).to!string;
                     state = StompCodecState.endFrame;
                     break;
-                case endFrame:
+                default:
                     break parseLoop;
-                case error:
-                    break parseLoop;
-                    break;
             }
         }
     }
 
-    size_t isStartFromEOL(ubyte[] buff)
+    size_t isStartFromEOL(scope const(ubyte)[] buff) @safe
     {
         if (buff.length == 0)
         {
@@ -187,73 +213,25 @@ class StompCodec : Codec
         }
 
         auto firstChar = buff[0];
-        if (firstChar == StompControlСhars.lf)
+        if (firstChar == lf)
         {
-            return StompControlСhars.lf.sizeof;
+            return lf.sizeof;
         }
 
-        if (firstChar != StompControlСhars.cr || buff.length < 2)
+        if (firstChar != cr || buff.length < 2)
         {
             return 0;
         }
 
-        if (buff[1] == StompControlСhars.lf)
+        if (buff[1] == lf)
         {
-            return StompControlСhars.cr.sizeof + StompControlСhars.lf.sizeof;
+            return cr.sizeof + lf.sizeof;
         }
 
         return 0;
     }
 
-    size_t parseBodyLine(ubyte[] buff)
-    {
-        size_t offset;
-        foreach (ch; buff)
-        {
-            if (ch == StompControlСhars.nul)
-            {
-                break;
-            }
-
-            offset++;
-        }
-
-        return offset;
-    }
-
-    size_t parseHeadersLine(ubyte[] buff, out size_t headersEndEOL)
-    {
-        if (buff.length == 0)
-        {
-            return 0;
-        }
-
-        size_t offset;
-        for (size_t i = 0; i < buff.length; i++)
-        {
-            if (auto eolOffset = isStartFromEOL(buff[i .. $]))
-            {
-                if (i == 0)
-                {
-                    offset += eolOffset;
-                    i += eolOffset;
-                    continue;
-                }
-                auto prevChar = buff[i - 1];
-                if (prevChar == StompControlСhars.lf)
-                {
-                    headersEndEOL = eolOffset;
-                    return offset;
-                }
-            }
-
-            offset++;
-        }
-
-        return offset;
-    }
-
-    size_t parseEOL(ubyte[] buff, bool isAllowSpaces = false)
+    size_t parseEOL(scope const(ubyte)[] buff, bool isAllowSpaces = false, out bool isSpacesOverflow, size_t spaceLimit = 100) @safe
     {
         if (buff.length == 0)
         {
@@ -262,6 +240,7 @@ class StompCodec : Codec
 
         size_t offset;
         const size_t lastIndex = buff.length - 1;
+        size_t spacesCount;
         foreach (i, ch; buff)
         {
             if (ch == ' ')
@@ -270,9 +249,15 @@ class StompCodec : Codec
                 {
                     return 0;
                 }
+                else if (spacesCount >= spaceLimit)
+                {
+                    isSpacesOverflow = true;
+                    return 0;
+                }
                 else
                 {
                     offset++;
+                    spacesCount++;
                 }
             }
 
@@ -299,31 +284,153 @@ class StompCodec : Codec
         return offset;
     }
 
-    StompCommand parseCommand(ubyte[] buff)
+    StompCodecState parseFrameCommand(scope const(char)[] buff, out StompCommand cmd) @safe
+    {
+        return parseFrameCommand(cast(const(ubyte)[]) buff, cmd);
+    }
+
+    StompCodecState parseFrameCommand(scope const(ubyte)[] buff, out StompCommand cmd) @safe
     {
         if (buff.length == 0)
         {
-            return StompCommand(StompCommandType.UNKNOWN);
+            return StompCodecState.errorEmptyBuffer;
         }
 
         import std.traits : EnumMembers;
 
-        bool isStartsFromCommand(ubyte[] buff, string command)
+        bool isStartsFromCommand(scope const(ubyte)[] buff, string command) @safe
         {
-            import std.algorithm.searching : startsWith;
-
-            return buff.startsWith(command);
+            if (buff.length < command.length || command.length == 0)
+            {
+                return false;
+            }
+            auto buffSlice = buff[0 .. (command.length)];
+            foreach (i, ch; buffSlice)
+            {
+                if (ch != command[i])
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
-        static foreach (i, member; EnumMembers!StompCommandType)
+        static foreach (i, member; EnumMembers!StompCommand)
         {
             if (isStartsFromCommand(buff, member.stringof))
             {
-                return StompCommand(member);
+                cmd = member;
+                return StompCodecState.ok;
             }
         }
 
-        return StompCommand(StompCommandType.UNKNOWN);
+        return StompCodecState.errorInvalidCommand;
+    }
+
+    StompCodecState parseFrameCommandEOL(
+        scope const(char)[] buff,
+        out size_t eolOffset,
+        bool isAllowSpaces = true,
+        size_t spaceLimits = 100) @safe
+    {
+        return parseFrameCommandEOL(cast(const(ubyte)[]) buff, eolOffset, isAllowSpaces, spaceLimits);
+    }
+
+    StompCodecState parseFrameCommandEOL(
+        scope const(ubyte)[] buff,
+        out size_t eolOffset,
+        bool isAllowSpaces = true,
+        size_t spaceLimits = 100
+    ) @safe
+    {
+        if (buff.length == 0)
+        {
+            return StompCodecState.errorEmptyBuffer;
+        }
+
+        bool isSpaceOverflow;
+
+        auto offset = parseEOL(buff, isAllowSpaces, isSpaceOverflow, spaceLimits);
+
+        if (isSpaceOverflow)
+        {
+            return StompCodecState.errorParseCmdEOLSpaceLimit;
+        }
+
+        if (offset == 0)
+        {
+            return StompCodecState.errorParseCmdEOLNotSpec;
+        }
+
+        eolOffset = offset;
+
+        return StompCodecState.ok;
+    }
+
+    StompCodecState parseFrameHeadersLine(
+        scope const(char)[] buff,
+        out size_t headersOffset,
+        out size_t headersEndEOL)
+        @safe
+    {
+        return parseFrameHeadersLine(cast(const(ubyte)[]) buff, headersOffset, headersEndEOL);
+    }
+
+    StompCodecState parseFrameHeadersLine(
+        scope const(ubyte)[] buff,
+        out size_t headersOffset,
+        out size_t headersEndEOL)
+        @safe
+    {
+        if (buff.length == 0)
+        {
+            return StompCodecState.errorEmptyBuffer;
+        }
+
+        size_t offset;
+        for (size_t i = 0; i < buff.length; i++)
+        {
+            size_t eolOffset = isStartFromEOL(buff[i .. $]);
+            if (eolOffset > 0)
+            {
+                if (i == 0 || (buff[i - 1] != lf))
+                {
+                    offset += eolOffset;
+                    i += (eolOffset - 1);
+                    continue;
+                }
+
+                headersEndEOL = eolOffset;
+                headersOffset = offset;
+                return StompCodecState.ok;
+            }
+
+            offset++;
+        }
+
+        return StompCodecState.errorHeadersWithoutEOL;
+    }
+
+    StompCodecState parseFrameBodyLine(scope const (ubyte)[] buff, out size_t bodySize) @safe
+    {
+        size_t offset;
+        foreach (ch; buff)
+        {
+            if(offset >= limitBodySizeBytes){
+                return StompCodecState.errorBodyIsOverLimit;
+            }
+
+            if (ch == StompControlСhars.nul)
+            {
+                break;
+            }
+
+            offset++;
+        }
+
+        bodySize = offset;
+
+        return StompCodecState.ok;
     }
 
     void reset()
@@ -331,9 +438,114 @@ class StompCodec : Codec
         state = StompCodecState.none;
         headersLine = null;
         bodyLine = null;
-        command = StompCommand.init;
     }
 
+}
+
+//parseFrameCommand
+unittest
+{
+    auto codec = new StompCodec;
+
+    StompCommand mustBeCmd;
+
+    ubyte[] str;
+    assert(codec.parseFrameCommand(str, mustBeCmd) == StompCodec.StompCodecState.errorEmptyBuffer);
+    assert(codec.parseFrameCommand(['a', 'c'], mustBeCmd) == StompCodec
+            .StompCodecState.errorInvalidCommand);
+    assert(codec.parseFrameCommand("COMMIT", mustBeCmd) == StompCodec.StompCodecState.ok);
+    assert(mustBeCmd == StompCommand.COMMIT);
+
+    assert(codec.parseFrameCommand("commit", mustBeCmd) == StompCodec
+            .StompCodecState.errorInvalidCommand);
+
+    assert(codec.parseFrameCommand("ACK", mustBeCmd) == StompCodec
+            .StompCodecState.ok);
+    assert(mustBeCmd == StompCommand.ACK);
+
+    assert(codec.parseFrameCommand("ACK111", mustBeCmd) == StompCodec
+            .StompCodecState.ok);
+    assert(mustBeCmd == StompCommand.ACK);
+
+    assert(codec.parseFrameCommand("111ACK", mustBeCmd) == StompCodec
+            .StompCodecState.errorInvalidCommand);
+}
+
+//parseFrameCommandEOL
+unittest
+{
+    auto codec = new StompCodec;
+    enum spaceLimit = 5;
+    size_t offset;
+    assert(codec.parseFrameCommandEOL("     \r\n", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.ok);
+    assert(offset == 7);
+    assert(codec.parseFrameCommandEOL("      \r\n", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.errorParseCmdEOLSpaceLimit);
+
+    assert(codec.parseFrameCommandEOL("\n", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.ok);
+    assert(offset == 1);
+
+    assert(codec.parseFrameCommandEOL("\r\n", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.ok);
+    assert(offset == 2);
+
+    assert(codec.parseFrameCommandEOL("\r\t", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.errorParseCmdEOLNotSpec);
+
+    assert(codec.parseFrameCommandEOL("\t", offset, true, spaceLimit) == StompCodec
+            .StompCodecState.errorParseCmdEOLNotSpec);
+
+}
+
+//parseFrameHeadersLine
+unittest
+{
+    auto codec = new StompCodec;
+    size_t headersOffset;
+    size_t headersEOLOffset;
+    assert(codec.parseFrameHeadersLine(" ", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.errorHeadersWithoutEOL);
+    assert(codec.parseFrameHeadersLine("al:df", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.errorHeadersWithoutEOL);
+    
+    assert(codec.parseFrameHeadersLine(" \r\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.errorHeadersWithoutEOL);
+
+    assert(codec.parseFrameHeadersLine(" \r\n\r\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.ok);
+    assert(headersOffset == 3);
+    assert(headersEOLOffset == 2);
+
+    assert(codec.parseFrameHeadersLine(" \n\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.ok);
+    assert(headersOffset == 2);
+    assert(headersEOLOffset == 1);
+
+    assert(codec.parseFrameHeadersLine("hello\r\nworld\n\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.ok);
+    assert(headersOffset == 13);
+    assert(headersEOLOffset == 1);
+
+    assert(codec.parseFrameHeadersLine("hello\r\nworld\n\r\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.ok);
+    assert(headersOffset == 13);
+    assert(headersEOLOffset == 2);
+
+    assert(codec.parseFrameHeadersLine("hello\nworld\r\n\r\n", headersOffset, headersEOLOffset) == StompCodec
+            .StompCodecState.ok);
+    assert(headersOffset == 13);
+    assert(headersEOLOffset == 2);
+}
+
+//parseBodyLine
+unittest {
+    auto codec = new StompCodec;
+    const(ubyte)[] message = cast(const(ubyte)[])"hello world\0";
+    size_t size;
+    assert(codec.parseFrameBodyLine(message, size) == StompCodec.StompCodecState.ok);
+    assert(size == 11);
 }
 
 unittest
@@ -346,7 +558,15 @@ unittest
     auto codec = new StompCodec;
     codec.decode(connectFrame);
     assert(codec.state == StompCodec.StompCodecState.endFrame);
-    assert(codec.command.type == StompCommandType.CONNECT);
+    assert(codec.command == StompCommand.CONNECT);
     assert(codec.headersLine == "accept-version:1.2\r\nhost:stomp.github.org\r\n");
     assert(codec.bodyLine == "hello world ");
+
+    ubyte[] connectFrame2 = cast(ubyte[]) "CONNECT\naccept-version:1.2\nhost:127.0.0.1\n\n".dup;
+    codec = new StompCodec;
+    codec.decode(connectFrame2);
+    assert(codec.state == StompCodec.StompCodecState.endFrame);
+    assert(codec.command == StompCommand.CONNECT);
+    assert(codec.headersLine == "accept-version:1.2\nhost:127.0.0.1\n");
+    assert(codec.bodyLine == "");
 }
