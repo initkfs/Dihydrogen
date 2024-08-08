@@ -67,6 +67,7 @@ class StompCodec : Codec
     char lf = StompControlСhars.lf;
 
     size_t limitBodySizeBytes = size_t.max;
+    size_t limitHeadersCount = 20;
 
     StompHeaders!(char, 20, 256, 256) headersBuf;
 
@@ -91,7 +92,10 @@ class StompCodec : Codec
         errorHeadersWithoutEOL = "Error. Header ends without a trailing EOL",
         errorHeaderNameTooLong = "Error. Header name too long",
         errorHeaderValueTooLong = "Error. Header value too long",
-        errorHeadersCountOverflow = "Error. Headers count overflow",
+        errorHeadersBufferCountOverflow = "Error. Headers buffers count overflow",
+        errorHeadersLimitsOverflow = "Error. Header limits overflow",
+        errorHeaderNameBufCapOverflow = "Error. Header name buffer length overflow",
+        errorHeaderValueBufCapOverflow = "Error. Header value buffer length overflow",
 
         errorBodyIsOverLimit = "Error. Message body is over limit",
         errorBodyNoAllowedInFrame = "Error. Only the SEND, MESSAGE, and ERROR frames may have a body"
@@ -450,7 +454,7 @@ class StompCodec : Codec
             return StompCodecState.errorEmptyBuffer;
         }
 
-        foreach (i; 0..headersBuf.headers.capacity)
+        foreach (i; 0 .. headersBuf.headers.capacity)
         {
             headersBuf.headers[i].name.reset;
             headersBuf.headers[i].value.reset;
@@ -466,13 +470,20 @@ class StompCodec : Codec
 
         for (size_t i = 0; i < buff.length; i++)
         {
-            if (curHeaderIndex >= headersBuf.headers.capacity)
+            if (curHeaderIndex > limitHeadersCount)
             {
-                return StompCodecState.errorHeadersCountOverflow;
+                return StompCodecState.errorHeadersLimitsOverflow;
             }
 
-            if(buff[i] == ':'){
-                if(isParseHeaderName){
+            if (curHeaderIndex >= headersBuf.headers.capacity)
+            {
+                return StompCodecState.errorHeadersBufferCountOverflow;
+            }
+
+            if (buff[i] == ':')
+            {
+                if (isParseHeaderName)
+                {
                     isParseHeaderName = false;
                 }
                 offset++;
@@ -487,10 +498,12 @@ class StompCodec : Codec
                     offset += eolOffset;
                     i += (eolOffset - 1);
 
-                    if(!isParseHeaderName){
+                    if (!isParseHeaderName)
+                    {
                         isParseHeaderName = true;
                     }
 
+                    //TODO first \r\n without header name
                     curHeaderIndex++;
 
                     continue;
@@ -503,10 +516,19 @@ class StompCodec : Codec
                 return StompCodecState.ok;
             }
 
-            if(isParseHeaderName){
-                headersBuf.headers[curHeaderIndex].name ~= buff[i];
-            }else {
-                headersBuf.headers[curHeaderIndex].value ~= buff[i];
+            if (isParseHeaderName)
+            {
+                if (!headersBuf.headers[curHeaderIndex].name.append(buff[i]))
+                {
+                    return StompCodecState.errorHeaderNameBufCapOverflow;
+                }
+            }
+            else
+            {
+                if (!headersBuf.headers[curHeaderIndex].value.append(buff[i]))
+                {
+                    return StompCodecState.errorHeaderValueBufCapOverflow;
+                }
             }
 
             offset++;
