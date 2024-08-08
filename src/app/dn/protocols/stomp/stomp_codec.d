@@ -1,6 +1,7 @@
 module app.dn.protocols.stomp.stomp_codec;
 
 import app.dn.codecs.codec : Codec;
+import app.core.mem.static_buffer : StaticBuffer;
 
 import std.typecons : Nullable;
 
@@ -40,6 +41,17 @@ enum StompCommand : string
     ERROR = "ERROR"
 }
 
+struct StompHeader(T, size_t NameSize, size_t ValueSize)
+{
+    StaticBuffer!(T, NameSize) name;
+    StaticBuffer!(T, ValueSize) value;
+}
+
+struct StompHeaders(T, size_t HeadersCount, size_t NameSize, size_t ValueSize)
+{
+    StaticBuffer!(StompHeader!(T, NameSize, ValueSize), HeadersCount, false) headers;
+}
+
 /**
  * Authors: initkfs
  */
@@ -55,6 +67,8 @@ class StompCodec : Codec
     char lf = StompControlСhars.lf;
 
     size_t limitBodySizeBytes = size_t.max;
+
+    StompHeaders!(char, 20, 256, 256) headersBuf;
 
     enum StompCodecState : string
     {
@@ -75,8 +89,12 @@ class StompCodec : Codec
         errorParseCmdEOLSpaceLimit = "Error. Command EOL exceeds the limit of empty chars after command",
         errorMessageEndWithoutEOL = "Error. The message ends without a trailing EOL",
         errorHeadersWithoutEOL = "Error. Header ends without a trailing EOL",
+        errorHeaderNameTooLong = "Error. Header name too long",
+        errorHeaderValueTooLong = "Error. Header value too long",
+        errorHeadersCountOverflow = "Error. Headers count overflow",
 
-        errorBodyIsOverLimit = "Error. Message body is over limit"
+        errorBodyIsOverLimit = "Error. Message body is over limit",
+        errorBodyNoAllowedInFrame = "Error. Only the SEND, MESSAGE, and ERROR frames may have a body"
     }
 
     void decode(ubyte[] buff)
@@ -148,7 +166,7 @@ class StompCodec : Codec
                 case parseHeaders:
                     size_t headersEOLSize;
                     size_t headersOffset;
-                    state = parseFrameHeadersLine(buffSlice, headersOffset, headersEOLSize);
+                    state = parseFrameHeaders(buffSlice, headersOffset, headersEOLSize);
                     if (state != StompCodecState.ok)
                     {
                         continue;
@@ -178,13 +196,22 @@ class StompCodec : Codec
                         return;
                     }
 
+                    if (command != StompCommand.SEND
+                        && command != StompCommand.MESSAGE
+                        && command != StompCommand.ERROR)
+                    {
+                        state = StompCodecState.errorBodyNoAllowedInFrame;
+                        continue;
+                    }
+
                     state = parseBody;
 
                     break;
                 case parseBody:
-                    size_t offset; 
+                    size_t offset;
                     state = parseFrameBodyLine(buffSlice, offset);
-                    if(state != StompCodecState.ok){
+                    if (state != StompCodecState.ok)
+                    {
                         continue;
                     }
 
@@ -371,7 +398,7 @@ class StompCodec : Codec
         scope const(char)[] buff,
         out size_t headersOffset,
         out size_t headersEndEOL)
-        @safe
+    @safe
     {
         return parseFrameHeadersLine(cast(const(ubyte)[]) buff, headersOffset, headersEndEOL);
     }
@@ -380,7 +407,7 @@ class StompCodec : Codec
         scope const(ubyte)[] buff,
         out size_t headersOffset,
         out size_t headersEndEOL)
-        @safe
+    @safe
     {
         if (buff.length == 0)
         {
@@ -388,6 +415,7 @@ class StompCodec : Codec
         }
 
         size_t offset;
+
         for (size_t i = 0; i < buff.length; i++)
         {
             size_t eolOffset = isStartFromEOL(buff[i .. $]);
@@ -411,12 +439,89 @@ class StompCodec : Codec
         return StompCodecState.errorHeadersWithoutEOL;
     }
 
-    StompCodecState parseFrameBodyLine(scope const (ubyte)[] buff, out size_t bodySize) @safe
+    StompCodecState parseFrameHeaders(
+        scope const(ubyte)[] buff,
+        out size_t headersOffset,
+        out size_t headersEndEOL)
+    @safe
+    {
+        if (buff.length == 0)
+        {
+            return StompCodecState.errorEmptyBuffer;
+        }
+
+        foreach (i; 0..headersBuf.headers.capacity)
+        {
+            headersBuf.headers[i].name.reset;
+            headersBuf.headers[i].value.reset;
+        }
+
+        headersBuf.headers.reset;
+
+        size_t curHeaderIndex;
+
+        size_t offset;
+
+        bool isParseHeaderName = true;
+
+        for (size_t i = 0; i < buff.length; i++)
+        {
+            if (curHeaderIndex >= headersBuf.headers.capacity)
+            {
+                return StompCodecState.errorHeadersCountOverflow;
+            }
+
+            if(buff[i] == ':'){
+                if(isParseHeaderName){
+                    isParseHeaderName = false;
+                }
+                offset++;
+                continue;
+            }
+
+            size_t eolOffset = isStartFromEOL(buff[i .. $]);
+            if (eolOffset > 0)
+            {
+                if (i == 0 || (buff[i - 1] != lf))
+                {
+                    offset += eolOffset;
+                    i += (eolOffset - 1);
+
+                    if(!isParseHeaderName){
+                        isParseHeaderName = true;
+                    }
+
+                    curHeaderIndex++;
+
+                    continue;
+                }
+
+                headersBuf.headers.length = curHeaderIndex;
+
+                headersEndEOL = eolOffset;
+                headersOffset = offset;
+                return StompCodecState.ok;
+            }
+
+            if(isParseHeaderName){
+                headersBuf.headers[curHeaderIndex].name ~= buff[i];
+            }else {
+                headersBuf.headers[curHeaderIndex].value ~= buff[i];
+            }
+
+            offset++;
+        }
+
+        return StompCodecState.errorHeadersWithoutEOL;
+    }
+
+    StompCodecState parseFrameBodyLine(scope const(ubyte)[] buff, out size_t bodySize) @safe
     {
         size_t offset;
         foreach (ch; buff)
         {
-            if(offset >= limitBodySizeBytes){
+            if (offset >= limitBodySizeBytes)
+            {
                 return StompCodecState.errorBodyIsOverLimit;
             }
 
@@ -509,7 +614,7 @@ unittest
             .StompCodecState.errorHeadersWithoutEOL);
     assert(codec.parseFrameHeadersLine("al:df", headersOffset, headersEOLOffset) == StompCodec
             .StompCodecState.errorHeadersWithoutEOL);
-    
+
     assert(codec.parseFrameHeadersLine(" \r\n", headersOffset, headersEOLOffset) == StompCodec
             .StompCodecState.errorHeadersWithoutEOL);
 
@@ -540,9 +645,10 @@ unittest
 }
 
 //parseBodyLine
-unittest {
+unittest
+{
     auto codec = new StompCodec;
-    const(ubyte)[] message = cast(const(ubyte)[])"hello world\0";
+    const(ubyte)[] message = cast(const(ubyte)[]) "hello world\0";
     size_t size;
     assert(codec.parseFrameBodyLine(message, size) == StompCodec.StompCodecState.ok);
     assert(size == 11);
@@ -552,15 +658,30 @@ unittest
 {
     import std.conv : to;
 
-    ubyte[] connectFrame = cast(ubyte[]) "CONNECT \r\naccept-version:1.2\r\nhost:stomp.github.org\r\n\r\nhello world \0"
+    ubyte[] connectFrame = cast(ubyte[]) "MESSAGE \r\naccept-version:1.2\r\nhost:stomp.github.org\r\n\r\nhello world \0"
         .dup;
 
     auto codec = new StompCodec;
     codec.decode(connectFrame);
     assert(codec.state == StompCodec.StompCodecState.endFrame);
-    assert(codec.command == StompCommand.CONNECT);
+    assert(codec.command == StompCommand.MESSAGE);
+
     assert(codec.headersLine == "accept-version:1.2\r\nhost:stomp.github.org\r\n");
     assert(codec.bodyLine == "hello world ");
+
+    // writeln(codec.headersBuf.headers.length);
+    // foreach (i; 0..codec.headersBuf.headers.length)
+    // {
+    //     writefln("%s: %s", codec.headersBuf.headers[i].name, codec.headersBuf.headers[i].value);
+    // }
+    assert(codec.headersBuf.headers.length == 2);
+    auto header1 = codec.headersBuf.headers[0];
+    assert(header1.name[] == "accept-version");
+    assert(header1.value[] == "1.2");
+
+    auto header2 = codec.headersBuf.headers[1];
+    assert(header2.name[] == "host");
+    assert(header2.value[] == "stomp.github.org");
 
     ubyte[] connectFrame2 = cast(ubyte[]) "CONNECT\naccept-version:1.2\nhost:127.0.0.1\n\n".dup;
     codec = new StompCodec;
