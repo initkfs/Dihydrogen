@@ -1,11 +1,13 @@
-module app.dn.protocols.stomp.stomp_codec;
+module app.dn.protocols.stomp.stomp_common;
 
 import app.core.mem.static_buffer : StaticBuffer;
+
+import std.typecons : Nullable;
 
 /**
  * Authors: initkfs
  */
-enum StompControlСhars : byte
+enum StompControlСhar : byte
 {
     //10
     lf = '\n',
@@ -39,12 +41,12 @@ enum StompCommand : string
     ERROR = "ERROR"
 }
 
-enum StompVersions
+enum StompVersion
 {
     current = "1.2"
 }
 
-enum StompDefaultHeaders : string
+enum StompDefaultHeader : string
 {
     contentLength = "content-length",
     contentType = "content-type",
@@ -57,13 +59,24 @@ enum StompDefaultHeaders : string
     messageID = "message-id"
 }
 
-struct StompHeader(T, size_t NameSize, size_t ValueSize)
+enum StompBufferLength = 256;
+
+struct StompHeader(T,
+    size_t NameLength = StompBufferLength,
+    size_t ValueLength = StompBufferLength)
 {
-    StaticBuffer!(T, NameSize) name;
-    StaticBuffer!(T, ValueSize) value;
+    StaticBuffer!(T, NameLength) name;
+    StaticBuffer!(T, ValueLength) value;
 }
 
-struct StompHeaders(T, size_t HeadersCount, size_t NameSize, size_t ValueSize)
+struct StompFrame(
+    size_t HeadersCount = 10,
+    size_t HeaderNameLen = StompBufferLength,
+    size_t HeaderValueLen = StompBufferLength,
+    size_t BodyLength = StompBufferLength
+)
 {
-    StaticBuffer!(StompHeader!(T, NameSize, ValueSize), HeadersCount, false) headers;
+    StompCommand command;
+    StaticBuffer!(StompHeader!(char, StompBufferLength, StompBufferLength), 20, false) headers;
+    StaticBuffer!(char, BodyLength) content;
 }

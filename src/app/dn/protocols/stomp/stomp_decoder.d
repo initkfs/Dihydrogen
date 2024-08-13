@@ -3,7 +3,7 @@ module app.dn.protocols.stomp.stomp_decoder;
 import app.dn.codecs.codec : Codec;
 import app.core.mem.static_buffer : StaticBuffer;
 
-import app.dn.protocols.stomp.stomp_codec;
+import app.dn.protocols.stomp.stomp_common;
 
 import std.typecons : Nullable;
 
@@ -44,10 +44,10 @@ enum DecoderState : string
     errorMessageInvalidContentType = "Error. Frame invalid content type",
     errorMessageNotAllowedReceipt = "Error. CONNECT framemust not contain a receipt header",
     errorMessageWithoutDest = "Error. MESSAGE frame must contain a destination",
-    errorFrameWithoutReceiptId = "ERROR. RECEIPT frame must contain receipt id header" ~ StompDefaultHeaders.receiptID,
-    errorMessageWithoutMessageID = "Error, MESSAGE frame must contain message id headers " ~ StompDefaultHeaders
+    errorFrameWithoutReceiptId = "ERROR. RECEIPT frame must contain receipt id header" ~ StompDefaultHeader.receiptID,
+    errorMessageWithoutMessageID = "Error, MESSAGE frame must contain message id headers " ~ StompDefaultHeader
         .messageID,
-    errorVersionNotCurrent = "Error. Only allowed STOMP protocol version: " ~ StompVersions
+    errorVersionNotCurrent = "Error. Only allowed STOMP protocol version: " ~ StompVersion
         .current,
     errorFrameWithoutDestination = "Error. SEND, SUBSCRIBE frame must contain a destination header",
     errorFrameWithoudID = "Error. SUBSCRIBE, UNSUBSCRIBE, NACK, ACK frame must contain an id header",
@@ -66,15 +66,15 @@ class StompDecoder : Codec
 
     DecoderState state;
 
-    char cr = StompControlСhars.cr;
-    char lf = StompControlСhars.lf;
+    char cr = StompControlСhar.cr;
+    char lf = StompControlСhar.lf;
 
     size_t limitBodySizeBytes = size_t.max;
     size_t limitHeadersCount = 20;
 
     bool isValidateFrames;
 
-    StompHeaders!(char, 20, 256, 256) headersBuf;
+    StaticBuffer!(StompHeader!(char, 256, 256), 20, false) headers;
 
     void decode(ubyte[] buff)
     {
@@ -170,17 +170,17 @@ class StompDecoder : Codec
 
                     if (isValidateFrames)
                     {
-                        if (auto versionHeader = hasHeader(StompDefaultHeaders.ver))
+                        if (auto versionHeader = hasHeader(StompDefaultHeader.ver))
                         {
                             auto versionValue = versionHeader.value[];
-                            if (versionValue != StompVersions.current)
+                            if (versionValue != StompVersion.current)
                             {
                                 state = DecoderState.errorVersionNotCurrent;
                                 continue;
                             }
                         }
 
-                        if (hasHeader(StompDefaultHeaders.receipt) && command == StompCommand
+                        if (hasHeader(StompDefaultHeader.receipt) && command == StompCommand
                             .CONNECT)
                         {
                             state = DecoderState.errorMessageNotAllowedReceipt;
@@ -189,13 +189,13 @@ class StompDecoder : Codec
 
                         if (command == StompCommand.SEND || command == StompCommand.SUBSCRIBE)
                         {
-                            if (!hasHeader(StompDefaultHeaders.destination))
+                            if (!hasHeader(StompDefaultHeader.destination))
                             {
                                 state = DecoderState.errorFrameWithoutDestination;
                                 continue;
                             }
 
-                            if (!hasHeader(StompDefaultHeaders.id))
+                            if (!hasHeader(StompDefaultHeader.id))
                             {
                                 state = DecoderState.errorFrameWithoudID;
                                 continue;
@@ -206,7 +206,7 @@ class StompDecoder : Codec
                         if (command == StompCommand.UNSUBSCRIBE || command == StompCommand.ACK || command == StompCommand
                             .NACK)
                         {
-                            if (!hasHeader(StompDefaultHeaders.id))
+                            if (!hasHeader(StompDefaultHeader.id))
                             {
                                 state = DecoderState.errorFrameWithoudID;
                                 continue;
@@ -216,7 +216,7 @@ class StompDecoder : Codec
                         if (command == StompCommand.BEGIN || command == StompCommand.ABORT || command == StompCommand
                             .COMMIT)
                         {
-                            if (!hasHeader(StompDefaultHeaders.transaction))
+                            if (!hasHeader(StompDefaultHeader.transaction))
                             {
                                 state = DecoderState.errorFrameWithoudTransactionHeader;
                                 continue;
@@ -225,7 +225,7 @@ class StompDecoder : Codec
 
                         if (command == StompCommand.RECEIPT)
                         {
-                            if (!hasHeader(StompDefaultHeaders.receiptID))
+                            if (!hasHeader(StompDefaultHeader.receiptID))
                             {
                                 state = DecoderState.errorFrameWithoutReceiptId;
                                 continue;
@@ -234,13 +234,13 @@ class StompDecoder : Codec
 
                         if (command == StompCommand.MESSAGE)
                         {
-                            if (!hasHeader(StompDefaultHeaders.destination))
+                            if (!hasHeader(StompDefaultHeader.destination))
                             {
                                 state = DecoderState.errorMessageWithoutDest;
                                 continue;
                             }
 
-                            if (!hasHeader(StompDefaultHeaders.messageID))
+                            if (!hasHeader(StompDefaultHeader.messageID))
                             {
                                 state = DecoderState.errorMessageWithoutMessageID;
                                 continue;
@@ -282,7 +282,7 @@ class StompDecoder : Codec
                         if (command == StompCommand.SEND || command == StompCommand.MESSAGE || command == StompCommand
                             .ERROR)
                         {
-                            if (auto headerPtr = hasHeader(StompDefaultHeaders.contentLength))
+                            if (auto headerPtr = hasHeader(StompDefaultHeader.contentLength))
                             {
                                 //TODO remove allocation
                                 import std.conv : to;
@@ -318,7 +318,7 @@ class StompDecoder : Codec
                                 continue;
                             }
 
-                            if (!hasHeader(StompDefaultHeaders.contentType))
+                            if (!hasHeader(StompDefaultHeader.contentType))
                             {
                                 state = DecoderState.errorMessageWithoutContentType;
                                 continue;
@@ -409,21 +409,21 @@ class StompDecoder : Codec
                 }
             }
 
-            if (ch == StompControlСhars.lf)
+            if (ch == StompControlСhar.lf)
             {
-                return offset + StompControlСhars.lf.sizeof;
+                return offset + StompControlСhar.lf.sizeof;
             }
 
-            if (ch == StompControlСhars.cr)
+            if (ch == StompControlСhar.cr)
             {
                 if (i == lastIndex)
                 {
                     return 0;
                 }
                 auto nextChar = buff[i + 1];
-                if (nextChar == StompControlСhars.lf)
+                if (nextChar == StompControlСhar.lf)
                 {
-                    offset += (StompControlСhars.cr.sizeof + StompControlСhars.lf.sizeof);
+                    offset += (StompControlСhar.cr.sizeof + StompControlСhar.lf.sizeof);
                     return offset;
                 }
             }
@@ -571,13 +571,13 @@ class StompDecoder : Codec
             return DecoderState.errorEmptyBuffer;
         }
 
-        foreach (i; 0 .. headersBuf.headers.capacity)
+        foreach (i; 0 .. headers.capacity)
         {
-            headersBuf.headers[i].name.reset;
-            headersBuf.headers[i].value.reset;
+            headers[i].name.reset;
+            headers[i].value.reset;
         }
 
-        headersBuf.headers.reset;
+        headers.reset;
 
         size_t curHeaderIndex;
 
@@ -592,7 +592,7 @@ class StompDecoder : Codec
                 return DecoderState.errorHeadersLimitsOverflow;
             }
 
-            if (curHeaderIndex >= headersBuf.headers.capacity)
+            if (curHeaderIndex >= headers.capacity)
             {
                 return DecoderState.errorHeadersBufferCountOverflow;
             }
@@ -626,7 +626,7 @@ class StompDecoder : Codec
                     continue;
                 }
 
-                headersBuf.headers.length = curHeaderIndex;
+                headers.length = curHeaderIndex;
 
                 headersEndEOL = eolOffset;
                 headersOffset = offset;
@@ -635,14 +635,14 @@ class StompDecoder : Codec
 
             if (isParseHeaderName)
             {
-                if (!headersBuf.headers[curHeaderIndex].name.append(buff[i]))
+                if (!headers[curHeaderIndex].name.append(buff[i]))
                 {
                     return DecoderState.errorHeaderNameBufCapOverflow;
                 }
             }
             else
             {
-                if (!headersBuf.headers[curHeaderIndex].value.append(buff[i]))
+                if (!headers[curHeaderIndex].value.append(buff[i]))
                 {
                     return DecoderState.errorHeaderValueBufCapOverflow;
                 }
@@ -664,7 +664,7 @@ class StompDecoder : Codec
                 return DecoderState.errorBodyIsOverLimit;
             }
 
-            if (ch == StompControlСhars.nul)
+            if (ch == StompControlСhar.nul)
             {
                 break;
             }
@@ -697,11 +697,11 @@ class StompDecoder : Codec
 
     auto hasHeader(const(char)[] name)
     {
-        foreach (i; 0 .. headersBuf.headers.length)
+        foreach (i; 0 .. headers.length)
         {
-            if (headersBuf.headers[i].name[] == name)
+            if (headers[i].name[] == name)
             {
-                return headersBuf.headers[i];
+                return headers[i];
             }
         }
 
@@ -823,17 +823,17 @@ unittest
     assert(codec.headersLine == "accept-version:1.2\r\nhost:stomp.github.org\r\n");
     assert(codec.bodyLine == "hello world ");
 
-    // writeln(codec.headersBuf.headers.length);
-    // foreach (i; 0..codec.headersBuf.headers.length)
+    // writeln(codec.headers.length);
+    // foreach (i; 0..codec.headers.length)
     // {
-    //     writefln("%s: %s", codec.headersBuf.headers[i].name, codec.headersBuf.headers[i].value);
+    //     writefln("%s: %s", codec.headers[i].name, codec.headers[i].value);
     // }
-    assert(codec.headersBuf.headers.length == 2);
-    auto header1 = codec.headersBuf.headers[0];
+    assert(codec.headers.length == 2);
+    auto header1 = codec.headers[0];
     assert(header1.name[] == "accept-version");
     assert(header1.value[] == "1.2");
 
-    auto header2 = codec.headersBuf.headers[1];
+    auto header2 = codec.headers[1];
     assert(header2.name[] == "host");
     assert(header2.value[] == "stomp.github.org");
 
