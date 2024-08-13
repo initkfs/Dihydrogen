@@ -1,7 +1,7 @@
 /**
  * Authors: initkfs
  */
-module app.core.mem.static_buffer;
+module app.core.mem.buffers.static_buffer;
 
 struct StaticBuffer(T, size_t Capacity = 256, bool isAppendableBuffer = true)
 {
@@ -100,19 +100,19 @@ struct StaticBuffer(T, size_t Capacity = 256, bool isAppendableBuffer = true)
         slice[] = value;
     }
 
-    size_t capacity() @nogc nothrow pure @safe
+    size_t capacity() const @nogc nothrow pure @safe
     {
         return Capacity;
     }
 
-    size_t length() @nogc nothrow pure @safe
+    size_t length() const @nogc nothrow pure @safe
     {
         return _length;
     }
 
     static if (!isAppendableBuffer)
     {
-        void length(size_t value) @nogc nothrow pure @safe
+        void length(size_t value) @nogc nothrow @safe
         {
             assert(value <= Capacity);
             _length = value;

@@ -1,7 +1,7 @@
 module app.dn.protocols.stomp.stomp_decoder;
 
 import app.dn.codecs.codec : Codec;
-import app.core.mem.static_buffer : StaticBuffer;
+import app.core.mem.buffers.static_buffer : StaticBuffer;
 
 import app.dn.protocols.stomp.stomp_common;
 
