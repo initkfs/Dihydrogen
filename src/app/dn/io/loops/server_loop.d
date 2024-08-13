@@ -105,7 +105,7 @@ class ServerLoop : EndpointableEventLoop
         {
             conn.fd = activeChannelFd;
             conn.state = SocketConnectState.none;
-            conn.availableBytes = 0;
+            conn.resetBufferIndices;
         }
 
         assert(conn);

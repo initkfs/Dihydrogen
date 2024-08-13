@@ -188,33 +188,38 @@ class EventLoop : LoggableUnit
                     int acceptSocketFd = cqe.res;
                     assert(acceptSocketFd >= 0);
 
-                    auto conn = getChannel(connection.fd, acceptSocketFd);
+                    auto newConnect = getChannel(connection.fd, acceptSocketFd);
 
-                    assert(conn);
+                    //TODO or onClose?
+                    newConnect.resetBufferIndices;
 
-                    onAccepted(conn);
+                    assert(newConnect);
+
+                    onAccepted(newConnect);
 
                     addServerAccept(connection.fd);
                     break;
                 case read:
-                    int bytes_read = cqe.res;
+                    int bytesRead = cqe.res;
 
-                    if (bytes_read <= 0)
+                    //TODO onErrorRead, < 0
+                    if (bytesRead <= 0)
                     {
-                        connection.availableBytes = 0;
                         onReadEnd(connection);
                     }
                     else
                     {
-                        auto buffSize = bytes_read;
-                        if (buffSize > connection.buffLength)
+                        auto buffSize = bytesRead;
+                        if (!connection.incRead(buffSize))
                         {
-                            connection.availableBytes = connection.buffLength;
+                            connection.incMaxRead;
                         }
-                        else
+
+                        if (!connection.incWrite(buffSize))
                         {
-                            connection.availableBytes = buffSize;
+                            connection.incMaxWrite;
                         }
+
                         onReadStart(connection);
                     }
                     break;
@@ -262,19 +267,19 @@ class EventLoop : LoggableUnit
         newChan.type = FdChannelType.socket;
         newChan.fd = fd;
         newChan.state = state;
-        newChan.buffLength = maxMessageLen;
-        newChan.availableBytes = 0;
+        newChan.readIndex = 0;
+        newChan.writeIndex = 0;
 
-        if (newChan.buffLength > 0)
+        if (maxMessageLen > 0)
         {
-            auto mustBeBuffPtr = malloc(newChan.buffLength);
+            auto mustBeBuffPtr = malloc(maxMessageLen);
             if (!mustBeBuffPtr)
             {
                 logger.error("Allocate channel buffer error");
                 exit(1);
             }
 
-            newChan.buff = cast(ubyte*) mustBeBuffPtr;
+            newChan.buff = cast(ubyte[]) mustBeBuffPtr[0 .. maxMessageLen];
         }
         else
         {
@@ -307,8 +312,12 @@ class EventLoop : LoggableUnit
 
     void addSocketReadv(io_uring* ring, FdChannel* conn)
     {
+        if (conn.writableBytes.length == 0)
+        {
+            return;
+        }
         io_uring_sqe* sqe = io_uring_get_sqe(ring);
-        io_uring_prep_recv(sqe, conn.fd, conn.buff, conn.buffLength, 0);
+        io_uring_prep_recv(sqe, conn.fd, conn.writableBytes.ptr, conn.writableBytes.length, 0);
         conn.state = SocketConnectState.read;
         io_uring_sqe_set_data(sqe, conn);
     }

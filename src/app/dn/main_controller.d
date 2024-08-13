@@ -62,7 +62,7 @@ class MainController : Controller!UniComponent
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
         ], eventRouter, translator:
-        null, monitor);
+        null, null);
 
         loop.initialize;
         loop.create;

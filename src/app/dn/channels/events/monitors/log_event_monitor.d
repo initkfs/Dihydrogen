@@ -38,8 +38,7 @@ class LogEventMonitor : EventMonitor
             import std.conv : to;
 
             dstring buffStr = (cast(string) inEvent
-                .chan.buff[0 .. (
-                        inEvent.chan.availableBytes)]).to!dstring;
+                .chan.readableBytes).to!dstring;
             logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.type, escape(
                     buffStr));
             return;
@@ -55,7 +54,7 @@ class LogEventMonitor : EventMonitor
             import std.conv: to;
             //TODO utf, remove unsafe cast
             dstring buffStr = (cast(string)outEvent
-                .buff[0 .. outEvent.buffLen]).to!dstring;
+                .chan.readableBytes).to!dstring;
             logger.tracef("%s:%s, %s, buff:%s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.type, escape(
                     buffStr));
             return;
