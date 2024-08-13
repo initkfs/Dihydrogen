@@ -17,13 +17,13 @@ class ChannelHandler
 
     static response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
 
-    void onAccept(ChannelContext ctx)
+    void onAccepted(ChannelContext ctx)
     {
         ctx.outEvent.setRead;
         ctx.send;
     }
 
-    void onRead(ChannelContext ctx)
+    void onReadStart(ChannelContext ctx)
     {
         ctx.outEvent.setWrite;
         ctx.outEvent.buff = cast(ubyte*) response.ptr;
@@ -39,13 +39,13 @@ class ChannelHandler
         ctx.send;
     }
 
-    void onWrite(ChannelContext ctx)
+    void onWrote(ChannelContext ctx)
     {
         ctx.outEvent.setClose;
         ctx.send;
     }
 
-    void onClose(ChannelContext ctx)
+    void onClosed(ChannelContext ctx)
     {
         //import std.stdio;
         //writefln("Close: %s", ctx.channel.fd);

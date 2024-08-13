@@ -20,10 +20,10 @@ class HandlerPipeline
         switch (event.type) with (ChanInEvent.ChanInEventType)
         {
             case accepted:
-                onAccept(event);
+                onAccepted(event);
                 break;
-            case readed:
-                onRead(event);
+            case readStart:
+                onReadStart(event);
                 break;
             case readedEnd:
                 onReadEnd(event);
@@ -32,7 +32,7 @@ class HandlerPipeline
                 onWrote(event);
                 break;
             case closed:
-                onClose(event);
+                onClosed(event);
                 break;
             default:
                 break;
@@ -61,18 +61,18 @@ class HandlerPipeline
         }
     }
 
-    void onAccept(ChanInEvent event)
+    void onAccepted(ChanInEvent event)
     {
         onHandler((h) {
-            h.onAccept(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onAccepted(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onRead(ChanInEvent event)
+    void onReadStart(ChanInEvent event)
     {
         onHandler((h) {
-            h.onRead(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onReadStart(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
@@ -88,15 +88,15 @@ class HandlerPipeline
     void onWrote(ChanInEvent event)
     {
         onHandler((h) {
-            h.onWrite(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onWrote(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }
 
-    void onClose(ChanInEvent event)
+    void onClosed(ChanInEvent event)
     {
         onHandler((h) {
-            h.onClose(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onClosed(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
             return true;
         });
     }

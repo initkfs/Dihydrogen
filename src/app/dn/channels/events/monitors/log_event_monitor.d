@@ -33,7 +33,7 @@ class LogEventMonitor : EventMonitor
 
     override void onInEvent(ChanInEvent inEvent)
     {
-        if (inEvent.type == ChanInEvent.ChanInEventType.readed)
+        if (inEvent.type == ChanInEvent.ChanInEventType.readStart)
         {
             import std.conv : to;
 

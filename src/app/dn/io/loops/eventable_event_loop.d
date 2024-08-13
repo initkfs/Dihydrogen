@@ -22,8 +22,8 @@ class EventableEventLoop : EventLoop
     override void create()
     {
         onAccepted = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.accepted);
-        onReaded = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readed);
-        onReadedEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readedEnd);
+        onReadStart = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readStart);
+        onReadEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readedEnd);
         onWrote = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.wrote);
         onClosed = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.closed);
 

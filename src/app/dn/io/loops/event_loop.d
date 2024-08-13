@@ -44,8 +44,8 @@ class EventLoop : LoggableUnit
     }
 
     void delegate(FdChannel*) onAccepted;
-    void delegate(FdChannel*) onReaded;
-    void delegate(FdChannel*) onReadedEnd;
+    void delegate(FdChannel*) onReadStart;
+    void delegate(FdChannel*) onReadEnd;
     void delegate(FdChannel*) onWrote;
     void delegate(FdChannel*) onClosed;
 
@@ -62,8 +62,8 @@ class EventLoop : LoggableUnit
         super.create;
 
         assert(onAccepted, "On accept listener must be not null");
-        assert(onReaded, "On read listener must be not null");
-        assert(onReadedEnd, "On read end listener must be not null");
+        assert(onReadStart, "On read listener must be not null");
+        assert(onReadEnd, "On read end listener must be not null");
         assert(onWrote, "On write listener must be not null");
         assert(onClosed, "On close listener must be not null");
 
@@ -202,7 +202,7 @@ class EventLoop : LoggableUnit
                     if (bytes_read <= 0)
                     {
                         connection.availableBytes = 0;
-                        onReadedEnd(connection);
+                        onReadEnd(connection);
                     }
                     else
                     {
@@ -215,7 +215,7 @@ class EventLoop : LoggableUnit
                         {
                             connection.availableBytes = buffSize;
                         }
-                        onReaded(connection);
+                        onReadStart(connection);
                     }
                     break;
                 case write:
