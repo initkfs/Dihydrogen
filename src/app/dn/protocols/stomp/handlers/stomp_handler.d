@@ -15,6 +15,34 @@ import app.dn.protocols.stomp.stomp_encoder : StompEncoder;
 
 debug import std.stdio : writeln, writefln;
 
+import core.thread : Thread;
+import core.sync.mutex;
+
+class Timer : Thread
+{
+    shared void delegate() onRun;
+
+    this(shared void delegate() onRun)
+    {
+        super(&run);
+        this.onRun = onRun;
+    }
+
+    void run()
+    {
+        while (true)
+        {
+            import core.time : dur;
+
+            sleep(1.dur!"seconds");
+            if (onRun)
+            {
+                onRun();
+            }
+        }
+    }
+}
+
 /**
  * Authors: initkfs
  */
@@ -23,21 +51,44 @@ class StompHandler : ChannelHandler
     enum bufferInitialLength = 1024;
     enum frameBufferLength = 1024;
 
+    Thread timer;
+
     alias FrameStaticBuffer = StaticBuffer!(char, frameBufferLength, true);
 
     struct StompOutCommand
     {
         StompCommand command = StompCommand.CONNECT;
         FrameStaticBuffer buffer;
+        long lastReadTimestamp;
+        long lastWriteTimestamp;
     }
 
     LinearPool!(StompOutCommand*) outBuffers;
+
+    struct MutexLock
+    {
+        private shared Mutex mtx;
+        this(shared Mutex mtx) @safe
+        {
+            this.mtx = mtx;
+            mtx.lock();
+        }
+
+        ~this()
+        {
+            mtx.unlock();
+        }
+    }
+
+    shared Mutex mtx;
 
     StompDecoder decoder;
     StompEncoder!(10, 256, 256, 256) encoder;
 
     this()
     {
+        mtx = new shared Mutex();
+
         decoder = new StompDecoder;
         encoder = new StompEncoder!(10, 256, 256, 256);
 
@@ -59,6 +110,37 @@ class StompHandler : ChannelHandler
             }
             outBuffers.set(i, newBuffer);
         }
+
+        timer = new Timer(() {
+            with (MutexLock(mtx))
+            {
+                auto currTimestamp = timestamp;
+                foreach (i; 0 .. outBuffers.length)
+                {
+                    auto cmd = outBuffers.get(i);
+                    if(cmd.command == StompCommand.CONNECT){
+                        continue;
+                    }
+
+                    if (currTimestamp > cmd.lastReadTimestamp)
+                    {
+                        auto readDt = currTimestamp - cmd.lastReadTimestamp;
+                    }
+
+                    if (currTimestamp > cmd.lastWriteTimestamp)
+                    {
+                        auto writeDt = currTimestamp - cmd.lastWriteTimestamp;
+                        if (writeDt > 10)
+                        {
+                           // writeln("Write timeout");
+                        }
+                    }
+
+                }
+            }
+        });
+
+        timer.start;
     }
 
     protected StompOutCommand* newBuffer()
@@ -82,14 +164,24 @@ class StompHandler : ChannelHandler
             return null;
         }
 
-        while (!outBuffers.hasIndex(fd))
+        with (MutexLock(mtx))
         {
-            if (!outBuffers.increase)
+            while (!outBuffers.hasIndex(fd))
             {
-                return null;
+                if (!outBuffers.increase)
+                {
+                    return null;
+                }
             }
+            return outBuffers.get(fd);
         }
-        return outBuffers.get(fd);
+    }
+
+    static long timestamp()
+    {
+        import std.datetime;
+
+        return Clock.currTime().toUnixTime;
     }
 
     override void onAccepted(ChannelContext ctx)
@@ -100,6 +192,12 @@ class StompHandler : ChannelHandler
 
     override void onReadStart(ChannelContext ctx)
     {
+        mtx.lock;
+        scope (exit)
+        {
+            mtx.unlock;
+        }
+
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0 || chanBuff[0] == '\0')
         {
@@ -113,6 +211,7 @@ class StompHandler : ChannelHandler
             }
 
             outBuffer.buffer.reset;
+            outBuffer.lastReadTimestamp = timestamp;
 
             if (decoder.state != DecoderState.endFrame)
             {
@@ -123,19 +222,25 @@ class StompHandler : ChannelHandler
             switch (decoder.command) with (StompCommand)
             {
                 case CONNECT:
-                    if(outBuffer.command == CONNECT){
+                    if (outBuffer.command == CONNECT)
+                    {
                         sendConnected(outBuffer, ctx);
-                    }else {
+                    }
+                    else
+                    {
                         sendError(outBuffer, ctx, "Invalid state on connect");
                     }
                     break;
                 case SUBSCRIBE:
-                     if(outBuffer.command == CONNECTED){
+                    if (outBuffer.command == CONNECTED)
+                    {
                         sendMessage(outBuffer, ctx);
-                     }else {
+                    }
+                    else
+                    {
                         sendError(outBuffer, ctx, "Invalid state for subscribe");
-                     }
-                     break;
+                    }
+                    break;
                 default:
                     sendError(outBuffer, ctx, "Unsupported command");
                     break;
@@ -151,10 +256,12 @@ class StompHandler : ChannelHandler
 
     protected void sendFrame(StompOutCommand* cmd, ChannelContext ctx)
     {
+        cmd.lastWriteTimestamp = timestamp;
+
         ctx.inEvent.chan.resetBufferIndices;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[])( * cmd).buffer[];
+        ctx.outEvent.buffer = cast(ubyte[])(*cmd).buffer[];
         ctx.send;
     }
 
@@ -175,7 +282,8 @@ class StompHandler : ChannelHandler
         sendFrame(cmd, ctx);
     }
 
-    protected void sendMessage(StompOutCommand* cmd, ChannelContext ctx, const(char)[] message = "Message", const(char)[] dest = "/", const(char)[] messageId = "0", const(char)[] subscription = "0")
+    protected void sendMessage(StompOutCommand* cmd, ChannelContext ctx, const(char)[] message = "Message", const(
+            char)[] dest = "/", const(char)[] messageId = "0", const(char)[] subscription = "0")
     {
         auto frame = encoder.message(message, dest, messageId, subscription);
         cmd.command = StompCommand.MESSAGE;
@@ -183,7 +291,6 @@ class StompHandler : ChannelHandler
 
         sendFrame(cmd, ctx);
     }
-
 
     protected void sendDisconnect(StompOutCommand* cmd, ChannelContext ctx)
     {
@@ -204,6 +311,12 @@ class StompHandler : ChannelHandler
 
     override void onWrote(ChannelContext ctx)
     {
+        mtx.lock;
+        scope (exit)
+        {
+            mtx.unlock;
+        }
+
         auto buffer = getBuffer(ctx.inEvent.chan.fd);
         assert(buffer);
 
@@ -215,7 +328,8 @@ class StompHandler : ChannelHandler
         }
 
         //TODO read?
-        if(buffer.command == StompCommand.MESSAGE){
+        if (buffer.command == StompCommand.MESSAGE)
+        {
             return;
         }
 
@@ -226,6 +340,12 @@ class StompHandler : ChannelHandler
 
     override void onClosed(ChannelContext ctx)
     {
+        mtx.lock;
+        scope (exit)
+        {
+            mtx.unlock;
+        }
+
         auto buffer = getBuffer(ctx.inEvent.chan.fd);
         assert(buffer);
         //TODO separate state?
