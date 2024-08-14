@@ -13,42 +13,44 @@ class ChannelHandler
     ChannelHandler prev;
     ChannelHandler next;
 
-    ubyte[2048] buff;
-
-    static response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!";
-
     void onAccepted(ChannelContext ctx)
     {
-        ctx.outEvent.setRead;
-        ctx.send;
+        if (next)
+        {
+            next.onAccepted(ctx);
+        }
     }
 
     void onReadStart(ChannelContext ctx)
     {
-        ctx.outEvent.setWrite;
-        ctx.outEvent.buff = cast(ubyte*) response.ptr;
-        ctx.outEvent.buffLen = response.length;
-        ctx.send;
+        if (next)
+        {
+            next.onReadStart(ctx);
+        }
     }
 
     void onReadEnd(ChannelContext ctx)
     {
-        ctx.outEvent.setWrite;
-        ctx.outEvent.buff = cast(ubyte*) response.ptr;
-        ctx.outEvent.buffLen = response.length;
-        ctx.send;
+        if (next)
+        {
+            next.onReadEnd(ctx);
+        }
     }
 
     void onWrote(ChannelContext ctx)
     {
-        ctx.outEvent.setClose;
-        ctx.send;
+        if (next)
+        {
+            next.onWrote(ctx);
+        }
     }
 
     void onClosed(ChannelContext ctx)
     {
-        //import std.stdio;
-        //writefln("Close: %s", ctx.channel.fd);
+        if (next)
+        {
+            next.onClosed(ctx);
+        }
     }
 
 }

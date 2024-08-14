@@ -54,6 +54,7 @@ enum StompDefaultHeader : string
     receiptID = "receipt-id",
     ver = "version",
     destination = "destination",
+    subscription = "subscription",
     id = "id",
     transaction = "transaction",
     messageID = "message-id"
@@ -78,5 +79,5 @@ struct StompFrame(
 {
     StompCommand command;
     StaticBuffer!(StompHeader!(char, StompBufferLength, StompBufferLength), 20, false) headers;
-    StaticBuffer!(char, BodyLength) content;
+    StaticBuffer!(ubyte, BodyLength) content;
 }

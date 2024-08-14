@@ -78,6 +78,8 @@ class StompDecoder : Codec
 
     void decode(ubyte[] buff)
     {
+        reset;
+
         ubyte[] buffSlice = buff;
         parseLoop: while (buffSlice.length > 0)
         {

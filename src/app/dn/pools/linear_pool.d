@@ -16,56 +16,61 @@ class LinearPool(V)
 
     private
     {
-        size_t _count;
+        V[] pool;
         size_t _size;
-        V* poolPtr;
-
     }
 
-    V* ptr()
+    inout(V*) ptr() inout return @safe
     {
-        return poolPtr;
+        return &pool[0];
     }
 
-    this(size_t initCount = 1024)
+    this(size_t initCount = 1024) pure @safe
     {
         assert(initCount > 0);
-        _count = initCount;
-        _size = _count * V.sizeof;
+        _size = initCount * V.sizeof;
     }
 
     bool create()
     {
-        assert(!poolPtr);
+        assert(!pool);
+        assert(_size > 0);
+
         auto mustBePtr = malloc(_size);
         if (!mustBePtr)
         {
             return false;
         }
 
-        poolPtr = cast(V*) mustBePtr;
+        //memset(mustBePtr, 0, _size);
 
-        memset(poolPtr, 0, _size);
+        pool = cast(V[]) mustBePtr[0 .. _size];
+
+        pool[] = V.init;
 
         return true;
     }
 
     bool hasIndex(size_t index)
     {
-        return index < _count;
+        return index < pool.length;
     }
 
     V get(size_t index)
     {
-        assert(poolPtr);
-        assert(index < _count);
+        assert(pool);
+        assert(index < pool.length);
 
-        return poolPtr[index];
+        return pool[index];
     }
 
     bool increase()
     {
         import core.checkedint;
+
+        assert(growFactor > 0);
+        assert(_size > 0);
+        assert(pool);
 
         bool isOverflow;
         auto newSize = mulu(_size, growFactor, isOverflow);
@@ -73,32 +78,32 @@ class LinearPool(V)
         {
             return false;
         }
-        auto mustBePtr = realloc(cast(void*) poolPtr, newSize);
+        auto mustBePtr = realloc(cast(void*) pool.ptr, newSize);
         if (!mustBePtr)
         {
             return false;
         }
-        poolPtr = cast(V*) mustBePtr;
 
-        auto lastIndexPtr = poolPtr + _count;
-        memset(lastIndexPtr, 0, newSize - _size);
+        auto newPool = cast(V[]) mustBePtr[0 .. newSize];
+        newPool[pool.length .. $] = V.init;
+
+        pool = newPool;
         _size = newSize;
-        _count = newSize / V.sizeof;
         return true;
     }
 
     bool set(size_t index, V ptr)
     {
-        assert(poolPtr);
-        assert(index < _count);
-        poolPtr[index] = ptr;
+        assert(pool);
+        assert(index < pool.length);
+        pool[index] = ptr;
         return true;
     }
 
     bool removeLast(size_t lastValues, scope bool delegate(V) onRemoveIsContinue = null)
     {
-        assert(poolPtr);
-        assert(lastValues < _count);
+        assert(pool);
+        assert(lastValues < pool.length);
 
         auto removeSize = lastValues * V.sizeof;
         assert(removeSize < _size);
@@ -107,7 +112,7 @@ class LinearPool(V)
 
         if (onRemoveIsContinue)
         {
-            auto lastSlice = poolPtr[(_count - lastValues) .. _count];
+            auto lastSlice = pool[((pool.length) - lastValues) .. $];
             foreach (v; lastSlice)
             {
                 if (!onRemoveIsContinue(v))
@@ -117,38 +122,41 @@ class LinearPool(V)
             }
         }
 
-        poolPtr = cast(V*) realloc(cast(void*) poolPtr, newSize);
-        assert(poolPtr);
+        auto mustBePoolPtr = realloc(cast(void*) pool.ptr, newSize);
+        if (!mustBePoolPtr)
+        {
+            return false;
+        }
+        pool = cast(V[]) mustBePoolPtr[0 .. newSize];
         _size = newSize;
-        _count = newSize / V.sizeof;
         return true;
     }
 
     bool destroy()
     {
-        if (poolPtr)
+        if (pool)
         {
-            free(cast(void*) poolPtr);
+            free(cast(void*) pool.ptr);
             return true;
         }
         return false;
     }
 
-    V[] slice()
+    inout(V[]) slice() inout return @safe
     {
-        assert(poolPtr);
-        assert(_count > 0);
-        return poolPtr[0 .. _count];
+        assert(pool);
+        assert(pool.length > 0);
+        return pool;
     }
 
-    size_t count()
+    size_t length()
     {
-        return _count;
+        return pool.length;
     }
 
     size_t sizeBytes()
     {
-        return _size;
+        return pool.length * V.sizeof;
     }
 
 }
@@ -165,7 +173,7 @@ unittest
     poolPtr1.growFactor = growFactor;
 
     assert(poolPtr1.create);
-    assert(poolPtr1.count == 2);
+    assert(poolPtr1.length == 2);
     assert(poolPtr1.sizeBytes == int.sizeof * 2);
     assert(poolPtr1.hasIndex(0));
     assert(poolPtr1.hasIndex(1));
@@ -190,7 +198,7 @@ unittest
 
     auto newCount = v1Count * poolPtr1.growFactor;
 
-    assert(poolPtr1.count == newCount);
+    assert(poolPtr1.length == newCount);
     assert((poolPtr1.sizeBytes / poolPtr1.growFactor) == v1Count * int.sizeof);
 
     int counter;
@@ -211,7 +219,7 @@ unittest
         }));
     assert(counter == 2);
 
-    assert(poolPtr1.count == newCount - 2);
+    assert(poolPtr1.length == newCount - 2);
     assert(poolPtr1.sizeBytes == (newCount - 2) * int.sizeof);
 }
 
@@ -226,7 +234,7 @@ unittest
     poolPtr1.growFactor = 2;
 
     assert(poolPtr1.create);
-    assert(poolPtr1.count == 2);
+    assert(poolPtr1.length == 2);
     assert(poolPtr1.sizeBytes == (int*).sizeof * 2);
     assert(poolPtr1.hasIndex(0));
     assert(poolPtr1.hasIndex(1));
@@ -251,7 +259,6 @@ unittest
 
     auto newCount = v1Count * poolPtr1.growFactor;
 
-    assert(poolPtr1.count == newCount);
+    assert(poolPtr1.length == newCount);
     assert((poolPtr1.sizeBytes / poolPtr1.growFactor) == v1Count * (int*).sizeof);
 }
-

@@ -32,8 +32,12 @@ class MainController : Controller!UniComponent
 
     static HandlerPipeline createPipeline()
     {
+        import app.dn.protocols.stomp.handlers.stomp_handler: StompHandler;
+        import app.dn.protocols.http.handlers.http_handler: HttpHandler;
+        
         auto pipe = new HandlerPipeline;
-        pipe.add(new ChannelHandler);
+        //pipe.add(new ChannelHandler);
+        pipe.add(new StompHandler);
         return pipe;
     }
 
@@ -62,7 +66,7 @@ class MainController : Controller!UniComponent
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
         ], eventRouter, translator:
-        null, null);
+        null, monitor);
 
         loop.initialize;
         loop.create;

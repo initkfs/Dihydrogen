@@ -50,7 +50,7 @@ class EventableEventLoop : EventLoop
                 addSocketReadv(&ring, event.chan);
                 break;
             case write:
-                addSocketWrite(&ring, event.chan, event.buff, event.buffLen);
+                addSocketWrite(&ring, event.chan, event.buffer.ptr, event.buffer.length);
                 break;
             case close:
                 addSocketClose(&ring, event.chan);

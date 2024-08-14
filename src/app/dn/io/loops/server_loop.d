@@ -65,7 +65,7 @@ class ServerLoop : EndpointableEventLoop
             auto serverSocket = newChannel(serverChan.fd);
             auto pool = new LinearPool!(FdChannel*)(channelsPoolSize);
             pool.create;
-            foreach (i; 0 .. pool.count)
+            foreach (i; 0 .. pool.length)
             {
                 pool.set(i, newChannel);
             }

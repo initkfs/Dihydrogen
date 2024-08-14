@@ -33,8 +33,7 @@ struct ChanOutEvent
 
     FdChannel* chan;
     ChanOutEventType type;
-    ubyte* buff;
-    size_t buffLen;
+    ubyte[] buffer;
     bool isConsumed;
 
     void setRead()

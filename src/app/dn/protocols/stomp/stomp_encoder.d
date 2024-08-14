@@ -30,6 +30,45 @@ class StompEncoder(
         return StompFrame!(HeadersCount, HeaderNameLen, HeaderValueLen, BodyLength)();
     }
 
+    StaticStompFrame connected(){
+        auto newFrame = frame;
+        addCONNECTED(newFrame);
+        addDefaultVersion(newFrame);
+        return newFrame;
+    }
+
+    StaticStompFrame disconnect(){
+        auto newFrame = frame;
+        addDISCONNECT(newFrame);
+        addDefaultVersion(newFrame);
+        return newFrame;
+    }
+
+    StaticStompFrame message(
+        const(char)[] content = "message",
+        const(char)[] dest = "/", 
+        const(char)[] messageId = "0", 
+        const(char)[] subscription = "0"){
+        auto newFrame = frame;
+        addMESSAGE(newFrame);
+        addDefaultVersion(newFrame);
+        addDestination(newFrame, dest);
+        addMessageId(newFrame, messageId);
+        addSubscription(newFrame, subscription);
+        addBody(newFrame, cast(const(ubyte[])) content);
+        return newFrame;
+    }
+
+    StaticStompFrame error(const(char)[] message){
+        auto newFrame = frame;
+        addERROR(newFrame);
+        addDefaultVersion(newFrame);
+        addContentType(newFrame, "text/plain");
+        addContentLength(newFrame, message.length);
+        addBody(newFrame, cast(const(ubyte)[]) message);
+        return newFrame;
+    }
+
     StompEncoder addCommand(ref StaticStompFrame frame, StompCommand command)
     {
         frame.command = command;
@@ -74,19 +113,28 @@ class StompEncoder(
     StompEncoder addDefaultVersion(ref StaticStompFrame frame) => addHeader(frame, StompDefaultHeader.ver, StompVersion
             .current);
 
-    StompEncoder addDestination(ref StaticStompFrame frame, const(char[]) destination) => addHeader(frame, StompDefaultHeader
+    StompEncoder addDestination(ref StaticStompFrame frame, const(char)[] destination) => addHeader(frame, StompDefaultHeader
             .destination, destination);
 
-    StompEncoder addTransaction(ref StaticStompFrame frame, const(char[]) transactionId) => addHeader(frame, StompDefaultHeader
+     StompEncoder addSubscription(ref StaticStompFrame frame, const(char)[] subscription) => addHeader(frame, StompDefaultHeader
+            .subscription, subscription);
+
+    StompEncoder addTransaction(ref StaticStompFrame frame, const(char)[] transactionId) => addHeader(frame, StompDefaultHeader
             .transaction, transactionId);
 
-    StompEncoder addMessageId(ref StaticStompFrame frame, const(char[]) messageId) => addHeader(frame, StompDefaultHeader
+    StompEncoder addMessageId(ref StaticStompFrame frame, const(char)[] messageId) => addHeader(frame, StompDefaultHeader
             .messageID, messageId);
 
-    void decode(T, size_t BufferLength, char lf = StompControlСhar.lf)(ref StaticStompFrame frame, ref StaticBuffer!(T, BufferLength, true) buffer)
+    StompEncoder addBody(ref StaticStompFrame frame, const(ubyte)[] content){
+        frame.content.reset;
+        frame.content ~= content;
+        return this;
+    }
+
+    void decode(size_t BufferLength, char lf = StompControlСhar.lf)(ref StaticStompFrame frame, ref StaticBuffer!(char, BufferLength, true) buffer)
     {
         buffer ~= frame.command;
-        buffer ~= " ";
+        //buffer ~= " ";
         buffer ~= lf;
         foreach(i; 0..(frame.headers.length))
         {
@@ -99,7 +147,8 @@ class StompEncoder(
         buffer ~= lf;
 
         if(frame.content.length > 0){
-            buffer ~= frame.content[];
+            //TODO ubyte -> char
+            buffer ~= cast(char[]) frame.content;
         }
 
         buffer ~= StompControlСhar.nul;
