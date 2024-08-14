@@ -2,12 +2,15 @@ module app.dn.protocols.stomp.handlers.stomp_handler;
 
 import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 
+import app.dn.channels.handlers.buffered_channel_handler : BufferedChannelHandler;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.channels.contexts.channel_context : ChannelContext;
 
 import app.dn.pools.linear_pool : LinearPool;
 import app.core.mem.buffers.static_buffer : StaticBuffer;
+
+import app.core.utils.sync : MutexLock, mLock;
 
 import app.dn.protocols.stomp.stomp_common;
 import app.dn.protocols.stomp.stomp_decoder : StompDecoder, DecoderState;
@@ -34,7 +37,7 @@ class Timer : Thread
         {
             import core.time : dur;
 
-            sleep(1.dur!"seconds");
+            sleep(5.dur!"seconds");
             if (onRun)
             {
                 onRun();
@@ -43,88 +46,47 @@ class Timer : Thread
     }
 }
 
+enum bufferInitialLength = 1024;
+enum frameBufferLength = 1024;
+
+alias FrameStaticBuffer = StaticBuffer!(char, frameBufferLength, true);
+
+struct StompOutCommand
+{
+    StompCommand command = StompCommand.CONNECT;
+    FdChannel* chan;
+    FrameStaticBuffer buffer;
+    long lastReadTimestamp;
+    long lastWriteTimestamp;
+}
+
 /**
  * Authors: initkfs
  */
-class StompHandler : ChannelHandler
+class StompHandler : BufferedChannelHandler!(StompOutCommand*)
 {
-    enum bufferInitialLength = 1024;
-    enum frameBufferLength = 1024;
-
     Thread timer;
-
-    alias FrameStaticBuffer = StaticBuffer!(char, frameBufferLength, true);
-
-    struct StompOutCommand
-    {
-        StompCommand command = StompCommand.CONNECT;
-        FrameStaticBuffer buffer;
-        long lastReadTimestamp;
-        long lastWriteTimestamp;
-    }
-
-    LinearPool!(StompOutCommand*) outBuffers;
-
-    struct MutexLock
-    {
-        private shared Mutex mtx;
-        this(shared Mutex mtx) @safe
-        {
-            this.mtx = mtx;
-            mtx.lock();
-        }
-
-        ~this()
-        {
-            mtx.unlock();
-        }
-    }
-
-    shared Mutex mtx;
 
     StompDecoder decoder;
     StompEncoder!(10, 256, 256, 256) encoder;
 
     this()
     {
-        mtx = new shared Mutex();
+        super(bufferInitialLength);
 
         decoder = new StompDecoder;
         encoder = new StompEncoder!(10, 256, 256, 256);
 
-        outBuffers = new LinearPool!(StompOutCommand*)(bufferInitialLength);
-
-        outBuffers.create;
-
-        //TODO move from constructor
-        foreach (i; 0 .. outBuffers.length)
-        {
-            auto newBuf = newBuffer;
-            if (!newBuf)
-            {
-                import std.conv : to;
-
-                throw new Exception(
-                    "Output buffers initialization error, buffer not found with index: " ~ i
-                        .to!string);
-            }
-            outBuffers.set(i, newBuffer);
-        }
-
         timer = new Timer(() {
-            with (MutexLock(mtx))
+            with (mLock(bufferMutex))
             {
                 auto currTimestamp = timestamp;
                 foreach (i; 0 .. outBuffers.length)
                 {
                     auto cmd = outBuffers.get(i);
-                    if(cmd.command == StompCommand.CONNECT){
-                        continue;
-                    }
-
-                    if (currTimestamp > cmd.lastReadTimestamp)
+                    if (cmd.command == StompCommand.CONNECT)
                     {
-                        auto readDt = currTimestamp - cmd.lastReadTimestamp;
+                        continue;
                     }
 
                     if (currTimestamp > cmd.lastWriteTimestamp)
@@ -132,7 +94,13 @@ class StompHandler : ChannelHandler
                         auto writeDt = currTimestamp - cmd.lastWriteTimestamp;
                         if (writeDt > 10)
                         {
-                           // writeln("Write timeout");
+                            writeln("Write timeout");
+                            //TODO unsafe
+                            cmd.command = StompCommand.CONNECT;
+                            ChanOutEvent outEvent;
+                            outEvent.chan = cmd.chan;
+                            outEvent.setClose;
+                            sendSync(outEvent);
                         }
                     }
 
@@ -143,7 +111,7 @@ class StompHandler : ChannelHandler
         timer.start;
     }
 
-    protected StompOutCommand* newBuffer()
+    override protected StompOutCommand* newBuffer()
     {
         import core.stdc.stdlib : malloc, realloc, free;
 
@@ -157,45 +125,21 @@ class StompHandler : ChannelHandler
         return frame;
     }
 
-    StompOutCommand* getBuffer(int fd)
-    {
-        if (fd < 0)
-        {
-            return null;
-        }
-
-        with (MutexLock(mtx))
-        {
-            while (!outBuffers.hasIndex(fd))
-            {
-                if (!outBuffers.increase)
-                {
-                    return null;
-                }
-            }
-            return outBuffers.get(fd);
-        }
-    }
-
-    static long timestamp()
-    {
-        import std.datetime;
-
-        return Clock.currTime().toUnixTime;
-    }
-
     override void onAccepted(ChannelContext ctx)
     {
+        auto cmd = getBuffer(ctx.inEvent.chan.fd);
+        cmd.chan = ctx.inEvent.chan;
+
         ctx.outEvent.setRead;
-        ctx.send;
+        sendSync(ctx.outEvent);
     }
 
     override void onReadStart(ChannelContext ctx)
     {
-        mtx.lock;
+        bufferMutex.lock;
         scope (exit)
         {
-            mtx.unlock;
+            bufferMutex.unlock;
         }
 
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
@@ -250,7 +194,7 @@ class StompHandler : ChannelHandler
         {
             writeln("Continue reading");
             ctx.outEvent.setRead;
-            ctx.send;
+            sendSync(ctx.outEvent);
         }
     }
 
@@ -262,7 +206,7 @@ class StompHandler : ChannelHandler
 
         ctx.outEvent.setWrite;
         ctx.outEvent.buffer = cast(ubyte[])(*cmd).buffer[];
-        ctx.send;
+        sendSync(ctx.outEvent);
     }
 
     protected void sendConnected(StompOutCommand* cmd, ChannelContext ctx)
@@ -311,10 +255,10 @@ class StompHandler : ChannelHandler
 
     override void onWrote(ChannelContext ctx)
     {
-        mtx.lock;
+        bufferMutex.lock;
         scope (exit)
         {
-            mtx.unlock;
+            bufferMutex.unlock;
         }
 
         auto buffer = getBuffer(ctx.inEvent.chan.fd);
@@ -335,15 +279,15 @@ class StompHandler : ChannelHandler
 
         ctx.inEvent.chan.resetBufferIndices;
         ctx.outEvent.setRead;
-        ctx.send;
+        sendSync(ctx.outEvent);
     }
 
     override void onClosed(ChannelContext ctx)
     {
-        mtx.lock;
+        bufferMutex.lock;
         scope (exit)
         {
-            mtx.unlock;
+            bufferMutex.unlock;
         }
 
         auto buffer = getBuffer(ctx.inEvent.chan.fd);

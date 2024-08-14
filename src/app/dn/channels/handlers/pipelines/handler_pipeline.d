@@ -13,7 +13,10 @@ class HandlerPipeline
 {
     ChannelHandler first;
 
-    void delegate(ChanOutEvent) onOutEvent;
+    protected
+    {
+        void delegate(ChanOutEvent) _onOutEvent;
+    }
 
     void onInEvent(ChanInEvent event)
     {
@@ -41,13 +44,13 @@ class HandlerPipeline
 
     void sendEvent(ChanOutEvent event)
     {
-        assert(onOutEvent);
-        onOutEvent(event);
+        assert(_onOutEvent);
+        _onOutEvent(event);
     }
 
     protected void onHandler(scope bool delegate(ChannelHandler) onHandlerIsContinue)
     {
-        assert(onOutEvent);
+        assert(_onOutEvent);
 
         ChannelHandler curr = first;
         while (curr)
@@ -64,7 +67,7 @@ class HandlerPipeline
     void onAccepted(ChanInEvent event)
     {
         onHandler((h) {
-            h.onAccepted(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onAccepted(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -72,7 +75,7 @@ class HandlerPipeline
     void onReadStart(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadStart(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onReadStart(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -80,7 +83,7 @@ class HandlerPipeline
     void onReadEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadEnd(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onReadEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -88,7 +91,7 @@ class HandlerPipeline
     void onWrote(ChanInEvent event)
     {
         onHandler((h) {
-            h.onWrote(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onWrote(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -96,13 +99,18 @@ class HandlerPipeline
     void onClosed(ChanInEvent event)
     {
         onHandler((h) {
-            h.onClosed(ChannelContext(this, event, ChanOutEvent(event.chan), onOutEvent));
+            h.onClosed(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
 
     bool add(ChannelHandler handler)
     {
+        if (_onOutEvent)
+        {
+            handler.onOutEvent = _onOutEvent;
+        }
+
         if (!first)
         {
             first = handler;
@@ -115,6 +123,17 @@ class HandlerPipeline
         handler.prev = first;
 
         return true;
+    }
+
+    void onOutEvent(void delegate(ChanOutEvent) dg)
+    {
+        _onOutEvent = dg;
+        auto currHandler = first;
+        while (currHandler)
+        {
+            currHandler.onOutEvent = dg;
+            currHandler = currHandler.next;
+        }
     }
 
 }

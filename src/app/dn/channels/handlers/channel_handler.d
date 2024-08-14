@@ -13,6 +13,8 @@ class ChannelHandler
     ChannelHandler prev;
     ChannelHandler next;
 
+    void delegate(ChanOutEvent) onOutEvent;
+
     void onAccepted(ChannelContext ctx)
     {
         if (next)
@@ -51,6 +53,13 @@ class ChannelHandler
         {
             next.onClosed(ctx);
         }
+    }
+
+    long timestamp()
+    {
+        import std.datetime;
+
+        return Clock.currTime().toUnixTime;
     }
 
 }

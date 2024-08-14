@@ -14,7 +14,7 @@ import app.dn.channels.events.routes.event_router : EventRouter;
 import app.dn.channels.events.routes.pipeline_router : PipelineRouter;
 import app.dn.channels.events.translators.event_translator : EventTranslator;
 import app.dn.channels.events.monitors.event_monitor : EventMonitor;
-import app.dn.channels.events.monitors.log_event_monitor: LogEventMonitor;
+import app.dn.channels.events.monitors.log_event_monitor : LogEventMonitor;
 
 import signal_libs;
 
@@ -32,9 +32,9 @@ class MainController : Controller!UniComponent
 
     static HandlerPipeline createPipeline()
     {
-        import app.dn.protocols.stomp.handlers.stomp_handler: StompHandler;
-        import app.dn.protocols.http.handlers.http_handler: HttpHandler;
-        
+        import app.dn.protocols.stomp.handlers.stomp_handler : StompHandler;
+        import app.dn.protocols.http.handlers.http_handler : HttpHandler;
+
         auto pipe = new HandlerPipeline;
         //pipe.add(new ChannelHandler);
         pipe.add(new StompHandler);
@@ -77,22 +77,27 @@ class MainController : Controller!UniComponent
     {
         import std.stdio : writefln;
 
-        assert(loop);
-        assert(serverSocket1);
-        assert(serverSocket2);
-
         writefln("^C pressed. Server socket '%s'", [
             serverSocket1.fd, serverSocket2.fd
         ]);
 
-        loop.stop;
-        loop.dispose;
+        if (loop)
+        {
+            loop.stop;
+            loop.dispose;
+        }
 
-        serverSocket1.stop;
-        serverSocket1.dispose;
+        if (serverSocket1)
+        {
+            serverSocket1.stop;
+            serverSocket1.dispose;
+        }
 
-        serverSocket2.stop;
-        serverSocket2.dispose;
+        if (serverSocket2)
+        {
+            serverSocket2.stop;
+            serverSocket2.dispose;
+        }
 
         exit(0);
     }
