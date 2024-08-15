@@ -227,6 +227,10 @@ class EventLoop : LoggableUnit
                     onWrote(connection);
                     break;
                 case close:
+                    // auto res = cqe.res;
+                    // if(res < 0){
+                    //     //TODO onError?
+                    // }
                     onClosed(connection);
                     break;
             }

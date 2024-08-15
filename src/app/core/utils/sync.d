@@ -1,5 +1,6 @@
 module app.core.utils.sync;
 
+import core.atomic: atomicStore;
 import core.sync.mutex : Mutex;
 
 /**
@@ -17,7 +18,7 @@ struct MutexLock(bool isNothrow = false)
         this(shared Mutex mtx) @nogc nothrow @safe
         {
             assert(mtx);
-            this.mtx = mtx;
+            atomicStore(this.mtx, mtx);
             mtx.lock_nothrow;
         }
 
@@ -31,7 +32,7 @@ struct MutexLock(bool isNothrow = false)
         this(shared Mutex mtx) @safe
         {
             assert(mtx);
-            this.mtx = mtx;
+            atomicStore(this.mtx, mtx);
             mtx.lock;
         }
 
@@ -40,8 +41,4 @@ struct MutexLock(bool isNothrow = false)
             mtx.unlock;
         }
     }
-}
-
-auto mlock(bool isNothrow = false)(shared Mutex m){
-    return MutexLock!isNothrow(m);
 }

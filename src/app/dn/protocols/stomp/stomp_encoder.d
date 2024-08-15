@@ -59,6 +59,13 @@ class StompEncoder(
         return newFrame;
     }
 
+    StaticStompFrame receipt(const(char)[] receiptId){
+        auto newFrame = frame;
+        addRECEIPT(newFrame);
+        addReceiptId(newFrame, receiptId);
+        return newFrame;
+    }
+
     StaticStompFrame error(const(char)[] message){
         auto newFrame = frame;
         addERROR(newFrame);
@@ -116,6 +123,9 @@ class StompEncoder(
     StompEncoder addDestination(ref StaticStompFrame frame, const(char)[] destination) => addHeader(frame, StompDefaultHeader
             .destination, destination);
 
+    StompEncoder addReceiptId(ref StaticStompFrame frame, const(char)[] destination) => addHeader(frame, StompDefaultHeader
+            .receiptID, destination);
+
      StompEncoder addSubscription(ref StaticStompFrame frame, const(char)[] subscription) => addHeader(frame, StompDefaultHeader
             .subscription, subscription);
 
@@ -153,6 +163,9 @@ class StompEncoder(
 
         buffer ~= StompControlСhar.nul;
     }
+
+    size_t headerValueLength() const @nogc nothrow pure @safe => HeaderValueLen;
+    size_t headerNameLength() const @nogc nothrow pure @safe => HeaderNameLen;
 }
 
 unittest
