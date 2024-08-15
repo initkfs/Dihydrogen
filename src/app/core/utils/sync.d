@@ -42,6 +42,6 @@ struct MutexLock(bool isNothrow = false)
     }
 }
 
-auto mLock(bool isNothrow = false)(shared Mutex m){
+auto mlock(bool isNothrow = false)(shared Mutex m){
     return MutexLock!isNothrow(m);
 }

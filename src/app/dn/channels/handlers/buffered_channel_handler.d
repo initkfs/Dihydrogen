@@ -5,7 +5,7 @@ import app.dn.channels.fd_channel : FdChannel, FdChannelType;
 import app.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import app.dn.channels.contexts.channel_context : ChannelContext;
 
-import app.core.utils.sync : MutexLock, mLock;
+import app.core.utils.sync : MutexLock, mlock;
 import app.dn.channels.handlers.channel_handler : ChannelHandler;
 import app.dn.pools.linear_pool : LinearPool;
 import app.core.mem.buffers.static_buffer : StaticBuffer;
@@ -20,16 +20,17 @@ class BufferedChannelHandler(T) : ChannelHandler
     protected
     {
         LinearPool!T outBuffers;
-        shared Mutex bufferMutex;
-        shared Mutex outMutex;
+        shared Mutex outBufferMutex;
+
+        shared Mutex outEventMutex;
     }
 
     this(size_t bufferInitialLength = 1024)
     {
         assert(bufferInitialLength > 0);
 
-        bufferMutex = new shared Mutex;
-        outMutex = new shared Mutex;
+        outBufferMutex = new shared Mutex;
+        outEventMutex = new shared Mutex;
 
         outBuffers = new LinearPool!T(bufferInitialLength);
 
@@ -38,40 +39,51 @@ class BufferedChannelHandler(T) : ChannelHandler
         //TODO move from constructor
         foreach (i; 0 .. outBuffers.length)
         {
-            outBuffers.set(i, newBuffer);
+            outBuffers.set(i, newOutBuffer);
         }
     }
 
-    abstract T newBuffer();
+    abstract T newOutBuffer();
 
-    T getBuffer(int index)
+    bool getOutBuffer(int index, out T buffer)
     {
         if (index < 0)
         {
-            throw new Exception("Buffer index must not be negative number");
+            //throw new Exception("Buffer index must not be negative number");
+            return false;
         }
 
-        with (mLock(bufferMutex))
+        with (mlock(outBufferMutex))
         {
             while (!outBuffers.hasIndex(index))
             {
-                //TODO replace with false
                 if (!outBuffers.increase)
                 {
-                    throw new Exception("Buffer out of memory");
+                    //TODO logging
+                    //throw new Exception("Buffer out of memory");
+                    return false;
                 }
 
-                outBuffers.set(index, newBuffer);
+                outBuffers.set(index, newOutBuffer);
             }
 
-            return outBuffers.get(index);
+            buffer = outBuffers.get(index);
+            return true;
+        }
+    }
+
+    void lockOutBuffer(scope void delegate() onLock)
+    {
+        with (mlock(outBufferMutex))
+        {
+            onLock();
         }
     }
 
     void sendSync(ChanOutEvent event)
     {
         assert(onOutEvent);
-        with (mLock(outMutex))
+        with (mlock(outEventMutex))
         {
             onOutEvent(event);
         }

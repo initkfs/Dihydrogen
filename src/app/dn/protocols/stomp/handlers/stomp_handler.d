@@ -10,7 +10,7 @@ import app.dn.channels.contexts.channel_context : ChannelContext;
 import app.dn.pools.linear_pool : LinearPool;
 import app.core.mem.buffers.static_buffer : StaticBuffer;
 
-import app.core.utils.sync : MutexLock, mLock;
+import app.core.utils.sync : MutexLock, mlock;
 
 import app.dn.protocols.stomp.stomp_common;
 import app.dn.protocols.stomp.stomp_decoder : StompDecoder, DecoderState;
@@ -51,19 +51,21 @@ enum frameBufferLength = 1024;
 
 alias FrameStaticBuffer = StaticBuffer!(char, frameBufferLength, true);
 
-struct StompOutCommand
+struct OutBufferData
 {
-    StompCommand command = StompCommand.CONNECT;
+    StompCommand state = StompCommand.CONNECT;
     FdChannel* chan;
     FrameStaticBuffer buffer;
     long lastReadTimestamp;
     long lastWriteTimestamp;
+    long lastAckTimestamp;
+    long lastNackTimestamp;
 }
 
 /**
  * Authors: initkfs
  */
-class StompHandler : BufferedChannelHandler!(StompOutCommand*)
+class StompHandler : BufferedChannelHandler!(OutBufferData*)
 {
     Thread timer;
 
@@ -78,32 +80,16 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
         encoder = new StompEncoder!(10, 256, 256, 256);
 
         timer = new Timer(() {
-            with (mLock(bufferMutex))
+            with (mlock(outBufferMutex))
             {
                 auto currTimestamp = timestamp;
                 foreach (i; 0 .. outBuffers.length)
                 {
-                    auto cmd = outBuffers.get(i);
-                    if (cmd.command == StompCommand.CONNECT)
+                    auto buffData = outBuffers.get(i);
+                    if (buffData.state == StompCommand.CONNECT)
                     {
                         continue;
                     }
-
-                    if (currTimestamp > cmd.lastWriteTimestamp)
-                    {
-                        auto writeDt = currTimestamp - cmd.lastWriteTimestamp;
-                        if (writeDt > 10)
-                        {
-                            writeln("Write timeout");
-                            //TODO unsafe
-                            cmd.command = StompCommand.CONNECT;
-                            ChanOutEvent outEvent;
-                            outEvent.chan = cmd.chan;
-                            outEvent.setClose;
-                            sendSync(outEvent);
-                        }
-                    }
-
                 }
             }
         });
@@ -111,24 +97,28 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
         timer.start;
     }
 
-    override protected StompOutCommand* newBuffer()
+    override protected OutBufferData* newOutBuffer()
     {
         import core.stdc.stdlib : malloc, realloc, free;
 
-        auto newBuff = malloc(StompOutCommand.sizeof);
+        auto newBuff = malloc(OutBufferData.sizeof);
         if (!newBuff)
         {
             return null;
         }
-        auto frame = cast(StompOutCommand*) newBuff;
-        *frame = StompOutCommand.init;
+        auto frame = cast(OutBufferData*) newBuff;
+        *frame = OutBufferData.init;
         return frame;
     }
 
     override void onAccepted(ChannelContext ctx)
     {
-        auto cmd = getBuffer(ctx.inEvent.chan.fd);
-        cmd.chan = ctx.inEvent.chan;
+        OutBufferData* buffData;
+        if(!getOutBuffer(ctx.inEvent.chan.fd, buffData)){
+            //TODO logging;
+            return;
+        }
+        buffData.chan = ctx.inEvent.chan;
 
         ctx.outEvent.setRead;
         sendSync(ctx.outEvent);
@@ -136,10 +126,10 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
 
     override void onReadStart(ChannelContext ctx)
     {
-        bufferMutex.lock;
+        outBufferMutex.lock;
         scope (exit)
         {
-            bufferMutex.unlock;
+            outBufferMutex.unlock;
         }
 
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
@@ -147,11 +137,10 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
         {
             decoder.decode(chanBuff);
 
-            auto outBuffer = getBuffer(ctx.inEvent.chan.fd);
-            if (!outBuffer)
-            {
-                //TODO disconnect
-                throw new Exception("Buffer not found");
+            OutBufferData* outBuffer;
+            if(!getOutBuffer(ctx.inEvent.chan.fd, outBuffer)){
+                //TODO logging
+                return;
             }
 
             outBuffer.buffer.reset;
@@ -166,7 +155,7 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
             switch (decoder.command) with (StompCommand)
             {
                 case CONNECT:
-                    if (outBuffer.command == CONNECT)
+                    if (outBuffer.state == CONNECT)
                     {
                         sendConnected(outBuffer, ctx);
                     }
@@ -176,7 +165,7 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
                     }
                     break;
                 case SUBSCRIBE:
-                    if (outBuffer.command == CONNECTED)
+                    if (outBuffer.state == CONNECTED)
                     {
                         sendMessage(outBuffer, ctx);
                     }
@@ -192,57 +181,57 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
         }
         else
         {
-            writeln("Continue reading");
+            //writeln("Continue reading");
             ctx.outEvent.setRead;
             sendSync(ctx.outEvent);
         }
     }
 
-    protected void sendFrame(StompOutCommand* cmd, ChannelContext ctx)
+    protected void sendFrame(OutBufferData* bufferData, ChannelContext ctx)
     {
-        cmd.lastWriteTimestamp = timestamp;
+        bufferData.lastWriteTimestamp = timestamp;
 
         ctx.inEvent.chan.resetBufferIndices;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[])(*cmd).buffer[];
+        ctx.outEvent.buffer = cast(ubyte[])(*bufferData).buffer[];
         sendSync(ctx.outEvent);
     }
 
-    protected void sendConnected(StompOutCommand* cmd, ChannelContext ctx)
+    protected void sendConnected(OutBufferData* bufferData, ChannelContext ctx)
     {
         auto errorFrame = encoder.connected;
-        cmd.command = StompCommand.CONNECTED;
-        encoder.decode!(frameBufferLength)(errorFrame, (*cmd).buffer);
-        sendFrame(cmd, ctx);
+        bufferData.state = StompCommand.CONNECTED;
+        encoder.decode!(frameBufferLength)(errorFrame, (*bufferData).buffer);
+        sendFrame(bufferData, ctx);
     }
 
-    protected void sendError(StompOutCommand* cmd, ChannelContext ctx, const(char)[] message = "Unknown error")
+    protected void sendError(OutBufferData* bufferData, ChannelContext ctx, const(char)[] message = "Unknown error")
     {
         auto errorFrame = encoder.error(message);
-        cmd.command = StompCommand.ERROR;
-        encoder.decode!(frameBufferLength)(errorFrame, (*cmd).buffer);
+        bufferData.state = StompCommand.ERROR;
+        encoder.decode!(frameBufferLength)(errorFrame, (*bufferData).buffer);
 
-        sendFrame(cmd, ctx);
+        sendFrame(bufferData, ctx);
     }
 
-    protected void sendMessage(StompOutCommand* cmd, ChannelContext ctx, const(char)[] message = "Message", const(
+    protected void sendMessage(OutBufferData* bufferData, ChannelContext ctx, const(char)[] message = "Message", const(
             char)[] dest = "/", const(char)[] messageId = "0", const(char)[] subscription = "0")
     {
         auto frame = encoder.message(message, dest, messageId, subscription);
-        cmd.command = StompCommand.MESSAGE;
-        encoder.decode!(frameBufferLength)(frame, (*cmd).buffer);
+        bufferData.state = StompCommand.MESSAGE;
+        encoder.decode!(frameBufferLength)(frame, (*bufferData).buffer);
 
-        sendFrame(cmd, ctx);
+        sendFrame(bufferData, ctx);
     }
 
-    protected void sendDisconnect(StompOutCommand* cmd, ChannelContext ctx)
+    protected void sendDisconnect(OutBufferData* bufferData, ChannelContext ctx)
     {
         auto frame = encoder.disconnect;
-        cmd.command = StompCommand.DISCONNECT;
-        encoder.decode!(frameBufferLength)(frame, (*cmd).buffer);
+        bufferData.state = StompCommand.DISCONNECT;
+        encoder.decode!(frameBufferLength)(frame, (*bufferData).buffer);
 
-        sendFrame(cmd, ctx);
+        sendFrame(bufferData, ctx);
     }
 
     override void onReadEnd(ChannelContext ctx)
@@ -255,16 +244,19 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
 
     override void onWrote(ChannelContext ctx)
     {
-        bufferMutex.lock;
+        outBufferMutex.lock;
         scope (exit)
         {
-            bufferMutex.unlock;
+            outBufferMutex.unlock;
         }
 
-        auto buffer = getBuffer(ctx.inEvent.chan.fd);
-        assert(buffer);
+        OutBufferData* buffer;
+        if(!getOutBuffer(ctx.inEvent.chan.fd, buffer)){
+            //TODO logging
+            return;
+        }
 
-        if (buffer.command == StompCommand.DISCONNECT || buffer.command == StompCommand.ERROR)
+        if (buffer.state == StompCommand.DISCONNECT || buffer.state == StompCommand.ERROR)
         {
             ctx.outEvent.setClose;
             ctx.send;
@@ -272,7 +264,7 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
         }
 
         //TODO read?
-        if (buffer.command == StompCommand.MESSAGE)
+        if (buffer.state == StompCommand.MESSAGE)
         {
             return;
         }
@@ -284,16 +276,19 @@ class StompHandler : BufferedChannelHandler!(StompOutCommand*)
 
     override void onClosed(ChannelContext ctx)
     {
-        bufferMutex.lock;
+        outBufferMutex.lock;
         scope (exit)
         {
-            bufferMutex.unlock;
+            outBufferMutex.unlock;
         }
 
-        auto buffer = getBuffer(ctx.inEvent.chan.fd);
-        assert(buffer);
+        OutBufferData* bufferData;
+        if(!getOutBuffer(ctx.inEvent.chan.fd, bufferData)){
+            //TODO logging
+            return;
+        }
         //TODO separate state?
-        buffer.command = StompCommand.CONNECT;
+        bufferData.state = StompCommand.CONNECT;
     }
 
 }
