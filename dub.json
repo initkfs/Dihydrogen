@@ -33,8 +33,7 @@
     "dflags": [
         "-dip1000",
         "-preview=in",
-        "-preview=fixAliasThis",
-        "-preview=nosharedaccess"
+        "-preview=fixAliasThis"
     ],
     "dependencies": {}
 }

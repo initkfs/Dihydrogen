@@ -33,11 +33,11 @@ class MainController : Controller!UniComponent
     static HandlerPipeline createPipeline()
     {
         import app.dn.protocols.stomp.handlers.stomp_handler : StompHandler;
-        import app.dn.protocols.http.handlers.http_handler : HttpHandler;
+        import app.dn.protocols.http1.handlers.http_handler : HttpHandler;
 
         auto pipe = new HandlerPipeline;
         //pipe.add(new ChannelHandler);
-        pipe.add(new StompHandler);
+        pipe.add(new HttpHandler);
         return pipe;
     }
 

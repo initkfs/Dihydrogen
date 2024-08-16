@@ -178,7 +178,7 @@ unittest
     import app.core.mem.buffers.static_buffer: StaticBuffer;
 
     StaticBuffer!(char, 256) buff;
-    encoder.decode!(char, 256, '|')(frame, buff);
+    encoder.decode!(256, '|')(frame, buff);
 
-    assert(buff[] == "CONNECT |version:1.2||\0");
+    assert(buff[] == "CONNECT|version:1.2||\0");
 }

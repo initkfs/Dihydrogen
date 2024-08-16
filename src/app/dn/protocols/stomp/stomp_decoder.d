@@ -697,6 +697,7 @@ class StompDecoder : Codec
         return null;
     }
 
+    //TODO headers duplications
     auto hasHeader(const(char)[] name)
     {
         foreach (i; 0 .. headers.length)
