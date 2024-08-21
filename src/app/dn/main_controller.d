@@ -88,6 +88,10 @@ class MainController : Controller!UniComponent
         enforce(buffLen <= timeBuff.length, "Time buffer overflow");
         logger.infof("Server time: %s, %s. LC_ALL:%s, LC_CTYPE:%s, LC_COLLATE:%s", timeBuff[0..buffLen], Time.timestamp, Locale.getLocaleInfo, Locale.getLocaleInfoCtype, Locale.getLocaleInfoCollate);
 
+        import Limit = app.dn.sys.limit;
+
+        logger.infof("Hostname max:%s, page size:%s, max files:%s", Limit.hostNameMax, Limit.pageSize, Limit.openFilesProcMax);
+
         loop.run;
     }
 
