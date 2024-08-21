@@ -70,6 +70,11 @@ class MainController : Controller!UniComponent
 
         loop.initialize;
         loop.create;
+
+        import Procs = app.dn.sys.procs.processes;
+        import std.format: format;
+        logger.infof("Process urid:%s, ueid:%s, grid:%s, geid:%s", Procs.getRealUserId, Procs.getEffectiveUserId, Procs.getRealGroupId, Procs.getEffectifeGroupId);
+
         loop.run;
     }
 
