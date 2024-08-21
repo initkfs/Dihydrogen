@@ -16,7 +16,10 @@ import app.dn.channels.events.translators.event_translator : EventTranslator;
 import app.dn.channels.events.monitors.event_monitor : EventMonitor;
 import app.dn.channels.events.monitors.log_event_monitor : LogEventMonitor;
 
+debug import std.stdio: writeln, writefln;
+
 import signal_libs;
+import app.dn.sys.locale;
 
 /**
  * Authors: initkfs
@@ -75,6 +78,7 @@ class MainController : Controller!UniComponent
         import std.format: format;
         logger.infof("Process urid:%s, ueid:%s, grid:%s, geid:%s", Procs.getRealUserId, Procs.getEffectiveUserId, Procs.getRealGroupId, Procs.getEffectifeGroupId);
 
+        import Locale = app.dn.sys.locale;
         import Time = app.dn.sys.time;
         char[64] timeBuff = 0;
         size_t buffLen;
@@ -82,7 +86,7 @@ class MainController : Controller!UniComponent
 
         import std.exception: enforce;
         enforce(buffLen <= timeBuff.length, "Time buffer overflow");
-        logger.infof("Server time: %s, timestamp: %s", timeBuff[0..buffLen], Time.timestamp);
+        logger.infof("Server time: %s, %s. LC_ALL:%s, LC_CTYPE:%s, LC_COLLATE:%s", timeBuff[0..buffLen], Time.timestamp, Locale.getLocaleInfo, Locale.getLocaleInfoCtype, Locale.getLocaleInfoCollate);
 
         loop.run;
     }
