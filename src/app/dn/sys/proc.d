@@ -1,4 +1,4 @@
-module app.dn.sys.procs.processes;
+module app.dn.sys.proc;
 
 import sys_libs;
 

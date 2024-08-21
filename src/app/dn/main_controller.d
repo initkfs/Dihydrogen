@@ -71,9 +71,18 @@ class MainController : Controller!UniComponent
         loop.initialize;
         loop.create;
 
-        import Procs = app.dn.sys.procs.processes;
+        import Procs = app.dn.sys.proc;
         import std.format: format;
         logger.infof("Process urid:%s, ueid:%s, grid:%s, geid:%s", Procs.getRealUserId, Procs.getEffectiveUserId, Procs.getRealGroupId, Procs.getEffectifeGroupId);
+
+        import Time = app.dn.sys.time;
+        char[64] timeBuff = 0;
+        size_t buffLen;
+        Time.timestampf(timeBuff, buffLen);
+
+        import std.exception: enforce;
+        enforce(buffLen <= timeBuff.length, "Time buffer overflow");
+        logger.infof("Server time: %s, timestamp: %s", timeBuff[0..buffLen], Time.timestamp);
 
         loop.run;
     }
