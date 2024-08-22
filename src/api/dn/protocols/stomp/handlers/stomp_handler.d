@@ -13,8 +13,8 @@ import api.core.mem.buffers.static_buffer : StaticBuffer;
 import api.core.utils.sync : MutexLock;
 
 import api.dn.protocols.stomp.stomp_common;
-import api.dn.protocols.stomp.stomp_decoder : StompDecoder, DecoderState;
-import api.dn.protocols.stomp.stomp_encoder : StompEncoder;
+import api.dn.protocols.stomp.static_stomp_decoder : StaticStompDecoder, DecoderState;
+import api.dn.protocols.stomp.static_stomp_encoder : StaticStompEncoder;
 
 debug import std.stdio : writeln, writefln;
 
@@ -73,15 +73,15 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
 {
     Thread timer;
 
-    StompDecoder decoder;
-    StompEncoder!(10, 256, 256, 256) encoder;
+    StaticStompDecoder decoder;
+    StaticStompEncoder!(10, 256, 256, 256) encoder;
 
     this()
     {
         super(bufferInitialLength);
 
-        decoder = new StompDecoder;
-        encoder = new StompEncoder!(10, 256, 256, 256);
+        decoder = new StaticStompDecoder;
+        encoder = new StaticStompEncoder!(10, 256, 256, 256);
 
         timer = new Timer(() {
             auto currTimestamp = timestamp;

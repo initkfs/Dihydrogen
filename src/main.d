@@ -23,8 +23,8 @@ int main(string[] args)
     import api.dn.apps.server_app : ServerApp;
 
     auto app = new ServerApp;
-    api.isStrictConfigs = true;
-    auto initRes = api.initialize(args);
+    app.isStrictConfigs = true;
+    auto initRes = app.initialize(args);
     if (!initRes)
     {
         import std.stdio : stderr;
@@ -41,12 +41,12 @@ int main(string[] args)
         return successCode;
     }
 
-    assert(api.isInitialized);
+    assert(app.isInitialized);
 
-    api.create;
-    assert(api.isCreated);
-    api.run;
-    assert(api.isRunning);
+    app.create;
+    assert(app.isCreated);
+    app.run;
+    assert(app.isRunning);
 
     return successCode;
 }

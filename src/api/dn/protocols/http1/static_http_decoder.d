@@ -1,4 +1,4 @@
-module api.dn.protocols.http1.http_decoder;
+module api.dn.protocols.http1.static_http_decoder;
 
 import api.dn.codecs.codec : Codec;
 import api.core.mem.buffers.static_buffer : StaticBuffer;
@@ -42,7 +42,7 @@ enum DecoderState : string
 /**
  * Authors: initkfs
  */
-class HttpDecoder : Codec
+class StaticHttpDecoder : Codec
 {
     DecoderState state;
 

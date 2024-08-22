@@ -7,7 +7,7 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.contexts.channel_context : ChannelContext;
 
 import api.dn.protocols.http1.http_common;
-import api.dn.protocols.http1.http_decoder : HttpDecoder, DecoderState;
+import api.dn.protocols.http1.static_http_decoder : StaticHttpDecoder, DecoderState;
 
 debug import std.stdio : writeln, writefln;
 
@@ -21,11 +21,11 @@ class HttpHandler : ChannelHandler
     char[] response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!"
         .dup;
 
-    HttpDecoder decoder;
+    StaticHttpDecoder decoder;
 
     this()
     {
-        decoder = new HttpDecoder;
+        decoder = new StaticHttpDecoder;
     }
 
     override void onAccepted(ChannelContext ctx)

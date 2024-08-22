@@ -1,4 +1,4 @@
-module api.dn.protocols.stomp.stomp_decoder;
+module api.dn.protocols.stomp.static_stomp_decoder;
 
 import api.dn.codecs.codec : Codec;
 import api.core.mem.buffers.static_buffer : StaticBuffer;
@@ -57,7 +57,7 @@ enum DecoderState : string
 /**
  * Authors: initkfs
  */
-class StompDecoder : Codec
+class StaticStompDecoder : Codec
 {
     StompCommand command;
 
@@ -716,7 +716,7 @@ class StompDecoder : Codec
 //parseFrameCommand
 unittest
 {
-    auto codec = new StompDecoder;
+    auto codec = new StaticStompDecoder;
 
     StompCommand mustBeCmd;
 
@@ -740,7 +740,7 @@ unittest
 //parseFrameCommandEOL
 unittest
 {
-    auto codec = new StompDecoder;
+    auto codec = new StaticStompDecoder;
     enum spaceLimit = 5;
     size_t offset;
     assert(codec.parseFrameCommandEOL("     \r\n", offset, true, spaceLimit) == DecoderState.ok);
@@ -765,7 +765,7 @@ unittest
 //parseFrameHeadersLine
 unittest
 {
-    auto codec = new StompDecoder;
+    auto codec = new StaticStompDecoder;
     size_t headersOffset;
     size_t headersEOLOffset;
     assert(codec.parseFrameHeadersLine(" ", headersOffset, headersEOLOffset) == DecoderState
@@ -804,7 +804,7 @@ unittest
 //parseBodyLine
 unittest
 {
-    auto codec = new StompDecoder;
+    auto codec = new StaticStompDecoder;
     const(ubyte)[] message = cast(const(ubyte)[]) "hello world\0";
     size_t size;
     assert(codec.parseFrameBodyLine(message, size) == DecoderState.ok);
@@ -818,7 +818,7 @@ unittest
     ubyte[] connectFrame = cast(ubyte[]) "MESSAGE \r\naccept-version:1.2\r\nhost:stomp.github.org\r\n\r\nhello world \0"
         .dup;
 
-    auto codec = new StompDecoder;
+    auto codec = new StaticStompDecoder;
     codec.decode(connectFrame);
     assert(codec.state == DecoderState.endFrame);
     assert(codec.command == StompCommand.MESSAGE);
@@ -841,7 +841,7 @@ unittest
     assert(header2.value[] == "stomp.github.org");
 
     ubyte[] connectFrame2 = cast(ubyte[]) "CONNECT\naccept-version:1.2\nhost:127.0.0.1\n\n".dup;
-    codec = new StompDecoder;
+    codec = new StaticStompDecoder;
     codec.decode(connectFrame2);
     assert(codec.state == DecoderState.endFrame);
     assert(codec.command == StompCommand.CONNECT);
