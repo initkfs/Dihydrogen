@@ -107,18 +107,21 @@ class MainController : Controller!UniComponent
         {
             loop.stop;
             loop.dispose;
+            loop = null;
         }
 
         if (serverSocket1)
         {
             serverSocket1.stop;
             serverSocket1.dispose;
+            serverSocket1 = null;
         }
 
         if (serverSocket2)
         {
             serverSocket2.stop;
             serverSocket2.dispose;
+            serverSocket2 = null;
         }
 
         exit(0);

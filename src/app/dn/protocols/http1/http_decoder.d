@@ -149,6 +149,9 @@ class HttpDecoder : Codec
                         continue;
                     }
 
+                    //TODO Reason phrase
+                    //status-line = HTTP-version SP status-code SP [ reason-phrase ]
+
                     state = DecoderState.parseHeadersLine;
                     break;
                 case parseHeadersLine:
