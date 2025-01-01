@@ -1,12 +1,13 @@
 module api.core.contexts.context;
 
+import api.core.components.component_service : ComponentService;
 import api.core.contexts.apps.app_context : AppContext;
 import api.core.contexts.platforms.platform_context : PlatformContext;
 
 /**
  * Authors: initkfs
  */
-class Context
+class Context : ComponentService
 {
     const
     {
@@ -16,21 +17,24 @@ class Context
 
     this(const AppContext appContext, const PlatformContext platformContext) pure @safe
     {
+        assert(appContext);
+        assert(platformContext);
+
         this.appContext = appContext;
         this.platformContext = platformContext;
     }
 
     this(immutable AppContext appContext, immutable PlatformContext platformContext) immutable pure @safe
     {
+        assert(appContext);
+        assert(platformContext);
+        
         this.appContext = appContext;
         this.platformContext = platformContext;
     }
 
     immutable(Context) idup() immutable
     {
-        assert(appContext);
-        assert(platformContext);
-
         return new immutable Context(appContext.idup, platformContext.idup);
     }
 }

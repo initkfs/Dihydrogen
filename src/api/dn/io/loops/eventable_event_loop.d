@@ -4,7 +4,7 @@ import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import std.logger : Logger;
+import api.core.loggers.logging: Logging;
 
 /**
  * Authors: initkfs
@@ -14,7 +14,7 @@ class EventableEventLoop : EventLoop
 
     void delegate(ChanInEvent) onInEvent;
 
-    this(Logger logger)
+    this(Logging logger)
     {
         super(logger);
     }

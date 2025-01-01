@@ -1,6 +1,6 @@
 module api.dn.protocols.http1.http_common;
 
-import api.core.mem.buffers.static_buffer : StaticBuffer;
+import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 /**
  * Authors: initkfs

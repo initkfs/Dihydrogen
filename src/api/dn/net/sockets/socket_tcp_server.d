@@ -2,7 +2,7 @@ module api.dn.net.sockets.socket_tcp_server;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 
-import std.logger : Logger;
+import api.core.loggers.logging : Logging;
 import std.socket;
 
 /**
@@ -24,7 +24,7 @@ class SocketTcpServer : LoggableUnit
         TcpSocket _socket;
     }
 
-    this(Logger logger)
+    this(Logging logger)
     {
         super(logger);
     }

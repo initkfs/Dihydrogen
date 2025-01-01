@@ -14,7 +14,7 @@ import api.dn.io.natives.iouring.io_uring_types;
 
 import std.conv : to;
 import std.string : toStringz, fromStringz;
-import std.logger;
+import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.pools.linear_pool : LinearPool;
@@ -41,7 +41,7 @@ class ServerLoop : EndpointableEventLoop
         ServerChannel[] serverChans;
     }
 
-    this(Logger logger, ServerChannel[] serverChans, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
+    this(Logging logger, ServerChannel[] serverChans, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
     {
         super(logger, router, translator, monitor);
         this.serverChans = serverChans;

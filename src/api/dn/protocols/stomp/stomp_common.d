@@ -1,6 +1,6 @@
 module api.dn.protocols.stomp.stomp_common;
 
-import api.core.mem.buffers.static_buffer : StaticBuffer;
+import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 import std.typecons : Nullable;
 

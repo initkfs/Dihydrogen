@@ -1,7 +1,7 @@
 module api.dn.protocols.stomp.static_stomp_decoder;
 
 import api.dn.codecs.codec : Codec;
-import api.core.mem.buffers.static_buffer : StaticBuffer;
+import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 import api.dn.protocols.stomp.stomp_common;
 

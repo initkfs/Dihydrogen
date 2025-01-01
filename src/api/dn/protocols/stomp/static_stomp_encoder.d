@@ -1,6 +1,6 @@
 module api.dn.protocols.stomp.static_stomp_encoder;
 
-import api.core.mem.buffers.static_buffer : StaticBuffer;
+import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 import api.dn.protocols.stomp.stomp_common;
 
@@ -175,7 +175,7 @@ unittest
     encoder.addCONNECT(frame);
     encoder.addDefaultVersion(frame);
 
-    import api.core.mem.buffers.static_buffer: StaticBuffer;
+    import api.core.mems.buffers.static_buffer: StaticBuffer;
 
     StaticBuffer!(char, 256) buff;
     encoder.decode!(256, '|')(frame, buff);

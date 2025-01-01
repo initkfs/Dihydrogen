@@ -3,21 +3,17 @@ module api.dn.channels.events.monitors.log_event_monitor;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
-import std.logger : Logger;
+import api.core.loggers.logging: Logging;
 
 /**
  * Authors: initkfs
  */
 class LogEventMonitor : EventMonitor
 {
-    protected
+    
+    this(Logging logging)
     {
-        Logger logger;
-    }
-    this(Logger logger)
-    {
-        assert(logger);
-        this.logger = logger;
+        super(logging);
     }
 
     //TODO best implementation

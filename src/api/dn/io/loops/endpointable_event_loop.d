@@ -9,7 +9,7 @@ import api.dn.channels.events.translators.event_translator : EventTranslator;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
-import std.logger : Logger;
+import api.core.loggers.logging : Logging;
 
 /**
  * Authors: initkfs
@@ -20,7 +20,7 @@ class EndpointableEventLoop : EventableEventLoop
     EventTranslator eventTranslator;
     EventMonitor eventMonitor;
 
-    this(Logger logger, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
+    this(Logging logger, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
     {
         super(logger);
 

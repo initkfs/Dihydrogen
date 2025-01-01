@@ -50,12 +50,12 @@ class MainController : Controller!UniComponent
 
         signal(SIGINT, &sigintHandler);
 
-        serverSocket1 = new SocketTcpServer(logger);
+        serverSocket1 = new SocketTcpServer(logging);
         serverSocket1.initialize;
         serverSocket1.create;
         serverSocket1.run;
 
-        serverSocket2 = new SocketTcpServer(logger);
+        serverSocket2 = new SocketTcpServer(logging);
         serverSocket2.port = 8081;
         serverSocket2.initialize;
         serverSocket2.create;
@@ -63,9 +63,9 @@ class MainController : Controller!UniComponent
 
         auto eventRouter = new PipelineRouter(createPipeline);
 
-        auto monitor = new LogEventMonitor(logger);
+        auto monitor = new LogEventMonitor(logging);
 
-        loop = new ServerLoop(logger, [
+        loop = new ServerLoop(logging, [
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
         ], eventRouter, translator:

@@ -8,7 +8,7 @@ import api.dn.channels.contexts.channel_context : ChannelContext;
 import api.core.utils.sync : MutexLock;
 import api.dn.channels.handlers.channel_handler : ChannelHandler;
 import api.dn.pools.linear_pool : LinearPool;
-import api.core.mem.buffers.static_buffer : StaticBuffer;
+import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 import core.sync.mutex : Mutex;
 

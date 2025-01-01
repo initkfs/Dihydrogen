@@ -1,6 +1,8 @@
 module api.core.clis.null_cli;
 
 import api.core.clis.cli : Cli;
+import api.core.clis.parsers.null_cli_parser : NullCliParser;
+import api.core.clis.printers.null_cli_printer : NullCliPrinter;
 
 /**
  * Authors: initkfs
@@ -8,13 +10,18 @@ import api.core.clis.cli : Cli;
 class NullCli : Cli
 {
 
-    this() pure @safe
+    this() @safe
     {
-        super([], null, true);
+        super(new NullCliParser, new NullCliPrinter);
     }
 
-    this() immutable pure @safe
+    this() const @safe
     {
-        super([], null, true);
+        super(new const NullCliParser, new const NullCliPrinter);
+    }
+
+    this() immutable @safe
+    {
+        super(new immutable NullCliParser, new immutable NullCliPrinter);
     }
 }

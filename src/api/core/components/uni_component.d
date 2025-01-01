@@ -1,18 +1,28 @@
 module api.core.components.uni_component;
 
 import api.core.components.units.simple_unit : SimpleUnit;
-import api.core.components.attributes : Service;
-import api.core.configs.config : Config;
-import api.core.clis.cli : Cli;
+import api.core.components.uda : Service;
 import api.core.contexts.context : Context;
-import api.core.supports.support : Support;
-import api.core.resources.resource : Resource;
-import api.core.apps.caps.cap_core : CapCore;
-import api.core.events.bus.event_bus : EventBus;
-import api.core.locators.service_locator : ServiceLocator;
-import api.core.mem.allocator : Allocator;
+import api.core.contexts.apps.app_context : AppContext;
+import api.core.contexts.platforms.platform_context : PlatformContext;
+import api.core.loggers.logging : Logging;
 
-import std.logger.core : Logger;
+import api.core.configs.configs : Configuration;
+import api.core.configs.keyvalues.config : Config;
+import api.core.clis.cli : Cli;
+import api.core.supports.support : Support;
+import api.core.resources.locals.local_resources : LocalResources;
+import api.core.resources.resourcing : Resourcing;
+import api.core.caps.cap : Cap;
+import api.core.caps.core.cap_core : CapCore;
+import api.core.events.event_bridge : EventBridge;
+import api.core.events.bus.event_bus : EventBus;
+import api.core.depends.dep : Dep;
+import api.core.depends.locators.service_locator : ServiceLocator;
+import api.core.mems.memory : Memory;
+import api.core.mems.allocs.allocator : Allocator;
+
+import std.logger : Logger;
 
 /**
  * Authors: initkfs
@@ -22,6 +32,8 @@ class UniComponent : SimpleUnit
     bool isBuilt;
     bool isAllowRebuild;
     bool isAllowRebuildServices;
+
+    bool isStrictState = true;
 
     bool isCallBeforeBuild;
     bool isCallAfterBuild;
@@ -36,15 +48,15 @@ class UniComponent : SimpleUnit
     protected
     {
         @Service Context _context;
-        @Service Logger _logger;
-        @Service Config _config;
-        @Service Allocator _alloc;
+        @Service Logging _logging;
+        @Service Configuration _configs;
+        @Service Memory _memory;
         @Service Cli _cli;
-        @Service Resource _resource;
+        @Service Resourcing _resources;
         @Service Support _support;
-        @Service CapCore _capCore;
-        @Service EventBus _eventBus;
-        @Service ServiceLocator _locator;
+        @Service Cap _cap;
+        @Service EventBridge _eventBridge;
+        @Service Dep _dep;
     }
 
     void build(UniComponent uniComponent)
@@ -55,19 +67,40 @@ class UniComponent : SimpleUnit
     void buildInit(UniComponent component)
     {
         build(component);
+
+        if (isStrictState && !component.isBuilt)
+        {
+            throw new Exception("Component not built: " ~ component.className);
+        }
+
         initialize(component);
+
+        if (isStrictState && !component.isInitialized)
+        {
+            throw new Exception("Component not initialized: " ~ component.className);
+        }
     }
 
     void buildInitCreate(UniComponent component)
     {
         buildInit(component);
         create(component);
+
+        if (isStrictState && !component.isCreated)
+        {
+            throw new Exception("Component not created: " ~ component.className);
+        }
     }
 
     void buildInitCreateRun(UniComponent component)
     {
         buildInitCreate(component);
         run(component);
+
+        if (isStrictState && !component.isRunning)
+        {
+            throw new Exception("Component not running: " ~ component.className);
+        }
     }
 
     protected void buildFromParent(C : UniComponent)(C uniComponent, C parentComponent)
@@ -182,10 +215,9 @@ class UniComponent : SimpleUnit
         isComponentCreated = false;
     }
 
-    bool hasContext() const nothrow pure @safe
-    {
-        return _context !is null;
-    }
+    bool hasContext() const nothrow pure @safe => _context !is null;
+    const(AppContext) appContext() pure @safe => context.appContext;
+    const(PlatformContext) platformContext() pure @safe => context.platformContext;
 
     inout(Context) context() inout nothrow pure @safe
     out (_context; _context !is null)
@@ -197,72 +229,63 @@ class UniComponent : SimpleUnit
     {
         import std.exception : enforce;
 
-        enforce(context !is null, "Context must not be null");
+        enforce(context, "Context must not be null");
         _context = context;
     }
 
-    bool hasLogger() const nothrow pure @safe
+    bool hasLogging() const nothrow pure @safe => _logging !is null;
+    inout(Logger) logger() inout nothrow pure @safe => logging.logger;
+
+    inout(Logging) logging() inout nothrow pure @safe
+    out (_logging; _logging !is null)
     {
-        return _logger !is null;
+        return _logging;
     }
 
-    inout(Logger) logger() inout nothrow pure @safe
-    out (_logger; _logger !is null)
-    {
-        return _logger;
-    }
-
-    void logger(Logger logger) pure @safe
+    void logging(Logging newLoggers) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(logger !is null, "Logger must not be null");
-        _logger = logger;
+        enforce(newLoggers !is null, "Logging must not be null");
+        _logging = newLoggers;
 
     }
 
-    bool hasConfig() const nothrow pure @safe
+    bool hasConfigs() const nothrow pure @safe => _configs !is null;
+    inout(Config) config() inout nothrow pure @safe => configs.config;
+
+    inout(Configuration) configs() inout nothrow pure @safe
+    out (_configs; _configs !is null)
     {
-        return _config !is null;
+        return _configs;
     }
 
-    inout(Config) config() inout nothrow pure @safe
-    out (_config; _config !is null)
-    {
-        return _config;
-    }
-
-    void config(Config config) pure @safe
+    void configs(Configuration newConfigs) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(config !is null, "Config must not be null");
-        _config = config;
+        enforce(newConfigs !is null, "Configuration must not be null");
+        _configs = newConfigs;
     }
 
-    bool hasAlloc() const nothrow pure @safe
+    bool hasMemory() const nothrow pure @safe => _memory !is null;
+    inout(Allocator) alloc() inout nothrow pure @safe => memory.alloc;
+
+    inout(Memory) memory() inout nothrow pure @safe
+    out (_memory; _memory !is null)
     {
-        return _alloc !is null;
+        return _memory;
     }
 
-    inout(Allocator) alloc() inout nothrow pure @safe
-    out (_alloc; _alloc !is null)
-    {
-        return _alloc;
-    }
-
-    void alloc(Allocator newAlloc) pure @safe
+    void memory(Memory newMemory) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(newAlloc !is null, "Service allocator must not be null");
-        _alloc = newAlloc;
+        enforce(newMemory !is null, "Service memory must not be null");
+        _memory = newMemory;
     }
 
-    bool hasCli() const nothrow pure @safe
-    {
-        return _cli !is null;
-    }
+    bool hasCli() const nothrow pure @safe => _cli !is null;
 
     inout(Cli) cli() inout nothrow pure @safe
     out (_cli; _cli !is null)
@@ -274,14 +297,11 @@ class UniComponent : SimpleUnit
     {
         import std.exception : enforce;
 
-        enforce(cli !is null, "Cli must not be null");
+        enforce(cli !is null, "CLI must not be null");
         _cli = cli;
     }
 
-    bool hasSupport() const nothrow pure @safe
-    {
-        return _support !is null;
-    }
+    bool hasSupport() const nothrow pure @safe => _support !is null;
 
     inout(Support) support() inout nothrow pure @safe
     out (_support; _support !is null)
@@ -297,79 +317,71 @@ class UniComponent : SimpleUnit
         _support = support;
     }
 
-    bool hasResource() const nothrow pure @safe
+    bool hasResources() const nothrow pure @safe => _resources !is null;
+    inout(LocalResources) reslocal() inout pure @safe => resources.local;
+
+    inout(Resourcing) resources() inout nothrow pure @safe
+    out (_resources; _resources !is null)
     {
-        return _resource !is null;
+        return _resources;
     }
 
-    inout(Resource) resource() inout nothrow pure @safe
-    out (_resource; _resource !is null)
-    {
-        return _resource;
-    }
-
-    void resource(Resource resource) pure @safe
+    void resources(Resourcing resources) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(resource !is null, "Resource must not be null");
-        _resource = resource;
+        enforce(resources !is null, "Resourcing must not be null");
+        _resources = resources;
     }
 
-    bool hasCapCore() const nothrow pure @safe
+    bool hasCap() const nothrow pure @safe => _cap !is null;
+    inout(CapCore) capCore() inout nothrow pure @safe => cap.capCore;
+
+    inout(Cap) cap() inout nothrow pure @safe
+    out (_cap; _cap !is null)
     {
-        return _capCore !is null;
+        return _cap;
     }
 
-    inout(CapCore) capCore() inout nothrow pure @safe
-    out (_capCore; _capCore !is null)
-    {
-        return _capCore;
-    }
-
-    void capCore(CapCore cap) pure @safe
+    void cap(Cap newCap) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(cap !is null, "Core capabilities must not be null");
-        _capCore = cap;
+        enforce(newCap !is null, "Capabilities must not be null");
+        _cap = newCap;
     }
 
-    bool hasEventBus() const nothrow pure @safe
+    bool hasEventBridge() const nothrow pure @safe => _eventBridge !is null;
+    inout(EventBus) eventBus() inout nothrow pure @safe => eventBridge.eventBus;
+
+    inout(EventBridge) eventBridge() inout nothrow pure @safe
+    out (_eventBridge; _eventBridge !is null)
     {
-        return _eventBus !is null;
+        return _eventBridge;
     }
 
-    inout(EventBus) eventBus() inout nothrow pure @safe
-    out (_eventBus; _eventBus !is null)
-    {
-        return _eventBus;
-    }
-
-    void eventBus(EventBus bus) pure @safe
+    void eventBridge(EventBridge eb) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(bus !is null, "Event bus must not be null");
-        _eventBus = bus;
+        enforce(eb !is null, "Event bridge must not be null");
+        _eventBridge = eb;
     }
 
-    bool hasLocator() const nothrow pure @safe
+    bool hasDep() const nothrow pure @safe => _dep !is null;
+    inout(ServiceLocator) locator() inout nothrow pure @safe => dep.locator;
+
+    inout(Dep) dep() inout nothrow pure @safe
+    out (_dep; _dep !is null)
     {
-        return _locator !is null;
+        return _dep;
     }
 
-    inout(ServiceLocator) locator() inout nothrow pure @safe
-    out (_locator; _locator !is null)
-    {
-        return _locator;
-    }
-
-    void locator(ServiceLocator locator) pure @safe
+    void dep(Dep newDep) pure @safe
     {
         import std.exception : enforce;
 
-        enforce(locator !is null, "Service locator must not be null");
-        _locator = locator;
+        enforce(newDep !is null, "Dependency service must not be null");
+        _dep = newDep;
     }
 }

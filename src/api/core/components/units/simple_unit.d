@@ -14,10 +14,25 @@ class SimpleUnit : Unitable
         UnitState _state = UnitState.none;
     }
 
+    bool isThrowInvalidState = true;
+    bool isThrowInvalidChangeState = true;
+
+    void delegate(SimpleUnit, UnitState) onInvalidNewState;
+    void delegate(SimpleUnit, UnitState) onInvalidChangeNewState;
+
     this(UnitState initState = UnitState.none) pure @safe
     {
         _state = initState;
     }
+
+    bool isTriggerListeners = true;
+
+    void delegate()[] onInitialize;
+    void delegate()[] onCreate;
+    void delegate()[] onRun;
+    void delegate()[] onPause;
+    void delegate()[] onStop;
+    void delegate()[] onDispose;
 
     const nothrow pure @safe
     {
@@ -27,6 +42,7 @@ class SimpleUnit : Unitable
         bool isInitialized() => isState(UnitState.initialize);
         bool isCreated() => isState(UnitState.create);
         bool isRunning() => isState(UnitState.run);
+        bool isPaused() => isState(UnitState.pause);
         bool isStopped() => isState(UnitState.stop);
         bool isDisposed() => isState(UnitState.dispose);
     }
@@ -35,13 +51,35 @@ class SimpleUnit : Unitable
     {
         if (!isNone && !isDisposed)
         {
-            import std.format : format;
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.initialize);
+            }
 
-            throw new IllegalUnitStateException(format("Cannot initialize component '%s' with state: %s",
-                    className, _state));
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot initialize component '%s' with state: %s",
+                        className, _state));
+            }
         }
 
         _state = UnitState.initialize;
+
+        triggerListeners(onInitialize);
+    }
+
+    protected void triggerListeners(ref void delegate()[] listeners)
+    {
+        if (listeners.length > 0 && isTriggerListeners)
+        {
+            foreach (dg; listeners)
+            {
+                assert(dg);
+                dg();
+            }
+        }
     }
 
     void initialize(SimpleUnit unit)
@@ -50,20 +88,41 @@ class SimpleUnit : Unitable
         assert(unit !is this, "Unit must not be this");
 
         unit.initialize;
-        assert(unit.isInitialized, "Unit not initialized: " ~ unit.className);
+        if (!unit.isInitialized)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.initialize);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not initialized: " ~ unit.className);
+            }
+        }
     }
 
     void create()
     {
         if (!isNone && !isInitialized)
         {
-            import std.format : format;
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.create);
+            }
 
-            throw new IllegalUnitStateException(format("Cannot create component '%s' with state: %s",
-                    className, _state));
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot create component '%s' with state: %s",
+                        className, _state));
+            }
         }
 
         _state = UnitState.create;
+
+        triggerListeners(onCreate);
     }
 
     void create(SimpleUnit unit)
@@ -72,7 +131,18 @@ class SimpleUnit : Unitable
         assert(unit !is this, "Unit must not be this");
 
         unit.create;
-        assert(unit.isCreated, "Unit not created: " ~ unit.className);
+        if (!unit.isCreated)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.create);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not created: " ~ unit.className);
+            }
+        }
     }
 
     void initCreate(SimpleUnit unit)
@@ -83,15 +153,25 @@ class SimpleUnit : Unitable
 
     void run()
     {
-        if (!isCreated && !isStopped)
+        if (!isCreated && !isStopped && !isPaused)
         {
-            import std.format : format;
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.run);
+            }
 
-            throw new IllegalUnitStateException(format("Cannot run component '%s' with state: %s",
-                    className, _state));
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot run component '%s' with state: %s",
+                        className, _state));
+            }
         }
 
         _state = UnitState.run;
+
+        triggerListeners(onRun);
     }
 
     void run(SimpleUnit unit)
@@ -100,7 +180,18 @@ class SimpleUnit : Unitable
         assert(unit !is this, "Unit must not be this");
 
         unit.run;
-        assert(unit.isRunning, "Unit not running: " ~ unit.className);
+        if (!unit.isRunning)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.run);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not running: " ~ unit.className);
+            }
+        }
     }
 
     void initCreateRun(SimpleUnit unit)
@@ -110,17 +201,71 @@ class SimpleUnit : Unitable
         run(unit);
     }
 
-    void stop()
+    void pause()
     {
         if (!isRunning)
         {
-            import std.format : format;
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.pause);
+            }
 
-            throw new IllegalUnitStateException(format("Cannot stop component '%s' with state: %s",
-                    className, _state));
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot pause component '%s' with state: %s",
+                        className, _state));
+            }
+        }
+
+        _state = UnitState.pause;
+
+        triggerListeners(onPause);
+    }
+
+    void pause(SimpleUnit unit)
+    {
+        assert(unit, "Unit must not be null");
+        assert(unit !is this, "Unit must not be this");
+
+        unit.pause;
+        if (!unit.isPaused)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.pause);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not paused: " ~ unit.className);
+            }
+
+        }
+    }
+
+    void stop()
+    {
+        if (!isRunning && !isPaused)
+        {
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.stop);
+            }
+
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot stop component '%s' with state: %s",
+                        className, _state));
+            }
         }
 
         _state = UnitState.stop;
+
+        triggerListeners(onStop);
     }
 
     void stop(SimpleUnit unit)
@@ -129,21 +274,49 @@ class SimpleUnit : Unitable
         assert(unit !is this, "Unit must not be this");
 
         unit.stop;
-        assert(unit.isStopped, "Unit not stopped: " ~ unit.className);
+        if (!unit.isStopped)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.stop);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not stopped: " ~ unit.className);
+            }
+        }
     }
 
     void dispose()
     {
         //allow dispose without running
-        if (!isStopped && !isInitialized && !isCreated)
+        if (!isStopped && !isInitialized && !isCreated && !isPaused)
         {
-            import std.format : format;
+            if (onInvalidNewState)
+            {
+                onInvalidNewState(this, UnitState.dispose);
+            }
 
-            throw new IllegalUnitStateException(format("Cannot dispose component '%s' with state: %s",
-                    className, _state));
+            if (isThrowInvalidState)
+            {
+                import std.format : format;
+
+                throw new IllegalUnitStateException(format("Cannot dispose component '%s' with state: %s",
+                        className, _state));
+            }
         }
 
         _state = UnitState.dispose;
+
+        triggerListeners(onDispose);
+
+        onInitialize = null;
+        onCreate = null;
+        onRun = null;
+        onStop = null;
+        onPause = null;
+        onDispose = null;
     }
 
     void dispose(SimpleUnit unit)
@@ -152,7 +325,18 @@ class SimpleUnit : Unitable
         assert(unit !is this, "Unit must not be this");
 
         unit.dispose;
-        assert(unit.isDisposed, "Unit not disposed: " ~ unit.className);
+        if (!unit.isDisposed)
+        {
+            if (onInvalidChangeNewState)
+            {
+                onInvalidChangeNewState(unit, UnitState.dispose);
+            }
+
+            if (isThrowInvalidChangeState)
+            {
+                throw new Exception("Unit not disposed: " ~ unit.className);
+            }
+        }
     }
 
     void stopDispose(SimpleUnit unit)
@@ -173,6 +357,15 @@ class SimpleUnit : Unitable
             dispose(unit);
         }
     }
+
+    import api.core.utils.arrays : drop;
+
+    bool removeOnInitialize(void delegate() dg) => drop(onInitialize, dg);
+    bool removeOnCreate(void delegate() dg) => drop(onCreate, dg);
+    bool removeOnRun(void delegate() dg) => drop(onRun, dg);
+    bool removeOnPause(void delegate() dg) => drop(onPause, dg);
+    bool removeOnStop(void delegate() dg) => drop(onStop, dg);
+    bool removeOnDispose(void delegate() dg) => drop(onDispose, dg);
 
     unittest
     {
@@ -221,6 +414,18 @@ class SimpleUnit : Unitable
         component.create;
         assert(component.isCreated);
         assertThrown(component.initialize);
+
+        component.run;
+        assert(component.isRunning);
+        assertThrown(component.run);
+        assertThrown(component.initialize);
+        assertThrown(component.dispose);
+
+        component.pause;
+        assert(component.isPaused);
+        assertThrown(component.create);
+        assertThrown(component.initialize);
+        //assertThrown(component.dispose);
 
         component.run;
         assert(component.isRunning);
