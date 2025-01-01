@@ -20,7 +20,7 @@ class HandlerPipeline
 
     void onInEvent(ChanInEvent event)
     {
-        switch (event.type) with (ChanInEvent.ChanInEventType)
+        switch (event.state) with (ChanInEvent.ChanInEventState)
         {
             case accepted:
                 onAccepted(event);
@@ -28,7 +28,7 @@ class HandlerPipeline
             case readStart:
                 onReadStart(event);
                 break;
-            case readedEnd:
+            case readEnd:
                 onReadEnd(event);
                 break;
             case wrote:

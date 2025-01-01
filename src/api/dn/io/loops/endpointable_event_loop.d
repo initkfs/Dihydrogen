@@ -5,7 +5,7 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
 
 import api.dn.channels.events.routes.event_router : EventRouter;
-import api.dn.channels.events.translators.event_translator : EventTranslator;
+import api.dn.channels.events.converters.event_converter : EventConverter;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
@@ -17,16 +17,16 @@ import api.core.loggers.logging : Logging;
 class EndpointableEventLoop : EventableEventLoop
 {
     EventRouter eventRouter;
-    EventTranslator eventTranslator;
+    EventConverter eventConverter;
     EventMonitor eventMonitor;
 
-    this(Logging logger, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
+    this(Logging logger, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         super(logger);
 
         assert(router);
         eventRouter = router;
-        this.eventTranslator = translator;
+        this.eventConverter = translator;
         this.eventMonitor = monitor;
     }
 
@@ -39,19 +39,17 @@ class EndpointableEventLoop : EventableEventLoop
                 eventMonitor.onInEvent(chanInEvent);
             }
 
-            if (!eventTranslator)
+            if (eventConverter)
             {
-                eventRouter.routeInEvent(chanInEvent);
-                return;
+                auto convInEvent = eventConverter.convertInEvent(chanInEvent);
+                if (eventMonitor)
+                {
+                    eventMonitor.onConvertedInEvent(chanInEvent, convInEvent);
+                }
+                chanInEvent = convInEvent;
             }
 
-            ChanInEvent transInEvent = eventTranslator.translateInEvent(chanInEvent);
-            if (eventMonitor)
-            {
-                eventMonitor.onTranslatedInEvent(chanInEvent, transInEvent);
-            }
-
-            eventRouter.routeInEvent(transInEvent);
+            eventRouter.routeInEvent(chanInEvent);
         };
 
         super.create;
@@ -64,19 +62,17 @@ class EndpointableEventLoop : EventableEventLoop
                 eventMonitor.onOutRouterEvent(outEvent);
             }
 
-            if (!eventTranslator)
+            if (eventConverter)
             {
-                sendOutEvent(outEvent);
-                return;
+                auto convOutEvent = eventConverter.convertOutEvent(outEvent);
+                if (eventMonitor)
+                {
+                    eventMonitor.onConvertedOutEvent(outEvent, convOutEvent);
+                }
+                outEvent = convOutEvent;
             }
 
-            ChanOutEvent transOutEvent = eventTranslator.translateOutEvent(outEvent);
-            if (eventMonitor)
-            {
-                eventMonitor.onTranslatedOutEvent(outEvent, transOutEvent);
-            }
-
-            eventRouter.routeOutEvent(transOutEvent);
+            eventRouter.routeOutEvent(outEvent);
         };
     }
 }

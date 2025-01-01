@@ -12,7 +12,7 @@ import api.dn.channels.server_channel : ServerChannel;
 import core.stdc.stdlib : exit;
 import api.dn.channels.events.routes.event_router : EventRouter;
 import api.dn.channels.events.routes.pipeline_router : PipelineRouter;
-import api.dn.channels.events.translators.event_translator : EventTranslator;
+import api.dn.channels.events.converters.event_converter : EventConverter;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.monitors.log_event_monitor : LogEventMonitor;
 

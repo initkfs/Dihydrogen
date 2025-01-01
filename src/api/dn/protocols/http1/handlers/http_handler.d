@@ -59,7 +59,6 @@ class HttpHandler : ChannelHandler
 
     override void onReadEnd(ChannelContext ctx)
     {
-        writeln("Read end");
         ctx.outEvent.setWrite;
         ctx.outEvent.buffer = cast(ubyte[]) response;
         ctx.send;

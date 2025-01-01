@@ -60,10 +60,10 @@ struct OutBufferData
     StompCommand state = StompCommand.CONNECT;
     FdChannel* chan;
     FrameStaticBuffer buffer;
-    long lastReadTimestamp;
-    long lastWriteTimestamp;
-    long lastAckTimestamp;
-    long lastNackTimestamp;
+    long lastReadTime;
+    long lastWriteTime;
+    long lastAckTime;
+    long lastNackTime;
 }
 
 /**
@@ -84,7 +84,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         encoder = new StaticStompEncoder!(10, 256, 256, 256);
 
         timer = new Timer(() {
-            auto currTimestamp = timestamp;
+            auto currTime = timestamp;
             onOutBuffers((OutBufferData* data) {
 
                 return true;
@@ -142,7 +142,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
                 }
 
                 outBuffer.buffer.reset;
-                outBuffer.lastReadTimestamp = timestamp;
+                outBuffer.lastReadTime = timestamp;
 
                 if (decoder.state != DecoderState.endFrame)
                 {
@@ -236,7 +236,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
 
     protected void sendFrame(OutBufferData* bufferData, ChannelContext ctx)
     {
-        bufferData.lastWriteTimestamp = timestamp;
+        bufferData.lastWriteTime = timestamp;
 
         ctx.inEvent.chan.resetBufferIndices;
 

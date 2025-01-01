@@ -9,14 +9,16 @@ import api.dn.channels.handlers.pipelines.handler_pipeline: HandlerPipeline;
 struct ChannelContext
 {
     HandlerPipeline pipe;
+    
     ChanInEvent inEvent;
     ChanOutEvent outEvent;
+
     void delegate(ChanOutEvent) onOutEvent;
 
     void send(){
         assert(onOutEvent);
         assert(outEvent.chan);
-        assert(outEvent.type != ChanOutEvent.ChanOutEventType.none);
+        assert(outEvent.state != ChanOutEvent.ChanOutEventState.none);
         onOutEvent(outEvent);
     }
 }

@@ -21,20 +21,20 @@ class EventableEventLoop : EventLoop
 
     override void create()
     {
-        onAccepted = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.accepted);
-        onReadStart = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readStart);
-        onReadEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.readedEnd);
-        onWrote = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.wrote);
-        onClosed = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventType.closed);
+        onAccepted = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.accepted);
+        onReadStart = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.readStart);
+        onReadEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.readEnd);
+        onWrote = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.wrote);
+        onClosed = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.closed);
 
         super.create;
 
         assert(onInEvent);
     }
 
-    private void sendInEvent(FdChannel* conn, ChanInEvent.ChanInEventType type)
+    private void sendInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state)
     {
-        onInEvent(ChanInEvent(conn, type));
+        onInEvent(ChanInEvent(conn, state));
     }
 
     void sendOutEvent(ChanOutEvent event)
@@ -44,7 +44,7 @@ class EventableEventLoop : EventLoop
             return;
         }
 
-        switch (event.type) with (ChanOutEvent.ChanOutEventType)
+        switch (event.state) with (ChanOutEvent.ChanOutEventState)
         {
             case read:
                 addSocketReadv(&ring, event.chan);

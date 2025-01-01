@@ -25,7 +25,7 @@ import api.dn.io.loops.endpointable_event_loop: EndpointableEventLoop;
 
 import api.dn.channels.server_channel : ServerChannel;
 import api.dn.channels.events.routes.event_router : EventRouter;
-import api.dn.channels.events.translators.event_translator : EventTranslator;
+import api.dn.channels.events.converters.event_converter : EventConverter;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 
 /**
@@ -41,7 +41,7 @@ class ServerLoop : EndpointableEventLoop
         ServerChannel[] serverChans;
     }
 
-    this(Logging logger, ServerChannel[] serverChans, EventRouter router, EventTranslator translator = null, EventMonitor monitor = null)
+    this(Logging logger, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         super(logger, router, translator, monitor);
         this.serverChans = serverChans;

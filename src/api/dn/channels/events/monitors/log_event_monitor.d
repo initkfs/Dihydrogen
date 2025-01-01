@@ -29,33 +29,33 @@ class LogEventMonitor : EventMonitor
 
     override void onInEvent(ChanInEvent inEvent)
     {
-        if (inEvent.type == ChanInEvent.ChanInEventType.readStart)
+        if (inEvent.state == ChanInEvent.ChanInEventState.readStart)
         {
             import std.conv : to;
 
             dstring buffStr = (cast(string) inEvent
                     .chan.readableBytes).to!dstring;
-            logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.type, escape(
+            logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.state, escape(
                     buffStr));
             return;
         }
 
-        logger.tracef("%s:%s, %s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.type);
+        logger.tracef("%s:%s, %s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.state);
     }
 
     override void onOutRouterEvent(ChanOutEvent outEvent)
     {
-        if (outEvent.type == ChanOutEvent.ChanOutEventType.write)
+        if (outEvent.state == ChanOutEvent.ChanOutEventState.write)
         {
             import std.conv : to;
 
             //TODO utf, remove unsafe cast
             dstring buffStr = (cast(string) outEvent.buffer).to!dstring;
-            logger.tracef("%s:%s, %s, buff:%s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.type, escape(
+            logger.tracef("%s:%s, %s, buff:%s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.state, escape(
                     buffStr));
             return;
         }
 
-        logger.tracef("%s:%s, %s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.type);
+        logger.tracef("%s:%s, %s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.state);
     }
 }

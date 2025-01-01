@@ -28,9 +28,11 @@ import api.dn.channels.server_channel : ServerChannel;
  */
 class EventLoop : LoggableUnit
 {
+    uint ringEntries = 4096;
+    size_t maxMessageLen = 2048;
+
     enum backlog = 512;
-    enum maxMessageLen = 2048;
-    enum iourintFeatFastPollFlag = (1U << 5);
+    enum ringFeatFastPollFlag = (1U << 5);
 
     bool isTraceEvents;
 
@@ -38,9 +40,9 @@ class EventLoop : LoggableUnit
 
     io_uring ring;
 
-    this(Logging logger)
+    this(Logging logging)
     {
-        super(logger);
+        super(logging);
     }
 
     void delegate(FdChannel*) onAccepted;
@@ -61,26 +63,27 @@ class EventLoop : LoggableUnit
     {
         super.create;
 
-        assert(onAccepted, "On accept listener must be not null");
-        assert(onReadStart, "On read listener must be not null");
-        assert(onReadEnd, "On read end listener must be not null");
-        assert(onWrote, "On write listener must be not null");
-        assert(onClosed, "On close listener must be not null");
+        assert(onAccepted, "On accept listener must not be null");
+        assert(onReadStart, "On read listener must not be null");
+        assert(onReadEnd, "On read end listener must not be null");
+        assert(onWrote, "On write listener must not be null");
+        assert(onClosed, "On close listener must not be null");
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
         io_uring_params params;
 
-        memset(&params, 0, params.sizeof);
+        //memset(&params, 0, params.sizeof);
 
-        auto initRet = io_uring_queue_init_params(4096, &ring, &params);
+        assert(ringEntries > 0);
+        auto initRet = io_uring_queue_init_params(ringEntries, &ring, &params);
         if (initRet < 0)
         {
             logger.errorf("Init uring queue error: %s", strerror(-initRet).fromStringz);
             exit(1);
         }
 
-        if (!(params.features & iourintFeatFastPollFlag))
+        if (!(params.features & ringFeatFastPollFlag))
         {
             logger.error("io_urint fast poll not available in the kernel, quiting...\n");
             return;
@@ -180,8 +183,8 @@ class EventLoop : LoggableUnit
             cqe = cqes[i];
 
             auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
-
-            unsigned type = connection.state;
+            
+            int type = connection.state;
             final switch (type) with (SocketConnectState)
             {
                 case accept:

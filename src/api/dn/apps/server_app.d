@@ -16,14 +16,7 @@ class ServerApp : CliApp
 
         auto mainController = new MainController;
         uservices.build(mainController);
-
-        mainController.initialize;
-        assert(mainController.isInitialized);
-        mainController.create;
-        assert(mainController.isCreated);
-        mainController.run;
-        assert(mainController.isRunning);
-
+        initCreateRun(mainController);
     }
 
 }

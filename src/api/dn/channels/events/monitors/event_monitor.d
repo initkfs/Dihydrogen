@@ -17,7 +17,7 @@ class EventMonitor : LoggableUnit {
 
     }
 
-    void onTranslatedInEvent(ChanInEvent inEvent, ChanInEvent transEvent){
+    void onConvertedInEvent(ChanInEvent inEvent, ChanInEvent transEvent){
 
     }
 
@@ -25,7 +25,7 @@ class EventMonitor : LoggableUnit {
 
     }
 
-    void onTranslatedOutEvent(ChanOutEvent outEvent, ChanOutEvent transOutEvent){
+    void onConvertedOutEvent(ChanOutEvent outEvent, ChanOutEvent convOutEvent){
 
     }
 }

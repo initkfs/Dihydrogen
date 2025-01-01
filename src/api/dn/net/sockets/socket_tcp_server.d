@@ -24,9 +24,9 @@ class SocketTcpServer : LoggableUnit
         TcpSocket _socket;
     }
 
-    this(Logging logger)
+    this(Logging logging)
     {
-        super(logger);
+        super(logging);
     }
 
     override void create()

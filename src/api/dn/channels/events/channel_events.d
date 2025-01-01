@@ -7,23 +7,23 @@ import api.dn.channels.fd_channel : FdChannel, FdChannelType;
  */
 struct ChanInEvent
 {
-    enum ChanInEventType
+    enum ChanInEventState
     {
         none,
         accepted,
         readStart,
-        readedEnd,
+        readEnd,
         wrote,
         closed,
     }
 
     FdChannel* chan;
-    ChanInEventType type;
+    ChanInEventState state;
 }
 
 struct ChanOutEvent
 {
-    enum ChanOutEventType
+    enum ChanOutEventState
     {
         none,
         read,
@@ -32,22 +32,22 @@ struct ChanOutEvent
     }
 
     FdChannel* chan;
-    ChanOutEventType type;
+    ChanOutEventState state;
     ubyte[] buffer;
     bool isConsumed;
 
     void setRead()
     {
-        type = ChanOutEventType.read;
+        state = ChanOutEventState.read;
     }
 
     void setWrite()
     {
-        type = ChanOutEventType.write;
+        state = ChanOutEventState.write;
     }
 
     void setClose()
     {
-        type = ChanOutEventType.close;
+        state = ChanOutEventState.close;
     }
 }
