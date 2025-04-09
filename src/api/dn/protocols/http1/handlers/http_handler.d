@@ -20,6 +20,8 @@ class HttpHandler : ChannelHandler
 
     char[] response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!"
         .dup;
+    char[] responseErr = "HTTP/1.1 400 Bad Request\r\nContent-Length: 11\r\nConnection: close\r\n\r\nBad Request"
+        .dup;
 
     StaticHttpDecoder decoder;
 
@@ -45,9 +47,16 @@ class HttpHandler : ChannelHandler
         if (chanBuff.length > 0 || chanBuff[0] == '\0')
         {
             decode(chanBuff);
-            if(decoder.state != DecoderState.end){
-                ctx.outEvent.setClose;
+            if (decoder.state != DecoderState.end)
+            {
+                import std;
+
+                debug writeln("HTTP decoder error: ", decoder.state);
+                ctx.outEvent.setWrite;
+                ctx.outEvent.buffer = cast(ubyte[]) responseErr;
                 ctx.send;
+                //ctx.outEvent.setClose;
+                //ctx.send;
                 return;
             }
         }
