@@ -23,6 +23,8 @@ import api.dn.net.sockets.socket_connect : SocketConnectState;
 
 import api.dn.channels.server_channel : ServerChannel;
 
+import core.stdc.errno;
+
 /**
  * Authors: initkfs
  */
@@ -45,11 +47,11 @@ class EventLoop : LoggableUnit
         super(logging);
     }
 
-    void delegate(FdChannel*) onAccepted;
+    void delegate(FdChannel*) onAcceptEnd;
     void delegate(FdChannel*) onReadStart;
     void delegate(FdChannel*) onReadEnd;
-    void delegate(FdChannel*) onWrote;
-    void delegate(FdChannel*) onClosed;
+    void delegate(FdChannel*) onWriteEnd;
+    void delegate(FdChannel*) onCloseEnd;
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
@@ -63,16 +65,15 @@ class EventLoop : LoggableUnit
     {
         super.create;
 
-        assert(onAccepted, "On accept listener must not be null");
-        assert(onReadStart, "On read listener must not be null");
+        assert(onAcceptEnd, "On accept end listener must not be null");
+        assert(onReadStart, "On read start listener must not be null");
         assert(onReadEnd, "On read end listener must not be null");
-        assert(onWrote, "On write listener must not be null");
-        assert(onClosed, "On close listener must not be null");
+        assert(onWriteEnd, "On write end listener must not be null");
+        assert(onCloseEnd, "On close end listener must not be null");
 
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
         io_uring_params params;
-
         //memset(&params, 0, params.sizeof);
 
         assert(ringEntries > 0);
@@ -93,7 +94,7 @@ class EventLoop : LoggableUnit
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes, out bool isError)
     {
         auto ret = io_uring_wait_cqe(ring, cqes);
-        if (ret != 0)
+        if (ret != 0 && (ret != (-EAGAIN)))
         {
             isError = true;
         }
@@ -102,15 +103,9 @@ class EventLoop : LoggableUnit
 
     int getEventsPeek(io_uring* ring, io_uring_cqe** cqes, out bool isError)
     {
-        import core.stdc.errno;
-
         auto ret = io_uring_peek_cqe(ring, cqes);
-        if (ret != 0)
+        if (ret != 0 && (ret != (-EAGAIN)))
         {
-            if (ret == -EAGAIN)
-            {
-                return ret;
-            }
             isError = true;
         }
         return ret;
@@ -144,8 +139,6 @@ class EventLoop : LoggableUnit
             return true;
         }
 
-        import core.stdc.errno : EAGAIN;
-
         if (ret == -EAGAIN)
         {
             return true;
@@ -153,10 +146,9 @@ class EventLoop : LoggableUnit
 
         if (cqe.res < 0)
         {
-            auto errorConn = cast(FdChannel*) io_uring_cqe_get_data(cqe);
-            assert(errorConn);
+            auto errorConn = channelFromCQE(cqe);
             logger.errorf("Async request failed with fd %s, state '%s': %s", errorConn.fd, errorConn.state, strerror(
-                    -cqe.res).fromStringz);
+                    -cqe.res).fromStringz.idup);
             io_uring_cqe_seen(&ring, cqe);
             return true;
         }
@@ -198,7 +190,7 @@ class EventLoop : LoggableUnit
 
                     assert(newConnect);
 
-                    onAccepted(newConnect);
+                    onAcceptEnd(newConnect);
 
                     addServerAccept(connection.fd);
                     break;
@@ -227,14 +219,14 @@ class EventLoop : LoggableUnit
                     }
                     break;
                 case write:
-                    onWrote(connection);
+                    onWriteEnd(connection);
                     break;
                 case close:
                     // auto res = cqe.res;
                     // if(res < 0){
                     //     //TODO onError?
                     // }
-                    onClosed(connection);
+                    onCloseEnd(connection);
                     break;
             }
         }

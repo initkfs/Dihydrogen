@@ -108,7 +108,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         return frame;
     }
 
-    override void onAccepted(ChannelContext ctx)
+    override void onAcceptEnd(ChannelContext ctx)
     {
         synchronized (outBuffers)
         {
@@ -286,7 +286,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         // ctx.send;
     }
 
-    override void onWrote(ChannelContext ctx)
+    override void onWriteEnd(ChannelContext ctx)
     {
         synchronized (outBuffers)
         {
@@ -317,7 +317,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
 
     }
 
-    override void onClosed(ChannelContext ctx)
+    override void onCloseEnd(ChannelContext ctx)
     {
         synchronized (outBuffers)
         {

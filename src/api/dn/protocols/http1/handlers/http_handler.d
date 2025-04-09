@@ -28,7 +28,7 @@ class HttpHandler : ChannelHandler
         decoder = new StaticHttpDecoder;
     }
 
-    override void onAccepted(ChannelContext ctx)
+    override void onAcceptEnd(ChannelContext ctx)
     {
         ctx.outEvent.setRead;
         ctx.send;
@@ -64,13 +64,13 @@ class HttpHandler : ChannelHandler
         ctx.send;
     }
 
-    override void onWrote(ChannelContext ctx)
+    override void onWriteEnd(ChannelContext ctx)
     {
         ctx.outEvent.setClose;
         ctx.send;
     }
 
-    override void onClosed(ChannelContext ctx)
+    override void onCloseEnd(ChannelContext ctx)
     {
         //import std.stdio;
         //writefln("Close: %s", ctx.channel.fd);

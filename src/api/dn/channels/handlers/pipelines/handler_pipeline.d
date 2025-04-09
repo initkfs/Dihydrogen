@@ -23,7 +23,7 @@ class HandlerPipeline
         switch (event.state) with (ChanInEvent.ChanInEventState)
         {
             case accepted:
-                onAccepted(event);
+                onAcceptEnd(event);
                 break;
             case readStart:
                 onReadStart(event);
@@ -32,10 +32,10 @@ class HandlerPipeline
                 onReadEnd(event);
                 break;
             case wrote:
-                onWrote(event);
+                onWriteEnd(event);
                 break;
             case closed:
-                onClosed(event);
+                onCloseEnd(event);
                 break;
             default:
                 break;
@@ -64,10 +64,10 @@ class HandlerPipeline
         }
     }
 
-    void onAccepted(ChanInEvent event)
+    void onAcceptEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onAccepted(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onAcceptEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -88,18 +88,18 @@ class HandlerPipeline
         });
     }
 
-    void onWrote(ChanInEvent event)
+    void onWriteEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onWrote(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onWriteEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
 
-    void onClosed(ChanInEvent event)
+    void onCloseEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onClosed(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onCloseEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }

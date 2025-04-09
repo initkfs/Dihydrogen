@@ -15,11 +15,11 @@ class ChannelHandler
 
     void delegate(ChanOutEvent) onOutEvent;
 
-    void onAccepted(ChannelContext ctx)
+    void onAcceptEnd(ChannelContext ctx)
     {
         if (next)
         {
-            next.onAccepted(ctx);
+            next.onAcceptEnd(ctx);
         }
     }
 
@@ -39,19 +39,19 @@ class ChannelHandler
         }
     }
 
-    void onWrote(ChannelContext ctx)
+    void onWriteEnd(ChannelContext ctx)
     {
         if (next)
         {
-            next.onWrote(ctx);
+            next.onWriteEnd(ctx);
         }
     }
 
-    void onClosed(ChannelContext ctx)
+    void onCloseEnd(ChannelContext ctx)
     {
         if (next)
         {
-            next.onClosed(ctx);
+            next.onCloseEnd(ctx);
         }
     }
 

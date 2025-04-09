@@ -5,7 +5,10 @@ module api.dn.io.natives.iouring.io_uring_types;
 import io_uring_libs;
 
 alias unsigned = uint;
-extern (C) struct iovec;
+
+extern(C):
+
+struct iovec;
 
 struct io_uring_sq
 {
