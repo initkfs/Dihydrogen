@@ -4,15 +4,15 @@ import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
 
-import api.core.loggers.logging: Logging;
+import api.core.loggers.logging : Logging;
 
 /**
  * Authors: initkfs
  */
 class EventableEventLoop : EventLoop
 {
-
     void delegate(ChanInEvent) onInEvent;
+    void delegate(ChanOutEvent) onOutEvent;
 
     this(Logging logger)
     {
@@ -21,24 +21,37 @@ class EventableEventLoop : EventLoop
 
     override void create()
     {
-        onAcceptEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.accepted);
-        onReadStart = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.readStart);
-        onReadEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.readEnd);
-        onWriteEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.wrote);
-        onCloseEnd = (conn) => sendInEvent(conn, ChanInEvent.ChanInEventState.closed);
+        onAcceptEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.accepted);
+        onReadStart = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readStart);
+        onReadEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readEnd);
+        onWriteEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.wrote);
+        onCloseEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.closed);
 
         super.create;
-
-        assert(onInEvent);
     }
 
-    private void sendInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state)
+    ChanInEvent newChanInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state) => ChanInEvent(conn, state);
+
+    void sendNewInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state)
     {
-        onInEvent(ChanInEvent(conn, state));
+        sendInEvent(newChanInEvent(conn, state));
+    }
+
+    void sendInEvent(ChanInEvent inEvent)
+    {
+        if (onInEvent)
+        {
+            onInEvent(inEvent);
+        }
     }
 
     void sendOutEvent(ChanOutEvent event)
     {
+        if (onOutEvent)
+        {
+            onOutEvent(event);
+        }
+
         if (event.isConsumed)
         {
             return;
@@ -59,6 +72,5 @@ class EventableEventLoop : EventLoop
                 break;
         }
     }
-
 
 }

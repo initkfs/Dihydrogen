@@ -28,35 +28,9 @@ class EndpointableEventLoop : EventableEventLoop
         eventRouter = router;
         this.eventConverter = translator;
         this.eventMonitor = monitor;
-    }
 
-    override void create()
-    {
-        onInEvent = (chanInEvent) {
-
-            if (eventMonitor)
-            {
-                eventMonitor.onInEvent(chanInEvent);
-            }
-
-            if (eventConverter)
-            {
-                auto convInEvent = eventConverter.convertInEvent(chanInEvent);
-                if (eventMonitor)
-                {
-                    eventMonitor.onConvertedInEvent(chanInEvent, convInEvent);
-                }
-                chanInEvent = convInEvent;
-            }
-
-            eventRouter.routeInEvent(chanInEvent);
-        };
-
-        super.create;
-
-        assert(eventRouter);
         eventRouter.onOutEvent = (outEvent) {
-
+            
             if (eventMonitor)
             {
                 eventMonitor.onOutRouterEvent(outEvent);
@@ -72,7 +46,36 @@ class EndpointableEventLoop : EventableEventLoop
                 outEvent = convOutEvent;
             }
 
-            eventRouter.routeOutEvent(outEvent);
+            sendOutEvent(outEvent);
         };
+    }
+
+    override void sendInEvent(ChanInEvent chanInEvent)
+    {
+        super.sendInEvent(chanInEvent);
+
+        if (eventMonitor)
+        {
+            eventMonitor.onInEvent(chanInEvent);
+        }
+
+        if (eventConverter)
+        {
+            auto convInEvent = eventConverter.convertInEvent(chanInEvent);
+            if (eventMonitor)
+            {
+                eventMonitor.onConvertedInEvent(chanInEvent, convInEvent);
+            }
+            chanInEvent = convInEvent;
+        }
+
+        assert(eventRouter);
+        eventRouter.routeInEvent(chanInEvent);
+    }
+
+    override void create()
+    {
+        super.create;
+
     }
 }

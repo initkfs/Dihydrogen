@@ -141,6 +141,7 @@ class EventLoop : LoggableUnit
 
         if (ret == -EAGAIN)
         {
+            io_uring_cqe_seen(&ring, cqe);
             return true;
         }
 
