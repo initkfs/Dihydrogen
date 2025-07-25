@@ -1,7 +1,6 @@
 module api.dn.protocols.http1.static_http_decoder;
 
 import api.dn.codecs.codec : Codec;
-import api.core.mems.buffers.static_buffer : StaticBuffer;
 
 import api.dn.protocols.http1.http_common;
 

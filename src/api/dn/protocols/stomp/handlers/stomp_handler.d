@@ -8,7 +8,7 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.contexts.channel_context : ChannelContext;
 
 import api.dn.pools.linear_pool : LinearPool;
-import api.core.mems.buffers.static_buffer : StaticBuffer;
+import api.core.utils.adt.buffers.dense_buffer: DenseStaticBuffer;
 
 import api.core.utils.sync : MutexLock;
 
@@ -53,7 +53,7 @@ class Timer : Thread
 enum bufferInitialLength = 1024;
 enum frameBufferLength = 1024;
 
-alias FrameStaticBuffer = StaticBuffer!(char, frameBufferLength, true);
+alias FrameStaticBuffer = DenseStaticBuffer!(char, frameBufferLength);
 
 struct OutBufferData
 {

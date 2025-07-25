@@ -1,7 +1,7 @@
 module api.core.components.uni_component;
 
 import api.core.components.units.simple_unit : SimpleUnit;
-import api.core.components.uda : Service;
+import api.core.components.component_service : Service;
 import api.core.contexts.context : Context;
 import api.core.contexts.apps.app_context : AppContext;
 import api.core.contexts.platforms.platform_context : PlatformContext;
@@ -13,14 +13,9 @@ import api.core.clis.cli : Cli;
 import api.core.supports.support : Support;
 import api.core.resources.locals.local_resources : LocalResources;
 import api.core.resources.resourcing : Resourcing;
-import api.core.caps.cap : Cap;
-import api.core.caps.core.cap_core : CapCore;
-import api.core.events.event_bridge : EventBridge;
-import api.core.events.bus.event_bus : EventBus;
-import api.core.depends.dep : Dep;
-import api.core.depends.locators.service_locator : ServiceLocator;
+import api.core.contexts.locators.locator_context : LocatorContext;
 import api.core.mems.memory : Memory;
-import api.core.mems.allocs.allocator : Allocator;
+import api.core.utils.allocs.allocator : Allocator;
 
 import std.logger : Logger;
 
@@ -50,13 +45,12 @@ class UniComponent : SimpleUnit
         @Service Context _context;
         @Service Logging _logging;
         @Service Configuration _configs;
-        @Service Memory _memory;
+
         @Service Cli _cli;
         @Service Resourcing _resources;
+
         @Service Support _support;
-        @Service Cap _cap;
-        @Service EventBridge _eventBridge;
-        @Service Dep _dep;
+        @Service Memory _memory;
     }
 
     void build(UniComponent uniComponent)
@@ -75,7 +69,7 @@ class UniComponent : SimpleUnit
 
         initialize(component);
 
-        if (isStrictState && !component.isInitialized)
+        if (isStrictState && !component.isInitializing)
         {
             throw new Exception("Component not initialized: " ~ component.className);
         }
@@ -86,7 +80,7 @@ class UniComponent : SimpleUnit
         buildInit(component);
         create(component);
 
-        if (isStrictState && !component.isCreated)
+        if (isStrictState && !component.isCreating)
         {
             throw new Exception("Component not created: " ~ component.className);
         }
@@ -216,8 +210,8 @@ class UniComponent : SimpleUnit
     }
 
     bool hasContext() const nothrow pure @safe => _context !is null;
-    const(AppContext) appContext() pure @safe => context.appContext;
-    const(PlatformContext) platformContext() pure @safe => context.platformContext;
+    const(AppContext) app() pure @safe => context.app;
+    const(PlatformContext) platform() pure @safe => context.platform;
 
     inout(Context) context() inout nothrow pure @safe
     out (_context; _context !is null)
@@ -269,7 +263,7 @@ class UniComponent : SimpleUnit
     }
 
     bool hasMemory() const nothrow pure @safe => _memory !is null;
-    inout(Allocator) alloc() inout nothrow pure @safe => memory.alloc;
+    inout(Allocator!ubyte) alloc() inout nothrow pure @safe => memory.alloc;
 
     inout(Memory) memory() inout nothrow pure @safe
     out (_memory; _memory !is null)
@@ -332,56 +326,5 @@ class UniComponent : SimpleUnit
 
         enforce(resources !is null, "Resourcing must not be null");
         _resources = resources;
-    }
-
-    bool hasCap() const nothrow pure @safe => _cap !is null;
-    inout(CapCore) capCore() inout nothrow pure @safe => cap.capCore;
-
-    inout(Cap) cap() inout nothrow pure @safe
-    out (_cap; _cap !is null)
-    {
-        return _cap;
-    }
-
-    void cap(Cap newCap) pure @safe
-    {
-        import std.exception : enforce;
-
-        enforce(newCap !is null, "Capabilities must not be null");
-        _cap = newCap;
-    }
-
-    bool hasEventBridge() const nothrow pure @safe => _eventBridge !is null;
-    inout(EventBus) eventBus() inout nothrow pure @safe => eventBridge.eventBus;
-
-    inout(EventBridge) eventBridge() inout nothrow pure @safe
-    out (_eventBridge; _eventBridge !is null)
-    {
-        return _eventBridge;
-    }
-
-    void eventBridge(EventBridge eb) pure @safe
-    {
-        import std.exception : enforce;
-
-        enforce(eb !is null, "Event bridge must not be null");
-        _eventBridge = eb;
-    }
-
-    bool hasDep() const nothrow pure @safe => _dep !is null;
-    inout(ServiceLocator) locator() inout nothrow pure @safe => dep.locator;
-
-    inout(Dep) dep() inout nothrow pure @safe
-    out (_dep; _dep !is null)
-    {
-        return _dep;
-    }
-
-    void dep(Dep newDep) pure @safe
-    {
-        import std.exception : enforce;
-
-        enforce(newDep !is null, "Dependency service must not be null");
-        _dep = newDep;
     }
 }

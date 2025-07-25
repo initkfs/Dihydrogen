@@ -1,6 +1,6 @@
 module api.dn.protocols.stomp.stomp_common;
 
-import api.core.mems.buffers.static_buffer : StaticBuffer;
+import api.core.utils.adt.buffers.dense_buffer : DenseStaticBuffer;
 
 import std.typecons : Nullable;
 
@@ -66,8 +66,8 @@ struct StompHeader(T,
     size_t NameLength = StompBufferLength,
     size_t ValueLength = StompBufferLength)
 {
-    StaticBuffer!(T, NameLength) name;
-    StaticBuffer!(T, ValueLength) value;
+    DenseStaticBuffer!(T, NameLength) name;
+    DenseStaticBuffer!(T, ValueLength) value;
 }
 
 struct StompFrame(
@@ -78,6 +78,6 @@ struct StompFrame(
 )
 {
     StompCommand command;
-    StaticBuffer!(StompHeader!(char, StompBufferLength, StompBufferLength), 20, false) headers;
-    StaticBuffer!(ubyte, BodyLength) content;
+    DenseStaticBuffer!(StompHeader!(char, StompBufferLength, StompBufferLength), 20) headers;
+    DenseStaticBuffer!(ubyte, BodyLength) content;
 }

@@ -7,11 +7,7 @@ import api.core.configs.null_configuration: NullConfiguration;
 import api.core.clis.null_cli : NullCli;
 import api.core.resources.null_resourcing : NullResourcing;
 import api.core.supports.null_support : NullSupport;
-import api.core.events.null_event_bridge: NullEventBridge;
-import api.core.depends.null_dep: NullDep;
 import api.core.mems.null_memory: NullMemory;
-import api.core.caps.null_cap: NullCap;
-
 
 /**
  * Authors: initkfs
@@ -29,9 +25,6 @@ class NullUniComponent : UniComponent
         _cli = new NullCli;
         _resources = new NullResourcing;
         _support = new NullSupport;
-        _cap = new NullCap;
-        _eventBridge = new NullEventBridge;
-        _dep = new NullDep;
         isBuilt = true;
     }
 }
@@ -44,14 +37,14 @@ unittest
     nc1.buildInitCreateRun(nc);
     assert(nc.isBuilt);
 
-    import std.traits : hasUDA;
+    import std.traits : hasUDA, hasStaticMember;
     import api.core.utils.types : hasOverloads;
-    import api.core.components.uda : Service;
+    import api.core.components.component_service : Service;
 
     alias componentType = typeof(nc);
     static foreach (const fieldName; __traits(allMembers, componentType))
     {
-        static if (!hasOverloads!(componentType, fieldName) && hasUDA!(__traits(getMember, componentType, fieldName), Service))
+        static if (!hasOverloads!(componentType, fieldName) && hasUDA!(__traits(getMember, componentType, fieldName), Service) && !hasStaticMember!(componentType, fieldName))
         {
             {
                 auto value = __traits(getMember, nc, fieldName);
@@ -61,5 +54,5 @@ unittest
     }
 
     nc1.stopDispose(nc);
-    assert(nc.isDisposed);
+    assert(nc.isDisposing);
 }

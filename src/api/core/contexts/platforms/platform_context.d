@@ -1,7 +1,5 @@
 module api.core.contexts.platforms.platform_context;
 
-import std.typecons : Nullable;
-
 /**
  * Authors: initkfs
  */
@@ -23,7 +21,7 @@ class PlatformContext
         Thread.sleep(dur!("msecs")(delayMs));
     }
 
-    immutable(PlatformContext) idup() immutable
+    immutable(PlatformContext) idup()
     {
         return new immutable PlatformContext;
     }

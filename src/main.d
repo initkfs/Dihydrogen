@@ -25,7 +25,7 @@ int main(string[] args)
     auto app = new ServerApp;
     app.isStrictConfigs = true;
     auto initRes = app.initialize(args);
-    if (!initRes)
+    if (!initRes.isInit)
     {
         import std.stdio : stderr;
 
@@ -41,10 +41,10 @@ int main(string[] args)
         return successCode;
     }
 
-    assert(app.isInitialized);
+    assert(app.isInitializing);
 
     app.create;
-    assert(app.isCreated);
+    assert(app.isCreating);
     app.run;
     assert(app.isRunning);
 

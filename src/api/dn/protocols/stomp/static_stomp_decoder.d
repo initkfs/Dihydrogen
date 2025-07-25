@@ -1,7 +1,7 @@
 module api.dn.protocols.stomp.static_stomp_decoder;
 
 import api.dn.codecs.codec : Codec;
-import api.core.mems.buffers.static_buffer : StaticBuffer;
+import api.core.utils.adt.buffers.dense_buffer : DenseStaticBuffer;
 
 import api.dn.protocols.stomp.stomp_common;
 
@@ -74,7 +74,7 @@ class StaticStompDecoder : Codec
 
     bool isValidateFrames;
 
-    StaticBuffer!(StompHeader!(char, 256, 256), 20, false) headers;
+    DenseStaticBuffer!(StompHeader!(char, 256, 256), 20) headers;
 
     void decode(ubyte[] buff)
     {
