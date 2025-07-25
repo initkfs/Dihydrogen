@@ -91,29 +91,20 @@ class EventLoop : LoggableUnit
         }
     }
 
-    int getEventsWait(io_uring* ring, io_uring_cqe** cqes, out bool isError)
+    int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
     {
-        auto ret = io_uring_wait_cqe(ring, cqes);
-        if (ret != 0 && (ret != (-EAGAIN)))
-        {
-            isError = true;
-        }
-        return ret;
+        return io_uring_wait_cqe(ring, cqes);
     }
 
-    int getEventsPeek(io_uring* ring, io_uring_cqe** cqes, out bool isError)
+    int getEventsPeek(io_uring* ring, io_uring_cqe** cqes)
     {
-        auto ret = io_uring_peek_cqe(ring, cqes);
-        if (ret != 0 && (ret != (-EAGAIN)))
-        {
-            isError = true;
-        }
-        return ret;
+        //EAGAIN
+        return io_uring_peek_cqe(ring, cqes);
     }
 
-    int getEvents(io_uring* ring, io_uring_cqe** cqes, out bool isError)
+    int getEvents(io_uring* ring, io_uring_cqe** cqes)
     {
-        return getEventsWait(ring, cqes, isError);
+        return getEventsWait(ring, cqes);
     }
 
     FdChannel* channelFromCQE(io_uring_cqe* cqe)
@@ -126,39 +117,77 @@ class EventLoop : LoggableUnit
     bool runStepIsContinue()
     {
         io_uring_cqe* cqe;
-        int ret;
 
-        io_uring_submit(&ring);
-
-        bool isErrorEvents;
-        ret = getEvents(&ring, &cqe, isErrorEvents);
-        if (isErrorEvents)
+        const submitRet = io_uring_submit(&ring);
+        if (submitRet < 0)
         {
-            logger.error("Events receiver error: %d", ret);
-            io_uring_cqe_seen(&ring, cqe);
+            logger.error("Error events submitting: ", submitRet);
             return true;
         }
 
-        if (ret == -EAGAIN)
+        int eventsRet = getEvents(&ring, &cqe);
+        if (eventsRet != 0)
         {
-            io_uring_cqe_seen(&ring, cqe);
+            logger.error("Events receiver error: ", eventsRet);
             return true;
         }
 
-        if (cqe.res < 0)
+        int ret = cqe.res;
+
+        if (ret < 0)
         {
-            auto errorConn = channelFromCQE(cqe);
-            logger.errorf("Async request failed with fd %s, state '%s': %s", errorConn.fd, errorConn.state, strerror(
-                    -cqe.res).fromStringz.idup);
+            auto connect = channelFromCQE(cqe);
+
+            switch (ret)
+            {
+                case -EAGAIN:
+                    logger.trace("Connection reagain fd %s, state '%s'", connect.fd, connect.state);
+                    break;
+                case -ECONNRESET:
+                    logger.errorf("Connection reset fd %s, state '%s'", connect.fd, connect
+                            .state);
+                    onCloseEnd(connect);
+                    break;
+                case -EPIPE:
+                    logger.errorf("Connection broken pipe fd %s, state '%s'", connect.fd, connect
+                            .state);
+                    onCloseEnd(connect);
+                    break;
+                case -ENOTCONN:
+                    logger.errorf("Transport endpoint is not connected fd %s, state '%s'", connect.fd, connect
+                            .state);
+                    onCloseEnd(connect);
+                    break;
+                case -ENOBUFS:
+                    logger.errorf("No buffer space available fd %s, state '%s'", connect.fd, connect
+                            .state);
+                    break;
+                case -ETIMEDOUT:
+                    logger.errorf("Connection timeout fd %s, state '%s'", connect.fd, connect
+                            .state);
+                    break;
+                default:
+                    logger.errorf("Connection error fd %s, state '%s': %s", connect.fd, connect.state, strerror(
+
+                            -ret).fromStringz.idup);
+                    onCloseEnd(connect);
+            }
+
             io_uring_cqe_seen(&ring, cqe);
             return true;
         }
 
         io_uring_cqe*[backlog] cqes;
 
-        int cqe_count = io_uring_peek_batch_cqe(&ring, cqes.ptr, cqes.length);
+        int cqeСount = io_uring_peek_batch_cqe(&ring, cqes.ptr, cqes.length);
+        if (cqeСount < 0)
+        {
+            //EAGAIN
+            logger.error("Batching error code: ", cqeСount);
+            return true;
+        }
 
-        if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqe_count]))
+        if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqeСount]))
         {
             auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
 
@@ -167,31 +196,37 @@ class EventLoop : LoggableUnit
                 addServerAccept(connection.fd);
             }
 
-            io_uring_cq_advance(&ring, cqe_count);
+            io_uring_cq_advance(&ring, cqeСount);
             return true;
         }
 
-        for (int i = 0; i < cqe_count; ++i)
+        for (int i = 0; i < cqeСount; ++i)
         {
             cqe = cqes[i];
 
             auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
-            
+
             int type = connection.state;
             final switch (type) with (SocketConnectState)
             {
                 case accept:
                     int acceptSocketFd = cqe.res;
-                    assert(acceptSocketFd >= 0);
+                    if (acceptSocketFd < 0)
+                    {
+                        logger.errorf("Error accepting, descriptor not positive: %s, %s", acceptSocketFd, connection
+                                .toSimpleString);
+                    }
+                    else
+                    {
+                        auto newConnect = getChannel(connection.fd, acceptSocketFd);
 
-                    auto newConnect = getChannel(connection.fd, acceptSocketFd);
+                        //TODO or onClose?
+                        newConnect.resetBufferIndices;
 
-                    //TODO or onClose?
-                    newConnect.resetBufferIndices;
+                        assert(newConnect);
 
-                    assert(newConnect);
-
-                    onAcceptEnd(newConnect);
+                        onAcceptEnd(newConnect);
+                    }
 
                     addServerAccept(connection.fd);
                     break;
@@ -222,8 +257,7 @@ class EventLoop : LoggableUnit
                 case write:
                     onWriteEnd(connection);
                     break;
-                case close:
-                    // auto res = cqe.res;
+                case close: // auto res = cqe.res;
                     // if(res < 0){
                     //     //TODO onError?
                     // }
@@ -232,7 +266,7 @@ class EventLoop : LoggableUnit
             }
         }
 
-        io_uring_cq_advance(&ring, cqe_count);
+        io_uring_cq_advance(&ring, cqeСount);
 
         return true;
     }
@@ -294,10 +328,28 @@ class EventLoop : LoggableUnit
         throw new Exception("Not supported pool");
     }
 
+    bool getSqe(io_uring* ring, FdChannel* conn, out io_uring_sqe* sqe)
+    {
+        io_uring_sqe* sqePtr = io_uring_get_sqe(ring);
+        if (!sqePtr)
+        {
+            logger.error("Error. SQE is null on connection: %s", conn ? (*conn)
+                    .toSimpleString : "null");
+            return false;
+        }
+
+        sqe = sqePtr;
+        return true;
+    }
+
     void addSocketClose(io_uring* ring, FdChannel* conn)
     {
         conn.state = SocketConnectState.close;
-        io_uring_sqe* sqe = io_uring_get_sqe(ring);
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
         io_uring_prep_close(sqe, conn.fd);
         io_uring_sqe_set_data(sqe, conn);
     }
@@ -305,7 +357,11 @@ class EventLoop : LoggableUnit
     void addSocketAccept(io_uring* ring, FdChannel* conn, sockaddr* client_addr, socklen_t* client_len)
     {
         conn.state = SocketConnectState.accept;
-        io_uring_sqe* sqe = io_uring_get_sqe(ring);
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
         io_uring_prep_accept(sqe, conn.fd, client_addr, client_len, 0);
         io_uring_sqe_set_data(sqe, conn);
     }
@@ -316,7 +372,11 @@ class EventLoop : LoggableUnit
         {
             return;
         }
-        io_uring_sqe* sqe = io_uring_get_sqe(ring);
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
         io_uring_prep_recv(sqe, conn.fd, conn.writableBytes.ptr, conn.writableBytes.length, 0);
         conn.state = SocketConnectState.read;
         io_uring_sqe_set_data(sqe, conn);
@@ -327,7 +387,11 @@ class EventLoop : LoggableUnit
         assert(buff);
         assert(len >= 0);
         conn.state = SocketConnectState.write;
-        io_uring_sqe* sqe = io_uring_get_sqe(ring);
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
         io_uring_prep_send(sqe, conn.fd, buff, len, 0);
         io_uring_sqe_set_data(sqe, conn);
     }
