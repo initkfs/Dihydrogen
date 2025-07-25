@@ -162,7 +162,7 @@ class EventLoop : LoggableUnit
                     logger.errorf("No buffer space available fd %s, state '%s'", connect.fd, connect
                             .state);
                     break;
-                case -ETIMEDOUT:
+                case -ETIMEDOUT, -ETIME:
                     logger.errorf("Connection timeout fd %s, state '%s'", connect.fd, connect
                             .state);
                     break;
@@ -266,7 +266,9 @@ class EventLoop : LoggableUnit
             }
         }
 
-        io_uring_cq_advance(&ring, cqeСount);
+        if(cqeСount > 0){
+            io_uring_cq_advance(&ring, cqeСount);
+        }
 
         return true;
     }
@@ -394,6 +396,18 @@ class EventLoop : LoggableUnit
         }
         io_uring_prep_send(sqe, conn.fd, buff, len, 0);
         io_uring_sqe_set_data(sqe, conn);
+    }
+
+    void addSocketCancel(io_uring* ring, FdChannel* conn)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
+        io_uring_prep_cancel(sqe, conn ,0);
+        conn.state = SocketConnectState.cancel;
+        //io_uring_sqe_set_data(sqe, conn);
     }
 
     override void stop()

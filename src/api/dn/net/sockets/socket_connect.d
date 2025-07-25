@@ -9,5 +9,6 @@ enum SocketConnectState : int
     accept,
     close,
     read,
-    write
+    write,
+    cancel
 }

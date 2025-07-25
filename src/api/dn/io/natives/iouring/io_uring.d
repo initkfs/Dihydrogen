@@ -49,3 +49,4 @@ void io_uring_prep_recv(io_uring_sqe* sqe, int sockfd,
 void io_uring_prep_send(io_uring_sqe* sqe, int sockfd,
     const void* buf, size_t len, int flags);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, void* data);
+void io_uring_prep_cancel(io_uring_sqe *sqe, void *user_data, int flags);
