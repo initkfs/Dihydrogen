@@ -17,8 +17,8 @@ enum HttpControlСhar : byte
     space = ' '
 }
 
-//RFC9110
-enum uriMaxSizeBytes = 8000;
+//RFC9110 == 8000
+enum uriMaxSizeBytes = 4096;
 
 enum HttpMethod : string
 {
@@ -34,7 +34,9 @@ enum HttpMethod : string
 
 enum HttpVersion : string {
     none = "none",
-    http11 = "HTTP/1.1"
+    http11 = "HTTP/1.1",
+    http2 = "HTTP/2",
+    http3 = "HTTP/3",
 }
 
 private

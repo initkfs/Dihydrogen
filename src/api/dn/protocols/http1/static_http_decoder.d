@@ -26,7 +26,9 @@ enum DecoderState : string
     errorMethodTooShort = "Error. HTTP method too short",
     errorMethodOnly = "Error. Only method in request",
     errorEmptyRequest = "Error. Empty request",
+    errorInvalidDupCharsInUriLine = "Error. Invalid special characters duplication in URI line",
     errorInvalidUriLine = "Error. Invalid URI line",
+    errorInvalidCharsInUriLine = "Error. Invalid chars in URI line",
     errorUriLineTooLong = "Error. URI line too long",
     errorNoUriLine = "Error. No URI line",
     errorInvalidHeadersLine = "Error. Invalid headers line",
@@ -34,6 +36,8 @@ enum DecoderState : string
     errorInvalidProtoVersionLine = "Error. Invalid protocol version",
     errorInvalidMessage = "Error. Invalid message",
     errorNoProtoVersion = "Error. No protocol version",
+    errorNoHeadersNoBody = "Error. No headers, no body in request",
+    errorBodyTooLong = "Error. Body too long"
 }
 
 /** 
@@ -59,10 +63,14 @@ class StaticHttpDecoder : Codec
     size_t limitBodySizeBytes = size_t.max;
     size_t limitHeadersCount = 20;
     size_t limitUriLength = uriMaxSizeBytes;
+    bool isStrictUri = true;
+
+    //10-100Mb 
+    enum defaultLimitBodyLength = 30 * 1024;
+    size_t limitBodyLength = defaultLimitBodyLength;
 
     char[] requestMethodSlice;
     char[] uriSlice;
-    char[] protoVersionSlice;
     char[] headersLineSlice;
     ubyte[] bodySlice;
 
@@ -179,8 +187,7 @@ class StaticHttpDecoder : Codec
                         return;
                     }
 
-                    if (versionEolSize == 0 || (
-                            buffSlice.length <= mustBeHttpVersion.length + versionEolSize))
+                    if (buffSlice.length < mustBeHttpVersion.length + versionEolSize)
                     {
                         state = DecoderState.errorInvalidProtoVersionLine;
                         return;
@@ -188,13 +195,11 @@ class StaticHttpDecoder : Codec
 
                     httpVersion = mustBeHttpVersion;
 
-                    protoVersionSlice = cast(char[]) buffSlice[0 .. mustBeHttpVersion.length];
-
                     buffSlice = buffSlice[(mustBeHttpVersion.length + versionEolSize) .. $];
 
-                    if (buffSlice.length < 2)
+                    if (buffSlice.length == 0)
                     {
-                        state = DecoderState.errorInvalidMessage;
+                        state = DecoderState.errorNoHeadersNoBody;
                         return;
                     }
 
@@ -202,6 +207,12 @@ class StaticHttpDecoder : Codec
                     {
                         state = DecoderState.parseBodyLine;
                         continue;
+                    }
+
+                    if (buffSlice.length < 2)
+                    {
+                        state = DecoderState.errorInvalidMessage;
+                        return;
                     }
 
                     //TODO Reason phrase
@@ -243,9 +254,11 @@ class StaticHttpDecoder : Codec
                     {
                         return;
                     }
+
                     if (bodySize == 0)
                     {
-                        state = DecoderState.errorInvalidBodyLine;
+                        state = DecoderState.end;
+                        return;
                     }
 
                     bodySlice = buffSlice[0 .. bodySize];
@@ -268,7 +281,6 @@ class StaticHttpDecoder : Codec
 
         requestMethodSlice = null;
         uriSlice = null;
-        protoVersionSlice = null;
         headersLineSlice = null;
         bodySlice = null;
     }
@@ -278,6 +290,11 @@ class StaticHttpDecoder : Codec
         size_t offset;
         foreach (b; buffer)
         {
+            if (offset >= limitBodyLength)
+            {
+                return DecoderState.errorBodyTooLong;
+            }
+
             if (b == HttpControlСhar.nul)
             {
                 bodySize = offset;
@@ -287,7 +304,7 @@ class StaticHttpDecoder : Codec
             offset++;
         }
 
-        return DecoderState.errorInvalidBodyLine;
+        return DecoderState.ok;
     }
 
     DecoderState parseHeaders(scope const(ubyte)[] buffer, out size_t headersSize, out size_t headersEolSize)
@@ -304,8 +321,12 @@ class StaticHttpDecoder : Codec
             ubyte ch = buffer[i];
             if (ch == HttpControlСhar.cr)
             {
-                if (i > 0 && buffer[i - 1] == HttpControlСhar.lf && i < lastIndex && buffer[i + 1] == HttpControlСhar
-                    .lf)
+                if (i >= lastIndex || buffer[i + 1] != HttpControlСhar.lf)
+                {
+                    return DecoderState.errorInvalidHeadersLine;
+                }
+
+                if (i > 0 && buffer[i - 1] == HttpControlСhar.lf)
                 {
                     //cr -1
                     headersSize = i;
@@ -318,6 +339,97 @@ class StaticHttpDecoder : Codec
         return DecoderState.errorInvalidHeadersLine;
     }
 
+    string[string] parseHeadersKeyValues()
+    {
+        string[string] headers;
+
+        onHeader((key, value) {
+
+            if (key in headers)
+            {
+                return true;
+            }
+
+            headers[key.idup] = value.idup;
+
+            return true;
+        });
+
+        return headers;
+    }
+
+    bool onHeader(scope bool delegate(const(char[]) name, const(char[]) value) onNameValueIsContinue)
+    {
+        if (state != DecoderState.end && headersLineSlice.length == 0)
+        {
+            return false;
+        }
+
+        import std.string : lineSplitter, indexOf, strip;
+        import std.algorithm.searching : countUntil;
+
+        char sep = ':';
+        const lineSep = "\r\n";
+
+        const data = cast(char[]) headersLineSlice;
+
+        size_t pos = 0;
+        lineLoop: while (pos < data.length)
+        {
+            auto end = data[pos .. $].indexOf(lineSep);
+            if (end == -1)
+            {
+                break;
+            }
+
+            auto line = data[pos .. pos + end];
+            pos += end + lineSep.length;
+
+            if (line.length == 0)
+            {
+                break;
+            }
+
+            long sepPos = -1;
+            foreach (i, ch; line)
+            {
+                if (ch == sep)
+                {
+                    sepPos = i;
+                    break;
+                }
+
+                if (!isValidHeaderKeyValueChars(ch) && ch != ' ')
+                {
+                    continue lineLoop;
+                }
+            }
+
+            if (sepPos == -1)
+            {
+                continue;
+            }
+
+            const key = line[0 .. sepPos].strip;
+
+            const value = line[sepPos + 1 .. $].strip;
+            foreach (v; value)
+            {
+                if (!isValidHeaderKeyValueChars(v))
+                {
+                    continue lineLoop;
+                }
+            }
+
+            if (!onNameValueIsContinue(key, value))
+            {
+                return true;
+            }
+        }
+
+        return true;
+    }
+
     DecoderState parseProtoVersion(scope const(ubyte)[] buffer, out HttpVersion protoVersion, out size_t protoVersionEolSize)
     {
         enum eolSizeof = cr.sizeof + lf.sizeof;
@@ -328,6 +440,7 @@ class StaticHttpDecoder : Codec
         }
 
         auto buffProtoSlice = buffer[0 .. (HttpVersion.http11.length)];
+
         auto buffProtoEolSlize = buffer[HttpVersion.http11.length .. $];
         if (
             buffProtoEolSlize[0] == cr &&
@@ -356,14 +469,47 @@ class StaticHttpDecoder : Codec
         }
 
         size_t uriOffset;
+        bool isSpecial;
+        char lastSpecialChar;
         foreach (b; buffer)
         {
+            if (uriOffset > limitUriLength)
+            {
+                return DecoderState.errorUriLineTooLong;
+            }
+
+            if (!isValidUriChar(b, isStrictUri) && !(b == ' '))
+            {
+                return DecoderState.errorInvalidCharsInUriLine;
+            }
+
+            if (isValidUriSpecialChar(b, isStrictUri))
+            {
+                if (isSpecial)
+                {
+                    if (lastSpecialChar == b)
+                    {
+                        return DecoderState.errorInvalidDupCharsInUriLine;
+                    }
+                }
+                else
+                {
+                    isSpecial = true;
+                    lastSpecialChar = b;
+                }
+            }
+            else
+            {
+                if (isSpecial)
+                {
+                    isSpecial = false;
+                    lastSpecialChar = 0;
+                }
+            }
+
             if (b == HttpControlСhar.space)
             {
-                if (uriOffset > limitUriLength)
-                {
-                    return DecoderState.errorUriLineTooLong;
-                }
+                //TODO isSpecial last _-
                 uriSize = uriOffset;
                 uriSepSize = HttpControlСhar.space.sizeof;
                 return DecoderState.ok;
@@ -380,7 +526,7 @@ class StaticHttpDecoder : Codec
             return DecoderState.errorUriLineTooLong;
         }
 
-        return DecoderState.errorInvalidUriLine;
+        return DecoderState.ok;
     }
 
     DecoderState parseRequestMethod(scope const(ubyte)[] buffer, out size_t requestMethodSize, out size_t requestSepSize)
@@ -393,6 +539,11 @@ class StaticHttpDecoder : Codec
         size_t offset;
         foreach (b; buffer)
         {
+            if (offset > httpMethodMaxSize)
+            {
+                return DecoderState.errorMethodTooLong;
+            }
+
             if (!isUpperCharOrSpace(b))
             {
                 return DecoderState.errorInvalidMethod;
@@ -400,11 +551,6 @@ class StaticHttpDecoder : Codec
 
             if (b == HttpControlСhar.space)
             {
-                if (offset > httpMethodMaxSize)
-                {
-                    return DecoderState.errorMethodTooLong;
-                }
-
                 if (offset < httpMethodMinSize)
                 {
                     return DecoderState.errorMethodTooShort;
@@ -421,6 +567,7 @@ class StaticHttpDecoder : Codec
         requestMethodSize = offset;
         requestSepSize = 0;
 
+        //an extra check, but useful
         if (requestMethodSize > httpMethodMaxSize)
         {
             return DecoderState.errorMethodTooLong;
@@ -434,6 +581,90 @@ class StaticHttpDecoder : Codec
         return DecoderState.ok;
     }
 
+    bool isValidHeaderKeyValueChars(char c)
+    {
+        //Content-Disposition: Unicode filename* (RFC 5987).
+        //Set-Cookie: ,, ;, "
+        if ((c >= 'A' && c <= 'Z') ||
+            (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') || c == '-' || c == '/')
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool isPercentEncodingCharsAfter(char c)
+    {
+        if ((c >= 'A' && c <= 'F') ||
+            (c >= 'a' && c <= 'f') ||
+            (c >= '0' && c <= '9'))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool isValidUriSpecialChar(char c, bool isStrict = true)
+    {
+        //%00 (Null), %0A, %1C
+        if (c == '-' || c == '.' || c == '_' || c == '/')
+        {
+            return true;
+        }
+
+        if (isStrict)
+        {
+            return false;
+        }
+
+        // (RFC 3986): :/?#[]@!$&'()*+,;=
+        //command injection: ;|`$()<>
+        switch (c)
+        {
+            case ':':
+            case '?':
+            case '#':
+            case '[':
+            case ']':
+            case '@':
+            case '!':
+            case '$':
+            case '&':
+            case '\'':
+            case '(':
+            case ')':
+            case '*':
+            case '+':
+            case ',':
+            case ';':
+            case '=':
+                return true;
+            default:
+                break;
+        }
+
+        return false;
+    }
+
+    bool isValidUriChar(char c, bool isStrict = true)
+    {
+        //%00 (Null), %0A, %1C
+        //(RFC 3986): A-Z, a-z, 0-9, '-', '.', '_', '~'; and '/', '%'
+        if (
+            (c >= 'A' && c <= 'Z') ||
+            (c >= 'a' && c <= 'z') ||
+            (c >= '0' && c <= '9') ||
+            isValidUriSpecialChar(c, isStrict))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     protected bool isUpperCharOrSpace(char c)
     {
         if ((c >= 'A' && c <= 'Z') || c == ' ')
@@ -442,6 +673,16 @@ class StaticHttpDecoder : Codec
         }
 
         return false;
+    }
+
+    void setUriDefaultLengthLimit()
+    {
+        limitUriLength = uriMaxSizeBytes;
+    }
+
+    void setBodyDefaultLengthLimit()
+    {
+        limitBodyLength = defaultLimitBodyLength;
     }
 }
 
@@ -457,7 +698,6 @@ class StaticHttpDecoder : Codec
 //     assert(decoder.httpVersion == HttpVersion.http11);
 //     assert(decoder.requestMethodSlice == "GET");
 //     assert(decoder.uriSlice == "/path/to/resource");
-//     assert(decoder.protoVersionSlice == "HTTP/1.1");
 //     assert(decoder.headersLineSlice == "Host: example.com\r\nUser-Agent: MyCustomClient/1.0\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nConnection: close\r\n"
 //             .dup);
 //     assert(decoder.bodySlice.length == 0);
@@ -502,6 +742,10 @@ unittest
     decoder.decode(tooLongMethod);
     assert(decoder.state == DecoderState.errorMethodTooLong);
 
+    ubyte[] tooLongMethod2 = cast(ubyte[]) "GETGETGETGETGET /helloworld HTTP/1.1";
+    decoder.decode(tooLongMethod2);
+    assert(decoder.state == DecoderState.errorMethodTooLong);
+
     ubyte[] tooShortMethod = cast(ubyte[]) "GE";
     decoder.decode(tooShortMethod);
     assert(decoder.state == DecoderState.errorMethodTooShort);
@@ -511,5 +755,107 @@ unittest
 {
     auto decoder = new StaticHttpDecoder;
 
+    decoder.decode(cast(ubyte[]) "GET /");
+    assert(decoder.state == DecoderState.errorNoProtoVersion);
+    decoder.decode(cast(ubyte[]) "GET / ");
+    assert(decoder.state == DecoderState.errorNoProtoVersion);
+    decoder.decode(cast(ubyte[]) "GET /    ");
+    assert(decoder.state == DecoderState.errorInvalidProtoVersionLine);
 
+    decoder.limitUriLength = 5;
+    decoder.decode(cast(ubyte[]) "GET /helloworld");
+    assert(decoder.state == DecoderState.errorUriLineTooLong);
+    decoder.decode(cast(ubyte[]) "GET /helloworld HTTP/1.1");
+    assert(decoder.state == DecoderState.errorUriLineTooLong);
+    decoder.setUriDefaultLengthLimit;
+    decoder.decode(cast(ubyte[]) "GET /helloworld");
+    assert(decoder.state == DecoderState.errorNoProtoVersion);
+
+    decoder.decode(cast(ubyte[]) "GET Ё");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /.\n/");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    //%2E%2E
+    decoder.decode(cast(ubyte[]) "GET /../");
+    assert(decoder.state == DecoderState.errorInvalidDupCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /%2E%2E/");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /cmd--arg/");
+    assert(decoder.state == DecoderState.errorInvalidDupCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /delete/1/;DROP");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    //%2F == / 
+    decoder.decode(cast(ubyte[]) "GET /%2F");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /\0");
+    assert(decoder.state == DecoderState.errorInvalidCharsInUriLine);
+
+    decoder.decode(cast(ubyte[]) "GET /h//h");
+    assert(decoder.state == DecoderState.errorInvalidDupCharsInUriLine);
+}
+
+unittest
+{
+    auto decoder = new StaticHttpDecoder;
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\n\r\n");
+    assert(decoder.state == DecoderState.end);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1");
+    assert(decoder.state == DecoderState.errorInvalidProtoVersionLine);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\n");
+    assert(decoder.state == DecoderState.errorNoHeadersNoBody);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/\n1.1\r\n");
+    assert(decoder.state == DecoderState.errorInvalidProtoVersionLine);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTЕ/1.1\r\n");
+    assert(decoder.state == DecoderState.errorInvalidProtoVersionLine);
+}
+
+unittest
+{
+    auto decoder = new StaticHttpDecoder;
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost");
+    assert(decoder.state == DecoderState.errorInvalidHeadersLine);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost\r\n");
+    assert(decoder.state == DecoderState.errorInvalidHeadersLine);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost\r\n\r\n");
+    assert(decoder.state == DecoderState.end);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost\r\n\r\n\r\n");
+    assert(decoder.state == DecoderState.end);
+    assert(decoder.parseHeadersKeyValues.length == 0);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost:\r\n\r\n");
+    assert(decoder.state == DecoderState.end);
+    assert(decoder.parseHeadersKeyValues == ["Host": ""]);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost:name\r\n   XHeader: value\r\n\r\n");
+    assert(decoder.state == DecoderState.end);
+    assert(decoder.parseHeadersKeyValues == ["Host": "name", "XHeader": "value"]);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost:name\r\nXHeader\r\n\r\n");
+    assert(decoder.parseHeadersKeyValues == ["Host": "name"]);
+
+    decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nXHeader\r\nHost:name\r\n\r\n");
+    assert(decoder.parseHeadersKeyValues == ["Host": "name"]);
+
+    decoder.decode(cast(
+            ubyte[]) "GET / HTTP/1.1\r\nHeader1: value1\r\nHea\nder2     :value2\r\n Header3: va\nlue3\r\nHeader4:value4\r\n\r\n");
+    assert(decoder.parseHeadersKeyValues == [
+        "Header1": "value1",
+        "Header4": "value4"
+    ]);
 }
