@@ -47,36 +47,42 @@ class HttpHandler : ChannelHandler
         if (chanBuff.length > 0 || chanBuff[0] == '\0')
         {
             decode(chanBuff);
-            if (decoder.state != DecoderState.end)
+            if (decoder.state != DecoderState.end && decoder.state != DecoderState
+                .errorNoHeadersNoBody)
             {
                 import std;
 
                 debug writeln("HTTP decoder error: ", decoder.state);
-                ctx.outEvent.setWrite;
-                ctx.outEvent.buffer = cast(ubyte[]) responseErr;
+                ctx.outEvent.setRead;
                 ctx.send;
+                //ctx.outEvent.setWrite;
+                //ctx.outEvent.buffer = cast(ubyte[]) responseErr;
+                //ctx.send;
                 //ctx.outEvent.setClose;
                 //ctx.send;
                 return;
             }
         }
 
-        ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[]) response;
+        ctx.outEvent.setRead;
         ctx.send;
+
+        //ctx.outEvent.setWrite;
+        //ctx.outEvent.buffer = cast(ubyte[]) response;
+        //ctx.send;
     }
 
     override void onReadEnd(ChannelContext ctx)
     {
-        ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[]) response;
-        ctx.send;
+        //ctx.outEvent.setWrite;
+        //ctx.outEvent.buffer = cast(ubyte[]) response;
+        //ctx.send;
     }
 
     override void onWriteEnd(ChannelContext ctx)
     {
-        ctx.outEvent.setClose;
-        ctx.send;
+        //ctx.outEvent.setClose;
+        //ctx.send;
     }
 
     override void onCloseEnd(ChannelContext ctx)

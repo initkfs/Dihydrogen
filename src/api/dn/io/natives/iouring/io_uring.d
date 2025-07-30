@@ -39,8 +39,8 @@ int io_uring_wait_cqe(io_uring* ring,
 void io_uring_cqe_seen(io_uring* ring, io_uring_cqe* cqe);
 unsigned io_uring_peek_batch_cqe(io_uring* ring,
     io_uring_cqe** cqes, unsigned count);
-void* io_uring_cqe_get_data(const io_uring_cqe* cqe);
-void* io_uring_cqe_set_data(const io_uring_cqe* cqe, void* data);
+void* io_uring_cqe_get_data(io_uring_cqe* cqe);
+__u64 io_uring_cqe_get_data64(io_uring_cqe* cqe);
 void io_uring_prep_accept(io_uring_sqe* sqe, int fd,
     sockaddr* addr,
     socklen_t* addrlen, int flags);
@@ -49,4 +49,27 @@ void io_uring_prep_recv(io_uring_sqe* sqe, int sockfd,
 void io_uring_prep_send(io_uring_sqe* sqe, int sockfd,
     const void* buf, size_t len, int flags);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, void* data);
-void io_uring_prep_cancel(io_uring_sqe *sqe, void *user_data, int flags);
+void io_uring_sqe_set_data(io_uring_sqe* sqe, __u64 data);
+void io_uring_prep_cancel(io_uring_sqe* sqe, void* user_data, int flags);
+
+import time_libs;
+
+void io_uring_prep_timeout(io_uring_sqe* sqe,
+    __kernel_timespec* ts,
+    uint count,
+    uint flags);
+
+void io_uring_prep_timeout_remove(io_uring_sqe * sqe, __u64 user_data, uint flags);
+
+enum TimeoutFlags
+{
+    IORING_TIMEOUT_ABS = (1U << 0),
+    IORING_TIMEOUT_UPDATE = (1U << 1),
+    IORING_TIMEOUT_BOOTTIME = (1U << 2),
+    IORING_TIMEOUT_REALTIME = (1U << 3),
+    IORING_LINK_TIMEOUT_UPDATE = (1U << 4),
+    IORING_TIMEOUT_ETIME_SUCCESS = (1U << 5),
+    IORING_TIMEOUT_MULTISHOT = (1U << 6),
+    IORING_TIMEOUT_CLOCK_MASK = (IORING_TIMEOUT_BOOTTIME | IORING_TIMEOUT_REALTIME),
+    IORING_TIMEOUT_UPDATE_MASK = (IORING_TIMEOUT_UPDATE | IORING_LINK_TIMEOUT_UPDATE)
+}

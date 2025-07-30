@@ -89,6 +89,8 @@ class EventLoop : LoggableUnit
             logger.error("io_urint fast poll not available in the kernel, quiting...\n");
             return;
         }
+
+        addTimer(&ring, 10, 5);
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -107,9 +109,15 @@ class EventLoop : LoggableUnit
         return getEventsWait(ring, cqes);
     }
 
-    FdChannel* channelFromCQE(io_uring_cqe* cqe)
+    FdChannel* hasChannelFromCQE(io_uring_cqe* cqe)
     {
         auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
+        return connection;
+    }
+
+    FdChannel* channelFromCQE(io_uring_cqe* cqe)
+    {
+        auto connection = hasChannelFromCQE(cqe);
         assert(connection);
         return connection;
     }
@@ -136,41 +144,59 @@ class EventLoop : LoggableUnit
 
         if (ret < 0)
         {
-            auto connect = channelFromCQE(cqe);
-
-            switch (ret)
+            auto connect = hasChannelFromCQE(cqe);
+            if (!connect)
             {
-                case -EAGAIN:
-                    logger.trace("Connection reagain fd %s, state '%s'", connect.fd, connect.state);
-                    break;
-                case -ECONNRESET:
-                    logger.errorf("Connection reset fd %s, state '%s'", connect.fd, connect
-                            .state);
-                    onCloseEnd(connect);
-                    break;
-                case -EPIPE:
-                    logger.errorf("Connection broken pipe fd %s, state '%s'", connect.fd, connect
-                            .state);
-                    onCloseEnd(connect);
-                    break;
-                case -ENOTCONN:
-                    logger.errorf("Transport endpoint is not connected fd %s, state '%s'", connect.fd, connect
-                            .state);
-                    onCloseEnd(connect);
-                    break;
-                case -ENOBUFS:
-                    logger.errorf("No buffer space available fd %s, state '%s'", connect.fd, connect
-                            .state);
-                    break;
-                case -ETIMEDOUT, -ETIME:
-                    logger.errorf("Connection timeout fd %s, state '%s'", connect.fd, connect
-                            .state);
-                    break;
-                default:
-                    logger.errorf("Connection error fd %s, state '%s': %s", connect.fd, connect.state, strerror(
+                switch (ret)
+                {
+                    case -ETIME:
+                        logger.trace("Timer end");
+                        break;
+                    case -ECANCELED:
+                        logger.trace("Timer canceled");
+                        break;
+                    default:
+                        logger.error("Unknown error without connection: ", ret);
+                        break;
+                }
+            }
+            else
+            {
+                switch (ret)
+                {
+                    case -EAGAIN:
+                        logger.trace("Connection reagain fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        break;
+                    case -ECONNRESET:
+                        logger.errorf("Connection reset fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        onCloseEnd(connect);
+                        break;
+                    case -EPIPE:
+                        logger.errorf("Connection broken pipe fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        onCloseEnd(connect);
+                        break;
+                    case -ENOTCONN:
+                        logger.errorf("Transport endpoint is not connected fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        onCloseEnd(connect);
+                        break;
+                    case -ENOBUFS:
+                        logger.errorf("No buffer space available fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        break;
+                    case -ETIMEDOUT, -ETIME:
+                        logger.errorf("Connection timeout fd %s, state '%s'", connect.fd, connect
+                                .state);
+                        break;
+                    default:
+                        logger.errorf("Connection error fd %s, state '%s': %s", connect.fd, connect.state, strerror(
 
-                            -ret).fromStringz.idup);
-                    onCloseEnd(connect);
+                                -ret).fromStringz.idup);
+                        onCloseEnd(connect);
+                }
             }
 
             io_uring_cqe_seen(&ring, cqe);
@@ -266,7 +292,8 @@ class EventLoop : LoggableUnit
             }
         }
 
-        if(cqeСount > 0){
+        if (cqeСount > 0)
+        {
             io_uring_cq_advance(&ring, cqeСount);
         }
 
@@ -328,6 +355,19 @@ class EventLoop : LoggableUnit
     FdChannel* getChannel(int serverFd, int activeChannelFd)
     {
         throw new Exception("Not supported pool");
+    }
+
+    bool getSqe(io_uring* ring, out io_uring_sqe* sqe)
+    {
+        io_uring_sqe* sqePtr = io_uring_get_sqe(ring);
+        if (!sqePtr)
+        {
+            logger.error("Error. SQE is null");
+            return false;
+        }
+
+        sqe = sqePtr;
+        return true;
     }
 
     bool getSqe(io_uring* ring, FdChannel* conn, out io_uring_sqe* sqe)
@@ -405,9 +445,38 @@ class EventLoop : LoggableUnit
         {
             return;
         }
-        io_uring_prep_cancel(sqe, conn ,0);
+        io_uring_prep_cancel(sqe, conn, 0);
         conn.state = SocketConnectState.cancel;
         //io_uring_sqe_set_data(sqe, conn);
+    }
+
+    void addTimer(io_uring* ring, ulong id, ulong sec, uint count = 0, uint flags = 0)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, sqe))
+        {
+            return;
+        }
+
+        import time_libs;
+
+        __kernel_timespec timeout;
+        timeout.tv_sec = sec;
+        timeout.tv_nsec = 0;
+
+        io_uring_prep_timeout(sqe, &timeout, count, flags);
+        io_uring_sqe_set_data(sqe, id);
+    }
+
+    void removeTimer(io_uring* ring, ulong userData, uint flags = 0)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, sqe))
+        {
+            return;
+        }
+
+        io_uring_prep_timeout_remove(sqe, userData, flags);
     }
 
     override void stop()
