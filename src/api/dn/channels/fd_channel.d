@@ -1,5 +1,7 @@
 module api.dn.channels.fd_channel;
 
+import api.dn.net.sockets.socket_connect : SocketConnectState;
+
 /**
  * Authors: initkfs
  */
@@ -17,6 +19,15 @@ struct FdChannel
     size_t readIndex;
     size_t writeIndex;
     void* data;
+
+    void reset()
+    {
+        //fd = -1;
+        resetBufferIndices;
+        state = SocketConnectState.none;
+        //buff = null;
+        data = null;
+    }
 
     bool incRead(size_t offset = 1) @nogc nothrow @safe
     {
@@ -70,11 +81,13 @@ struct FdChannel
         return buff[writeIndex .. $];
     }
 
-    void resetBufferRead(){
+    void resetBufferRead()
+    {
         readIndex = 0;
     }
 
-    void resetBufferWrite(){
+    void resetBufferWrite()
+    {
         writeIndex = 0;
     }
 

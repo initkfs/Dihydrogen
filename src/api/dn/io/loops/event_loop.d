@@ -50,6 +50,7 @@ class EventLoop : LoggableUnit
     void delegate(FdChannel*) onAcceptEnd;
     void delegate(FdChannel*) onReadStart;
     void delegate(FdChannel*) onReadEnd;
+    void delegate(FdChannel*) onReadError;
     void delegate(FdChannel*) onWriteEnd;
     void delegate(FdChannel*) onCloseEnd;
 
@@ -68,6 +69,7 @@ class EventLoop : LoggableUnit
         assert(onAcceptEnd, "On accept end listener must not be null");
         assert(onReadStart, "On read start listener must not be null");
         assert(onReadEnd, "On read end listener must not be null");
+        assert(onReadError, "On read error listener must not be null");
         assert(onWriteEnd, "On write end listener must not be null");
         assert(onCloseEnd, "On close end listener must not be null");
 
@@ -89,8 +91,6 @@ class EventLoop : LoggableUnit
             logger.error("io_urint fast poll not available in the kernel, quiting...\n");
             return;
         }
-
-        addTimer(&ring, 10, 5);
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -188,8 +188,9 @@ class EventLoop : LoggableUnit
                                 .state);
                         break;
                     case -ETIMEDOUT, -ETIME:
-                        logger.errorf("Connection timeout fd %s, state '%s'", connect.fd, connect
+                        logger.trace("Connection timeout fd %s, state '%s'", connect.fd, connect
                                 .state);
+                        addSocketClose(&ring, connect);
                         break;
                     default:
                         logger.errorf("Connection error fd %s, state '%s': %s", connect.fd, connect.state, strerror(
@@ -230,7 +231,14 @@ class EventLoop : LoggableUnit
         {
             cqe = cqes[i];
 
-            auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
+            auto connectionPtr = io_uring_cqe_get_data(cqe);
+            if (!connectionPtr)
+            {
+                logger.error("Connection not found: ", cqe.res);
+                continue;
+            }
+
+            auto connection = cast(FdChannel*) connectionPtr;
 
             int type = connection.state;
             final switch (type) with (SocketConnectState)
@@ -245,11 +253,12 @@ class EventLoop : LoggableUnit
                     else
                     {
                         auto newConnect = getChannel(connection.fd, acceptSocketFd);
+                        assert(newConnect);
 
                         //TODO or onClose?
-                        newConnect.resetBufferIndices;
+                        newConnect.reset;
 
-                        assert(newConnect);
+                        //addTimer(&ring, newConnect, 10, 1);
 
                         onAcceptEnd(newConnect);
                     }
@@ -259,8 +268,11 @@ class EventLoop : LoggableUnit
                 case read:
                     int bytesRead = cqe.res;
 
-                    //TODO onErrorRead, < 0
-                    if (bytesRead <= 0)
+                    if (bytesRead < 0)
+                    {
+                        onReadError(connection);
+                    }
+                    else if (bytesRead == 0)
                     {
                         onReadEnd(connection);
                     }
@@ -288,6 +300,12 @@ class EventLoop : LoggableUnit
                     //     //TODO onError?
                     // }
                     onCloseEnd(connection);
+                    break;
+                case timeout:
+                    import std;
+
+                    writeln("TIMEOUT");
+                    //addSocketClose(&ring, connection);
                     break;
             }
         }
@@ -410,10 +428,6 @@ class EventLoop : LoggableUnit
 
     void addSocketReadv(io_uring* ring, FdChannel* conn)
     {
-        if (conn.writableBytes.length == 0)
-        {
-            return;
-        }
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
         {
@@ -450,8 +464,14 @@ class EventLoop : LoggableUnit
         //io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addTimer(io_uring* ring, ulong id, ulong sec, uint count = 0, uint flags = 0)
+    void addTimer(io_uring* ring, FdChannel* conn, ulong sec, uint count = 0, uint flags = 0)
     {
+        if (!conn)
+        {
+            logger.error("Error setting timer, connection is null");
+            return;
+        }
+
         io_uring_sqe* sqe;
         if (!getSqe(ring, sqe))
         {
@@ -465,7 +485,7 @@ class EventLoop : LoggableUnit
         timeout.tv_nsec = 0;
 
         io_uring_prep_timeout(sqe, &timeout, count, flags);
-        io_uring_sqe_set_data(sqe, id);
+        io_uring_sqe_set_data(sqe, conn);
     }
 
     void removeTimer(io_uring* ring, ulong userData, uint flags = 0)

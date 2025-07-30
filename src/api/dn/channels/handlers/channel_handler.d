@@ -39,6 +39,14 @@ class ChannelHandler
         }
     }
 
+    void onReadError(ChannelContext ctx)
+    {
+        if (next)
+        {
+            next.onReadError(ctx);
+        }
+    }
+
     void onWriteEnd(ChannelContext ctx)
     {
         if (next)

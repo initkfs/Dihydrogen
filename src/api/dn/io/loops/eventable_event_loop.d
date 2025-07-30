@@ -24,6 +24,7 @@ class EventableEventLoop : EventLoop
         onAcceptEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.accepted);
         onReadStart = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readStart);
         onReadEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readEnd);
+        onReadError = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readError);
         onWriteEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.wrote);
         onCloseEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.closed);
 

@@ -10,5 +10,6 @@ enum SocketConnectState : int
     close,
     read,
     write,
-    cancel
+    cancel,
+    timeout
 }

@@ -88,6 +88,14 @@ class HandlerPipeline
         });
     }
 
+    void onReadError(ChanInEvent event)
+    {
+        onHandler((h) {
+            h.onReadError(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            return true;
+        });
+    }
+
     void onWriteEnd(ChanInEvent event)
     {
         onHandler((h) {

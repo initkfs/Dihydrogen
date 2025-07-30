@@ -74,6 +74,25 @@ class HttpHandler : ChannelHandler
 
     override void onReadEnd(ChannelContext ctx)
     {
+        //loop
+        //ctx.outEvent.setRead;
+        //ctx.send;
+
+        //ubyte[] res = ctx.inEvent.chan.readableBytes;
+
+        ctx.outEvent.setWrite;
+        ctx.outEvent.buffer = cast(ubyte[]) response;
+        ctx.send;
+    }
+
+    override void onReadError(ChannelContext ctx)
+    {
+        import std;
+        writeln("Read error");
+        //loop
+        //ctx.outEvent.setRead;
+        //ctx.send;
+        
         //ctx.outEvent.setWrite;
         //ctx.outEvent.buffer = cast(ubyte[]) response;
         //ctx.send;

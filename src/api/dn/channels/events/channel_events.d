@@ -13,6 +13,7 @@ struct ChanInEvent
         accepted,
         readStart,
         readEnd,
+        readError,
         wrote,
         closed,
     }
