@@ -61,7 +61,7 @@ void io_uring_prep_timeout(io_uring_sqe* sqe,
 
 void io_uring_prep_timeout_remove(io_uring_sqe * sqe, __u64 user_data, uint flags);
 
-enum TimeoutFlags
+enum TimeoutFlags : uint
 {
     IORING_TIMEOUT_ABS = (1U << 0),
     IORING_TIMEOUT_UPDATE = (1U << 1),
