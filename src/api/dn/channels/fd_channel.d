@@ -7,7 +7,10 @@ import api.dn.net.sockets.socket_connect : SocketConnectState;
  */
 enum FdChannelType
 {
-    socket
+    none,
+    socket,
+    timer,
+    file
 }
 
 struct FdChannel
@@ -20,12 +23,19 @@ struct FdChannel
     size_t writeIndex;
     void* data;
 
-    void reset()
+    void resetFull()
     {
-        //fd = -1;
+        fd = -1;
+        type = FdChannelType.none;
+        state = -1;
+        buff = null;
+        resetPart;
+    }
+
+    void resetPart()
+    {
         resetBufferIndices;
-        state = SocketConnectState.none;
-        //buff = null;
+        state = 0;
         data = null;
     }
 

@@ -91,6 +91,8 @@ class EventLoop : LoggableUnit
             logger.error("io_urint fast poll not available in the kernel, quiting...\n");
             return;
         }
+
+        addTimer(&ring, 5);
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -133,77 +135,6 @@ class EventLoop : LoggableUnit
             return true;
         }
 
-        int eventsRet = getEvents(&ring, &cqe);
-        if (eventsRet != 0)
-        {
-            logger.error("Events receiver error: ", eventsRet);
-            return true;
-        }
-
-        int ret = cqe.res;
-
-        if (ret < 0)
-        {
-            auto connect = hasChannelFromCQE(cqe);
-            if (!connect)
-            {
-                switch (ret)
-                {
-                    case -ETIME:
-                        logger.trace("Timer end");
-                        break;
-                    case -ECANCELED:
-                        logger.trace("Timer canceled");
-                        break;
-                    default:
-                        logger.error("Unknown error without connection: ", ret);
-                        break;
-                }
-            }
-            else
-            {
-                switch (ret)
-                {
-                    case -EAGAIN:
-                        logger.trace("Connection reagain fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        break;
-                    case -ECONNRESET:
-                        logger.errorf("Connection reset fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        onCloseEnd(connect);
-                        break;
-                    case -EPIPE:
-                        logger.errorf("Connection broken pipe fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        onCloseEnd(connect);
-                        break;
-                    case -ENOTCONN:
-                        logger.errorf("Transport endpoint is not connected fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        onCloseEnd(connect);
-                        break;
-                    case -ENOBUFS:
-                        logger.errorf("No buffer space available fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        break;
-                    case -ETIMEDOUT, -ETIME:
-                        logger.trace("Connection timeout fd %s, state '%s'", connect.fd, connect
-                                .state);
-                        addSocketClose(&ring, connect);
-                        break;
-                    default:
-                        logger.errorf("Connection error fd %s, state '%s': %s", connect.fd, connect.state, strerror(
-
-                                -ret).fromStringz.idup);
-                        onCloseEnd(connect);
-                }
-            }
-
-            io_uring_cqe_seen(&ring, cqe);
-            return true;
-        }
-
         io_uring_cqe*[backlog] cqes;
 
         int cqeСount = io_uring_peek_batch_cqe(&ring, cqes.ptr, cqes.length);
@@ -218,7 +149,8 @@ class EventLoop : LoggableUnit
         {
             auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
 
-            if (connection.state == SocketConnectState.accept)
+            if (connection.type == FdChannelType.socket && connection.state == SocketConnectState
+                .accept)
             {
                 addServerAccept(connection.fd);
             }
@@ -240,72 +172,19 @@ class EventLoop : LoggableUnit
 
             auto connection = cast(FdChannel*) connectionPtr;
 
-            int type = connection.state;
-            final switch (type) with (SocketConnectState)
+            final switch (connection.type) with (FdChannelType)
             {
-                case accept:
-                    int acceptSocketFd = cqe.res;
-                    if (acceptSocketFd < 0)
-                    {
-                        logger.errorf("Error accepting, descriptor not positive: %s, %s", acceptSocketFd, connection
-                                .toSimpleString);
-                    }
-                    else
-                    {
-                        auto newConnect = getChannel(connection.fd, acceptSocketFd);
-                        assert(newConnect);
-
-                        //TODO or onClose?
-                        newConnect.reset;
-
-                        //addTimer(&ring, newConnect, 10, 1);
-
-                        onAcceptEnd(newConnect);
-                    }
-
-                    addServerAccept(connection.fd);
+                case socket:
+                    applySocketChannel(connection, cqe);
                     break;
-                case read:
-                    int bytesRead = cqe.res;
-
-                    if (bytesRead < 0)
-                    {
-                        onReadError(connection);
-                    }
-                    else if (bytesRead == 0)
-                    {
-                        onReadEnd(connection);
-                    }
-                    else
-                    {
-                        auto buffSize = bytesRead;
-                        if (!connection.incRead(buffSize))
-                        {
-                            connection.incMaxRead;
-                        }
-
-                        if (!connection.incWrite(buffSize))
-                        {
-                            connection.incMaxWrite;
-                        }
-
-                        onReadStart(connection);
-                    }
+                case timer:
+                    applyTimerChannel(connection, cqe);
                     break;
-                case write:
-                    onWriteEnd(connection);
+                case file:
+                    applyFileChannel(connection, cqe);
                     break;
-                case close: // auto res = cqe.res;
-                    // if(res < 0){
-                    //     //TODO onError?
-                    // }
-                    onCloseEnd(connection);
-                    break;
-                case timeout:
-                    import std;
-
-                    writeln("TIMEOUT");
-                    //addSocketClose(&ring, connection);
+                case none:
+                    logger.error("Non initialized channel: ", connection);
                     break;
             }
         }
@@ -316,6 +195,163 @@ class EventLoop : LoggableUnit
         }
 
         return true;
+    }
+
+    void applySocketChannel(FdChannel* connection, io_uring_cqe* cqe)
+    {
+        assert(connection.type == FdChannelType.socket);
+
+        int ret = cqe.res;
+
+        if (ret < 0)
+        {
+            switch (ret)
+            {
+                case -EAGAIN:
+                    logger.trace("Connection reagain fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    return;
+                    break;
+                case -ECONNRESET:
+                    logger.errorf("Connection reset fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    onCloseEnd(connection);
+                    return;
+                    break;
+                case -EPIPE:
+                    logger.errorf("Connection broken pipe fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    onCloseEnd(connection);
+                    return;
+                    break;
+                case -ENOTCONN:
+                    logger.errorf("Transport endpoint is not connected fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    onCloseEnd(connection);
+                    return;
+                    break;
+                case -ENOBUFS:
+                    logger.errorf("No buffer space available fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    return;
+                    break;
+                case -ETIMEDOUT, -ETIME:
+                    logger.tracef("Connection timeout fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    addSocketClose(&ring, connection);
+                    return;
+                    break;
+                default:
+                    if (connection.state == SocketConnectState.none)
+                    {
+                        logger.errorf("Connection error fd %s, state '%s': %s", connection.fd, connection.state, strerror(
+
+                                -ret).fromStringz.idup);
+                        //onCloseEnd(connection);
+                    }
+            }
+
+            return;
+        }
+
+        int type = connection.state;
+        final switch (type) with (SocketConnectState)
+        {
+            case accept:
+                int acceptSocketFd = cqe.res;
+                if (acceptSocketFd < 0)
+                {
+                    logger.errorf("Error accepting, descriptor not positive: %s, %s", acceptSocketFd, connection
+                            .toSimpleString);
+                }
+                else
+                {
+                    auto newConnect = getChannel(connection.fd, acceptSocketFd);
+                    assert(newConnect);
+
+                    //TODO or onClose?
+                    newConnect.resetPart;
+
+                    //addTimer(&ring, newConnect, 10, 1);
+
+                    onAcceptEnd(newConnect);
+                }
+
+                addServerAccept(connection.fd);
+                break;
+            case read:
+                int bytesRead = cqe.res;
+
+                if (bytesRead < 0)
+                {
+                    onReadError(connection);
+                }
+                else if (bytesRead == 0)
+                {
+                    onReadEnd(connection);
+                }
+                else
+                {
+                    auto buffSize = bytesRead;
+                    if (!connection.incRead(buffSize))
+                    {
+                        connection.incMaxRead;
+                    }
+
+                    if (!connection.incWrite(buffSize))
+                    {
+                        connection.incMaxWrite;
+                    }
+
+                    onReadStart(connection);
+                }
+                break;
+            case write:
+                onWriteEnd(connection);
+                break;
+            case close: // auto res = cqe.res;
+                // if(res < 0){
+                //     //TODO onError?
+                // }
+                onCloseEnd(connection);
+                break;
+            case timeout:
+                import std;
+
+                writeln("TIMEOUT");
+                //addSocketClose(&ring, connection);
+                break;
+        }
+    }
+
+    void applyTimerChannel(FdChannel* chan, io_uring_cqe* cqe)
+    {
+        int ret = cqe.res;
+
+        if (ret < 0)
+        {
+            switch (ret)
+            {
+                case -ETIME:
+                    logger.trace("Timer end");
+                    import core.stdc.stdlib : free;
+
+                    free(chan);
+                    addTimer(&ring, 3);
+                    break;
+                case -ECANCELED:
+                    logger.trace("Timer canceled");
+                    break;
+                default:
+                    logger.error("Unknown error without connection: ", ret);
+                    break;
+            }
+        }
+    }
+
+    void applyFileChannel(FdChannel* chan, io_uring_cqe* cqe)
+    {
+
     }
 
     override void run()
@@ -464,19 +500,23 @@ class EventLoop : LoggableUnit
         //io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addTimer(io_uring* ring, FdChannel* conn, ulong sec, uint count = 0, uint flags = 0)
+    void addTimer(io_uring* ring, ulong sec, uint count = 0, uint flags = 0)
     {
-        if (!conn)
-        {
-            logger.error("Error setting timer, connection is null");
-            return;
-        }
-
         io_uring_sqe* sqe;
         if (!getSqe(ring, sqe))
         {
             return;
         }
+
+        //TODO allocator
+        import core.stdc.stdlib : malloc;
+
+        FdChannel* chan = cast(FdChannel*) malloc(FdChannel.sizeof);
+        assert(chan);
+
+        chan.resetFull;
+
+        chan.type = FdChannelType.timer;
 
         import time_libs;
 
@@ -485,7 +525,7 @@ class EventLoop : LoggableUnit
         timeout.tv_nsec = 0;
 
         io_uring_prep_timeout(sqe, &timeout, count, flags);
-        io_uring_sqe_set_data(sqe, conn);
+        io_uring_sqe_set_data(sqe, chan);
     }
 
     void removeTimer(io_uring* ring, ulong userData, uint flags = 0)
