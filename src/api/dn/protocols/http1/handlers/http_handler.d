@@ -2,6 +2,8 @@ module api.dn.protocols.http1.handlers.http_handler;
 
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
 
+import api.core.loggers.logging : Logging;
+
 import api.dn.channels.handlers.channel_handler : ChannelHandler;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.contexts.channel_context : ChannelContext;
@@ -17,6 +19,7 @@ debug import std.stdio : writeln, writefln;
 class HttpHandler : ChannelHandler
 {
     ubyte[2048] buff;
+    Logging logging;
 
     char[] response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!"
         .dup;
@@ -25,8 +28,9 @@ class HttpHandler : ChannelHandler
 
     StaticHttpDecoder decoder;
 
-    this()
+    this(Logging logging)
     {
+        this.logging = logging;
         decoder = new StaticHttpDecoder;
     }
 
@@ -100,8 +104,8 @@ class HttpHandler : ChannelHandler
 
     override void onWriteEnd(ChannelContext ctx)
     {
-        //ctx.outEvent.setClose;
-        //ctx.send;
+        ctx.outEvent.setClose;
+        ctx.send;
     }
 
     override void onCloseEnd(ChannelContext ctx)

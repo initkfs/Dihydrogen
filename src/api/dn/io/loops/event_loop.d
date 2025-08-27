@@ -92,7 +92,7 @@ class EventLoop : LoggableUnit
             return;
         }
 
-        addTimer(&ring, 5);
+        //addTimer(&ring, 5);
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -337,7 +337,6 @@ class EventLoop : LoggableUnit
                     import core.stdc.stdlib : free;
 
                     free(chan);
-                    addTimer(&ring, 3);
                     break;
                 case -ECANCELED:
                     logger.trace("Timer canceled");
