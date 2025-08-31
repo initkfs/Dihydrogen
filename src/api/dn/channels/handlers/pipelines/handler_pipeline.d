@@ -34,6 +34,9 @@ class HandlerPipeline
             case wrote:
                 onWriteEnd(event);
                 break;
+            case spliced:
+                onSpliceEnd(event);
+                break;
             case closed:
                 onCloseEnd(event);
                 break;
@@ -100,6 +103,14 @@ class HandlerPipeline
     {
         onHandler((h) {
             h.onWriteEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            return true;
+        });
+    }
+
+    void onSpliceEnd(ChanInEvent event)
+    {
+        onHandler((h) {
+            h.onSpliceEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }

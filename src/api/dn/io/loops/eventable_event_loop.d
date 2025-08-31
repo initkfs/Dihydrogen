@@ -26,6 +26,7 @@ class EventableEventLoop : EventLoop
         onReadEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readEnd);
         onReadError = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.readError);
         onWriteEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.wrote);
+        onSpliceEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.wrote);
         onCloseEnd = (conn) => sendNewInEvent(conn, ChanInEvent.ChanInEventState.closed);
 
         super.create;
@@ -66,8 +67,14 @@ class EventableEventLoop : EventLoop
             case write:
                 addSocketWrite(&ring, event.chan, event.buffer.ptr, event.buffer.length);
                 break;
+            case writezc:
+                addSocketWriteZC(&ring, event.chan, event.buffer.ptr, event.buffer.length);
+                break;
             case close:
                 addSocketClose(&ring, event.chan);
+                break;
+            case splice:
+                addSocketSplice(&ring, event.chan);
                 break;
             default:
                 break;

@@ -55,6 +55,14 @@ class ChannelHandler
         }
     }
 
+    void onSpliceEnd(ChannelContext ctx)
+    {
+        if (next)
+        {
+            next.onSpliceEnd(ctx);
+        }
+    }
+
     void onCloseEnd(ChannelContext ctx)
     {
         if (next)

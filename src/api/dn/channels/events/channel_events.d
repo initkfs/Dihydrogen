@@ -15,6 +15,7 @@ struct ChanInEvent
         readEnd,
         readError,
         wrote,
+        spliced,
         closed,
     }
 
@@ -29,6 +30,8 @@ struct ChanOutEvent
         none,
         read,
         write,
+        writezc,
+        splice,
         close
     }
 
@@ -45,6 +48,16 @@ struct ChanOutEvent
     void setWrite()
     {
         state = ChanOutEventState.write;
+    }
+
+    void setWriteZC()
+    {
+        state = ChanOutEventState.writezc;
+    }
+
+    void setSplice()
+    {
+        state = ChanOutEventState.splice;
     }
 
     void setClose()

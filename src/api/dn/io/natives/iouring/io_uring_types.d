@@ -6,7 +6,7 @@ import io_uring_libs;
 
 alias unsigned = uint;
 
-extern(C):
+extern (C):
 
 struct iovec;
 
@@ -69,3 +69,31 @@ struct io_uring
     __u8[3] pad;
     unsigned pad2;
 }
+
+// enum
+// {
+//     IOSQE_FIXED_FILE_BIT,
+//     IOSQE_IO_DRAIN_BIT,
+//     IOSQE_IO_LINK_BIT,
+//     IOSQE_IO_HARDLINK_BIT,
+//     IOSQE_ASYNC_BIT,
+//     IOSQE_BUFFER_SELECT_BIT,
+//     IOSQE_CQE_SKIP_SUCCESS_BIT,
+// }
+
+// enum
+// {
+//     IOSQE_FIXED_FILE = 1U << IOSQE_FIXED_FILE_BIT,
+//     /* issue after inflight IO */
+//     IOSQE_IO_DRAIN = 1U << IOSQE_IO_DRAIN_BIT,
+//     /* links next sqe */
+//     IOSQE_IO_LINK = 1U << IOSQE_IO_LINK_BIT,
+//     /* like LINK, but stronger */
+//     IOSQE_IO_HARDLINK = 1U << IOSQE_IO_HARDLINK_BIT,
+//     /* always go async */
+//     IOSQE_ASYNC = 1U << IOSQE_ASYNC_BIT,
+//     /* select buffer from sqe->buf_group */
+//     IOSQE_BUFFER_SELECT = 1U << IOSQE_BUFFER_SELECT_BIT,
+//     /* don't post CQE if request succeeded */
+//     IOSQE_CQE_SKIP_SUCCESS = 1U << IOSQE_CQE_SKIP_SUCCESS_BIT,
+// }

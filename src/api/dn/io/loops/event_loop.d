@@ -52,6 +52,7 @@ class EventLoop : LoggableUnit
     void delegate(FdChannel*) onReadEnd;
     void delegate(FdChannel*) onReadError;
     void delegate(FdChannel*) onWriteEnd;
+    void delegate(FdChannel*) onSpliceEnd;
     void delegate(FdChannel*) onCloseEnd;
 
     void delegate() onBatchQueueEnd;
@@ -241,14 +242,15 @@ class EventLoop : LoggableUnit
                     addSocketClose(&ring, connection);
                     return;
                     break;
+                case -ECANCELED:
+                    logger.tracef("Operation canceled, fd %s, state '%s'", connection.fd, connection
+                            .state);
+                    break;
                 default:
-                    if (connection.state == SocketConnectState.none)
-                    {
-                        logger.errorf("Connection error fd %s, state '%s': %s", connection.fd, connection.state, strerror(
+                    logger.errorf("Connection error fd %s, state '%s': %s", connection.fd, connection.state, strerror(
 
-                                -ret).fromStringz.idup);
-                        //onCloseEnd(connection);
-                    }
+                            -ret).fromStringz.idup);
+                    //onCloseEnd(connection);
             }
 
             return;
@@ -308,6 +310,9 @@ class EventLoop : LoggableUnit
                 break;
             case write:
                 onWriteEnd(connection);
+                break;
+            case splice:
+                onSpliceEnd(connection);
                 break;
             case close: // auto res = cqe.res;
                 // if(res < 0){
@@ -385,6 +390,7 @@ class EventLoop : LoggableUnit
         newChan.state = state;
         newChan.readIndex = 0;
         newChan.writeIndex = 0;
+        newChan.isChain = false;
 
         if (maxMessageLen > 0)
         {
@@ -437,6 +443,14 @@ class EventLoop : LoggableUnit
         return true;
     }
 
+    void applySQE(io_uring_sqe* sqe, FdChannel* conn)
+    {
+        if (conn.isChain)
+        {
+            sqe.flags |= IOSQE_IO_LINK;
+        }
+    }
+
     void addSocketClose(io_uring* ring, FdChannel* conn)
     {
         conn.state = SocketConnectState.close;
@@ -445,6 +459,9 @@ class EventLoop : LoggableUnit
         {
             return;
         }
+
+        applySQE(sqe, conn);
+
         io_uring_prep_close(sqe, conn.fd);
         io_uring_sqe_set_data(sqe, conn);
     }
@@ -457,6 +474,9 @@ class EventLoop : LoggableUnit
         {
             return;
         }
+
+        applySQE(sqe, conn);
+
         io_uring_prep_accept(sqe, conn.fd, client_addr, client_len, 0);
         io_uring_sqe_set_data(sqe, conn);
     }
@@ -468,6 +488,9 @@ class EventLoop : LoggableUnit
         {
             return;
         }
+
+        applySQE(sqe, conn);
+
         io_uring_prep_recv(sqe, conn.fd, conn.writableBytes.ptr, conn.writableBytes.length, 0);
         conn.state = SocketConnectState.read;
         io_uring_sqe_set_data(sqe, conn);
@@ -483,8 +506,73 @@ class EventLoop : LoggableUnit
         {
             return;
         }
+
+        applySQE(sqe, conn);
+
         io_uring_prep_send(sqe, conn.fd, buff, len, 0);
         io_uring_sqe_set_data(sqe, conn);
+    }
+
+    void addSocketWriteZC(io_uring* ring, FdChannel* conn, const(void*) buff, size_t len)
+    {
+        assert(buff);
+        assert(len >= 0);
+        
+        conn.state = SocketConnectState.write;
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
+
+        applySQE(sqe, conn);
+
+        enum IORING_SEND_ZC_REPORT_USAGE  =  1U << 0;
+
+        io_uring_prep_send_zc(sqe, conn.fd, buff, len, 0, IORING_SEND_ZC_REPORT_USAGE);
+        io_uring_sqe_set_data(sqe, conn);
+    }
+
+    void addSocketSplice(io_uring* ring, FdChannel* conn)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
+
+        //io_uring_sqe_set_data(sqe, conn);
+
+        import api.dn.channels.fd_file;
+
+        auto file = cast(FdFile*) conn.data;
+        assert(file, "File data must not be null");
+
+        uint fileSize = cast(uint) file.size;
+
+        int pipeIn = file.pipes[0];
+        int pipeOut = file.pipes[1];
+
+        applySQE(sqe, conn);
+
+        //import core.sys.posix.sys.ioctl;
+        //ioctl(pipeOut, FIONREAD, &bytesAvailable);
+
+        sqe.flags |= IOSQE_IO_LINK;
+        io_uring_prep_splice(sqe, file.fd, 0, pipeOut, -1, fileSize, 0);
+
+        sqe = null;
+
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
+
+        assert(sqe);
+
+        io_uring_prep_splice(sqe, pipeIn, -1, conn.fd, -1, fileSize, 0);
+        io_uring_sqe_set_data(sqe, conn);
+        conn.state = SocketConnectState.splice;
     }
 
     void addSocketCancel(io_uring* ring, FdChannel* conn)

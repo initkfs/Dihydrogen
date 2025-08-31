@@ -48,9 +48,12 @@ void io_uring_prep_recv(io_uring_sqe* sqe, int sockfd,
     void* buf, size_t len, int flags);
 void io_uring_prep_send(io_uring_sqe* sqe, int sockfd,
     const void* buf, size_t len, int flags);
+void io_uring_prep_send_zc(io_uring_sqe* sqe, int sockfd,
+    const void* buf, size_t len, int flags,  uint zcflags);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, void* data);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, __u64 data);
 void io_uring_prep_cancel(io_uring_sqe* sqe, void* user_data, int flags);
+void io_uring_prep_splice(io_uring_sqe *sqe, int fd_in,int64_t off_in, int fd_out, int64_t off_out, uint nbytes, uint splice_flags);
 
 import time_libs;
 

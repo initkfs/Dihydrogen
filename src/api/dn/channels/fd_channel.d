@@ -21,6 +21,7 @@ struct FdChannel
     ubyte[] buff;
     size_t readIndex;
     size_t writeIndex;
+    bool isChain;
     void* data;
 
     void resetFull()
@@ -37,6 +38,7 @@ struct FdChannel
         resetBufferIndices;
         state = 0;
         data = null;
+        isChain = false;
     }
 
     bool incRead(size_t offset = 1) @nogc nothrow @safe
