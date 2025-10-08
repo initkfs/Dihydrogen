@@ -1,6 +1,6 @@
 module api.dn.protocols.stomp.static_stomp_encoder;
 
-import api.core.utils.adt.buffers.dense_buffer : DenseStaticBuffer;
+import api.core.utils.adt.buffers.dense_buffer : DenseBuffer;
 
 import api.dn.protocols.stomp.stomp_common;
 
@@ -141,7 +141,7 @@ class StaticStompEncoder(
         return this;
     }
 
-    void decode(size_t BufferLength, char lf = StompControlСhar.lf)(ref StaticStompFrame frame, ref DenseStaticBuffer!(char, BufferLength) buffer)
+    void decode(size_t BufferLength, char lf = StompControlСhar.lf)(ref StaticStompFrame frame, ref DenseBuffer!(char, BufferLength) buffer)
     {
         buffer ~= frame.command;
         //buffer ~= " ";
@@ -175,9 +175,9 @@ unittest
     encoder.addCONNECT(frame);
     encoder.addDefaultVersion(frame);
 
-    import api.core.utils.adt.buffers.dense_buffer: DenseStaticBuffer;
+    import api.core.utils.adt.buffers.dense_buffer: DenseBuffer;
 
-    DenseStaticBuffer!(char, 256) buff;
+    DenseBuffer!(char, 256) buff;
     encoder.decode!(256, '|')(frame, buff);
 
     assert(buff[] == "CONNECT|version:1.2||\0");

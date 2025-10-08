@@ -27,6 +27,9 @@ class WebrootHttpHandler : HttpHandler
 
     ubyte[][string] fileMap;
 
+    string indexFile = "index.html";
+    string indexUri = "/";
+
     this(string root, Logging logging)
     {
         super(logging);
@@ -75,12 +78,15 @@ class WebrootHttpHandler : HttpHandler
         import std.string : fromStringz;
         import std.stdio : writeln;
 
-        const char[] uriSlice = uri[0 .. uriLen];
-        if (uriSlice.length == 0 || webroot.length == 0)
+        const char[] rawUriSlice = uri[0 .. uriLen];
+        if (rawUriSlice.length == 0)
         {
-            logging.logger.error("URI slice or webroot is empty");
+            logging.logger.error("URI slice is empty");
             return;
         }
+
+        assert(indexFile.length > 0);
+        const uriSlice = rawUriSlice == indexUri ? indexFile : rawUriSlice; 
 
         import std.format : sformat;
 
@@ -96,6 +102,9 @@ class WebrootHttpHandler : HttpHandler
         }
 
         auto path = result.fromStringz;
+
+        import std;
+        writeln("Path: |", path, "|", "web root: |", webroot, "|");
 
         if (!path.startsWith(webroot))
         {
