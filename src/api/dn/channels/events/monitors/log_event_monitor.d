@@ -3,14 +3,14 @@ module api.dn.channels.events.monitors.log_event_monitor;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
-import api.core.loggers.logging: Logging;
+import api.core.loggers.logging : Logging;
 
 /**
  * Authors: initkfs
  */
 class LogEventMonitor : EventMonitor
 {
-    
+
     this(Logging logging)
     {
         super(logging);
@@ -33,10 +33,17 @@ class LogEventMonitor : EventMonitor
         {
             import std.conv : to;
 
-            dstring buffStr = (cast(string) inEvent
-                    .chan.readableBytes).to!dstring;
-            logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.state, escape(
-                    buffStr));
+            try
+            {
+                dstring buffStr = (cast(string) inEvent
+                        .chan.readableBytes).to!dstring;
+                logger.tracef("%s:%s, %s, buff:%s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.state, escape(
+                        buffStr));
+            }
+            catch (Exception e)
+            {
+                logger.error("Monitor error:", e.toString);
+            }
             return;
         }
 

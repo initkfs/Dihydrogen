@@ -103,9 +103,6 @@ class WebrootHttpHandler : HttpHandler
 
         auto path = result.fromStringz;
 
-        import std;
-        writeln("Path: |", path, "|", "web root: |", webroot, "|");
-
         if (!path.startsWith(webroot))
         {
             import api.core.utils.text : escapeunw;

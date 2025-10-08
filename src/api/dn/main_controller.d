@@ -3,7 +3,7 @@ module api.dn.main_controller;
 import api.core.controllers.controller : Controller;
 import api.core.components.uni_component : UniComponent;
 
-import api.dn.servers.http_server: HTTPServer;
+import api.dn.servers.https_server: HTTPSServer;
 
 debug import std.stdio: writeln, writefln;
 
@@ -15,11 +15,11 @@ import api.dn.sys.locale;
  */
 class MainController : Controller!UniComponent
 {
-    HTTPServer server;
+    HTTPSServer server;
 
     override void run()
     {
-        server = new HTTPServer;
+        server = new HTTPSServer;
         buildInitCreateRun(server);
     }
 }

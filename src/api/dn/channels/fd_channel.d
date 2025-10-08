@@ -24,12 +24,33 @@ struct FdChannel
     bool isChain;
     void* data;
 
+    import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free;
+
+    SSL* ssl;
+    BIO* rbio;
+    BIO* wbio;
+    bool isInitSSL;
+
+    void shutdownSSL()
+    {
+        if(ssl){
+            SSL_shutdown(ssl);
+        }
+    }
+
+    void freeSSL(){
+        if(ssl){
+            SSL_free(ssl);
+        }
+    }
+
     void resetFull()
     {
         fd = -1;
         type = FdChannelType.none;
         state = -1;
         buff = null;
+        ssl = null;
         resetPart;
     }
 
@@ -39,6 +60,7 @@ struct FdChannel
         state = 0;
         data = null;
         isChain = false;
+        isInitSSL = false;
     }
 
     bool incRead(size_t offset = 1) @nogc nothrow @safe

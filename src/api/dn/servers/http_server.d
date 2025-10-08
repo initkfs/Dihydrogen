@@ -14,6 +14,7 @@ import api.dn.channels.events.routes.pipeline_router : PipelineRouter;
 import api.dn.channels.events.converters.event_converter : EventConverter;
 import api.dn.channels.events.monitors.event_monitor : EventMonitor;
 import api.dn.channels.events.monitors.log_event_monitor : LogEventMonitor;
+import api.core.loggers.logging : Logging;
 
 import core.stdc.stdlib : exit;
 
@@ -27,6 +28,7 @@ immutable string webrootConfigKey = "webroot";
 class HTTPServer : Controller!UniComponent
 {
     string webroot;
+    bool isStartOnRun = true;
 
     protected
     {
@@ -35,14 +37,20 @@ class HTTPServer : Controller!UniComponent
         static ServerLoop loop;
     }
 
+    ChannelHandler newHandler(string webroot, Logging logging)
+    {
+        import api.dn.protocols.http1.handlers.webroot_http_handler : WebrootHttpHandler;
+
+        return new WebrootHttpHandler(webroot, logging);
+    }
+
     HandlerPipeline createPipeline(string webroot)
     {
         import api.dn.protocols.stomp.handlers.stomp_handler : StompHandler;
-        import api.dn.protocols.http1.handlers.webroot_http_handler: WebrootHttpHandler;
 
         auto pipe = new HandlerPipeline;
+        pipe.add(newHandler(webroot, logging));
         //pipe.add(new ChannelHandler);
-        pipe.add(new WebrootHttpHandler(webroot, logging));
         return pipe;
     }
 
@@ -69,7 +77,7 @@ class HTTPServer : Controller!UniComponent
             throw new Exception("Webroot not exists or not a directory: " ~ webroot);
         }
 
-        import api.dn.sys.fs: getAtrrStr;
+        import api.dn.sys.fs : getAtrrStr;
 
         logger.tracef("Web webroot (%s): %s", webroot.getAtrrStr, webroot);
 
@@ -90,7 +98,7 @@ class HTTPServer : Controller!UniComponent
 
         auto monitor = new LogEventMonitor(logging);
 
-        loop = new ServerLoop(logging, [
+        loop = newServerLoop(logging, [
             ServerChannel(serverSocket1.fd, serverSocket1.port),
             ServerChannel(serverSocket2.fd, serverSocket2.port)
         ], eventRouter, translator:
@@ -123,7 +131,15 @@ class HTTPServer : Controller!UniComponent
         logger.infof("Hostname max:%s, page size:%s, max files:%s", Limit.hostNameMax, Limit.pageSize, Limit
                 .openFilesProcMax);
 
-        loop.run;
+        if (isStartOnRun)
+        {
+            loop.run;
+        }
+    }
+
+    ServerLoop newServerLoop(Logging logger, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    {
+        return new ServerLoop(logger, serverChans, router, translator, monitor);
     }
 
     static extern (C) void sigintHandler(int signo)

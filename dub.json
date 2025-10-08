@@ -27,7 +27,7 @@
                 "./libs"
             ],
             "postBuildCommands": [],
-            "libs": []
+            "libs": ["openssl"]
         }
     ],
     "dflags": [
