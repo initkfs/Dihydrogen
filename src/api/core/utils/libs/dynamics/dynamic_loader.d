@@ -7,7 +7,7 @@ struct DynLib
     int loadVersion;
     bool _load;
 
-    bool isLoad() const @nogc pure @safe => _load && handlePtr;
+    bool isLoad() const  pure @safe => _load && handlePtr;
 
     string toString() const
     {
@@ -102,6 +102,13 @@ class DynamicLoader
 
     int libVersion() => 0;
 
+    string libVersionStr()
+    {
+        import std.conv : to;
+
+        return libVersion.to!string;
+    }
+
     bool checkError(string message = null)
     {
         string err;
@@ -115,6 +122,16 @@ class DynamicLoader
 
     bool bind(void* funcPtr, const(char)[] name, bool isCheckError = true)
     {
+        return bindT(funcPtr, name, isCheckError);
+    }
+
+    bool bind(shared void* funcPtr, const(char)[] name, bool isCheckError = true)
+    {
+        return bindT(funcPtr, name, isCheckError);
+    }
+
+    bool bindT(T)(T funcPtr, const(char)[] name, bool isCheckError = true)
+    {
         if (!isLoad)
         {
             return false;
@@ -123,8 +140,15 @@ class DynamicLoader
         void* mustBePtr;
         if (libBind(lib.handlePtr, name.ptr, mustBePtr))
         {
+            //TODO or cast(shared(...))?
             *(cast(void**) funcPtr) = mustBePtr;
             return true;
+        }
+        else
+        {
+            import std.conv : text;
+
+            errors ~= text("Not found symbol: ", name);
         }
 
         if (isCheckError)
@@ -221,6 +245,13 @@ class DynamicLoader
             }
         }
 
+        if (!isLoad)
+        {
+            import std.conv : text;
+
+            errors ~= text("Not found library ", libPaths);
+        }
+
         if (errors.length > 0)
         {
             if (onLoadErrors)
@@ -230,12 +261,6 @@ class DynamicLoader
                     onLoadErrors(err);
                 }
             }
-            return;
-        }
-
-        if (!isLoad)
-        {
-            errors ~= "Not found library";
             return;
         }
 

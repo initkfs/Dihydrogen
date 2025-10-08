@@ -36,7 +36,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
         }
     }
 
-    const @nogc nothrow @safe
+    const nothrow @safe
     {
         bool isEmpty() => _size == 0;
         bool isFull() => _size >= BufferSize;
@@ -56,10 +56,14 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
 
     void initialize(bool isFillInit = true) nothrow @safe
     {
+        static if (isWithMutex)
+        {
+            assert(mutex);
+        }
         _buffer.initialize(isFillInit);
     }
 
-    @nogc nothrow @safe
+    nothrow @safe
     {
         void block()
         {
@@ -74,7 +78,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
 
     static if (isWithMutex)
     {
-        @nogc @safe
+        @safe
         {
             void blockSync()
             {
@@ -101,7 +105,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
             }
         }
 
-        ContainerResult writeSync(BufferType[] items) @nogc @safe
+        ContainerResult writeSync(BufferType[] items) @safe
         {
             synchronized (mutex)
             {
@@ -109,7 +113,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
             }
         }
 
-        ContainerResult writeIfNoBlockSync(BufferType[] items) @nogc @safe
+        ContainerResult writeIfNoBlockSync(BufferType[] items) @safe
         {
             synchronized (mutex)
             {
@@ -135,11 +139,19 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
             }
         }
 
-        ContainerResult readSync(scope void delegate(scope BufferType[], scope BufferType[]) @nogc @safe onBuffer, size_t count) @nogc @safe
+        ContainerResult readSync(scope void delegate(scope BufferType[], scope BufferType[]) @safe onBuffer, size_t count) @safe
         {
             synchronized (mutex)
             {
                 return read(onBuffer, count);
+            }
+        }
+
+        ContainerResult readSyncAll(scope void delegate(scope BufferType[], scope BufferType[]) @safe onBuffer) @safe
+        {
+            synchronized (mutex)
+            {
+                return read(onBuffer, _size);
             }
         }
 
@@ -263,7 +275,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
         return ContainerResult.success;
     }
 
-    ContainerResult read(scope BufferType[] elements, size_t count) @nogc @safe
+    ContainerResult read(scope BufferType[] elements, size_t count) @safe
     {
         return read((buff, rest) {
 
@@ -279,7 +291,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
         }, count);
     }
 
-    ContainerResult read(scope void delegate(scope BufferType[], scope BufferType[]) @nogc @safe onElementsRest, size_t count) @nogc @safe
+    ContainerResult read(scope void delegate(scope BufferType[], scope BufferType[]) @safe onElementsRest, size_t count) @safe
     {
         if (_block)
         {
@@ -395,7 +407,7 @@ struct RingBuffer(BufferType, size_t BufferSize, bool isWithMutex = true, bool i
         return ContainerResult.success;
     }
 
-    void reset() @nogc nothrow @safe
+    void reset() nothrow @safe
     {
         _writeIndex = 0;
         _readIndex = 0;
