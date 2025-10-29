@@ -62,34 +62,29 @@ class WebrootHttpsHandler : HttpHandler
 
     override void onReadStart(ChannelContext ctx)
     {
-        import std;
-
-        writeln("read start ", sslState(ctx));
-
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0)
         {
             int res = BIO_write(ctx.inEvent.chan.rbio, chanBuff.ptr, cast(int) chanBuff.length);
             assert(res > 0);
+            assert(res == chanBuff.length);
 
             if (SSL_get_state(ctx.inEvent.chan.ssl) == TLS_ST_EARLY_DATA)
             {
-                writeln("Check TED");
-
                 auto tedStat = SSL_get_early_data_status(ctx.inEvent.chan.ssl);
                 switch (tedStat)
                 {
                     case SSL_EARLY_DATA_ACCEPTED:
-                        writeln("SSL_EARLY_DATA_ACCEPTED");
+                        logging.logger.trace("SSL_EARLY_DATA_ACCEPTED");
                         break;
                     case SSL_EARLY_DATA_REJECTED:
-                        writeln("SSL_EARLY_DATA_REJECTED");
+                        logging.logger.trace("SSL_EARLY_DATA_REJECTED");
                         break;
                     case SSL_EARLY_DATA_NOT_SENT:
-                        writeln("SSL_EARLY_DATA_NOT_SENT");
+                        logging.logger.trace("SSL_EARLY_DATA_NOT_SENT");
                         break;
                     default:
-                        writeln("Not found");
+                        logging.logger.trace("Unknown ED status: ", tedStat);
                         break;
                 }
             }
@@ -103,6 +98,9 @@ class WebrootHttpsHandler : HttpHandler
                     if (err != SSL_ERROR_WANT_READ)
                     {
                         logging.logger.errorf("Handshake failed %d: %s\n", hsRet, lastSSLError(err));
+                        ctx.outEvent.setClose;
+                        ctx.send;
+                        SSL_shutdown(ctx.inEvent.chan.ssl);
                         return;
                     }
                     else
@@ -120,41 +118,70 @@ class WebrootHttpsHandler : HttpHandler
                             logging.logger.trace("Send data from SSL");
 
                             ctx.inEvent.chan.resetBufferIndices;
-
-                            return;
                         }
                     }
-                }
 
-                if (hsRet == 1)
+                    return;
+                }
+                else if (hsRet == 1)
                 {
                     ctx.inEvent.chan.isInitSSL = true;
                     logging.logger.trace("Handshake success");
-                    ctx.inEvent.chan.resetBufferIndices;
+                    //ctx.inEvent.chan.resetBufferIndices;
+                    //ctx.outEvent.setRead;
+                    //ctx.send;
+                }
+                else
+                {
                     ctx.outEvent.setRead;
                     ctx.send;
+                    return;
                 }
-
-            }
-            else
-            {
-
             }
 
-            ubyte[] buf = new ubyte[4096];
-            int len = SSL_read(ctx.inEvent.chan.ssl, buf.ptr, buf.sizeof);
-            if (len < 0)
+            int readDataLength = BIO_pending(ctx.inEvent.chan.rbio);
+            if (readDataLength == 0)
             {
+                logging.logger.trace("SSL buffer empty, send read");
+                ctx.inEvent.chan.resetBufferIndices;
+                ctx.outEvent.setRead;
+                ctx.send;
                 return;
             }
 
-            ubyte[] decrData = buf[0 .. len];
+            import std.array : appender;
+
+            ubyte[1096] readBuff;
+            ubyte[4096] copyBuff;
+            size_t copyBuffPos;
+            size_t readBytes;
+            int copyRet;
+            while ((copyRet = SSL_read_ex(ctx.inEvent.chan.ssl, readBuff.ptr, readBuff.sizeof, &readBytes)) == 1)
+            {
+                if (readBytes == 0)
+                {
+                    break;
+                }
+                copyBuff[copyBuffPos .. copyBuffPos + readBytes] = readBuff[0 .. readBytes];
+                copyBuffPos += readBytes;
+            }
+
+            if (copyRet != 0)
+            {
+                logging.logger.error("SSL read fail: ", copyRet);
+                return;
+            }
+
+            ubyte[] decrData = copyBuff[0 .. copyBuffPos];
 
             decode(decrData);
-            if (decoder.state != DecoderState.end && decoder.state != DecoderState
-                .errorNoHeadersNoBody)
+            if (decoder.state != DecoderState.end && (
+                    decoder.state != DecoderState
+                    .errorNoHeadersNoBody))
             {
-                debug writeln("HTTP decoder error: ", decoder.state);
+                debug writeln("HTTPS request not full, read again: ", decoder.state);
+                ctx.outEvent.setRead;
+                ctx.send;
                 return;
             }
 
@@ -216,8 +243,20 @@ class WebrootHttpsHandler : HttpHandler
             }
             else
             {
-                import std.file : read;
+                import std.file : read, exists, isDir;
                 import std.conv : to;
+
+                if (!path.exists)
+                {
+                    logging.logger.error("Server file not found: ", path);
+                    return;
+                }
+
+                if (path.isDir)
+                {
+                    logging.logger.error("Sever file not a file, directory: ", path);
+                    return;
+                }
 
                 import std.algorithm.searching : endsWith;
 
@@ -281,15 +320,16 @@ class WebrootHttpsHandler : HttpHandler
                 char[] buff = new char[wpending];
                 int encryptLen = BIO_read(wbio, buff.ptr, wpending);
                 assert(encryptLen > 0);
-                ctx.outEvent.buffer = cast(ubyte[]) buff[0..encryptLen];
+                ctx.outEvent.buffer = cast(ubyte[]) buff[0 .. encryptLen];
                 ctx.outEvent.setWrite;
                 ctx.send;
             }
 
         }
 
-        // ctx.outEvent.setRead;
-        // ctx.send;
+        ctx.inEvent.chan.resetBufferIndices;
+        ctx.outEvent.setRead;
+        ctx.send;
     }
 
     override void onReadEnd(ChannelContext ctx)

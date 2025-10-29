@@ -69,6 +69,7 @@ class SSLServerLoop : ServerLoop
             conn.wbio = BIO_new(BIO_s_mem());
 
             SSL_set_bio(conn.ssl, conn.rbio, conn.wbio);
+            //SSL_set_read_ahead(conn.ssl, 1);
             //SSL_set_early_data_enabled(conn.ssl, false);
 
             SSL_set_accept_state(conn.ssl);

@@ -154,6 +154,7 @@ class StaticHttpDecoder : Codec
                     {
                         if (uriSize + uriSepSize == buffSlice.length)
                         {
+                            uriSlice = cast(char[]) buffSlice[0 .. uriSize];
                             state = DecoderState.errorNoProtoVersion;
                             return;
                         }
