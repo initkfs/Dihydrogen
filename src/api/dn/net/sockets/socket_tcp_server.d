@@ -3,7 +3,10 @@ module api.dn.net.sockets.socket_tcp_server;
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 
 import api.core.loggers.logging : Logging;
-import std.socket;
+import std.string : toStringz;
+
+import socket_libs;
+import err_libs;
 
 /**
  * Authors: initkfs
@@ -27,7 +30,7 @@ class SocketTcpServer : LoggableUnit
 
     protected
     {
-        TcpSocket _socket;
+        int _sd;
     }
 
     this(Logging logging)
@@ -38,68 +41,126 @@ class SocketTcpServer : LoggableUnit
     override void create()
     {
         super.create;
-        _socket = new TcpSocket();
 
-        _socket.setKeepAlive(keepAliveSentIfNoActivitySec, keepAliveIntervalSec);
-        _socket.blocking = isBlocking;
+        sockaddr_in addr;
 
-        _socket.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, 1);
-        _socket.setOption(SocketOptionLevel.TCP, SocketOption.TCP_NODELAY, 1);
+        addr.sin_family = PF_INET;
+        addr.sin_port = htons(port);
 
-        import core.time : dur;
+        //INADDR_ANY
+        addr.sin_addr.s_addr = inet_addr(host.toStringz);
 
-        //setsockopt(sd, IPPROTO_TCP, TCP_SYNCNT, 6);
-
-        _socket.setOption(SocketOptionLevel.SOCKET, SocketOption.SNDTIMEO, sendTimeoutSec
-                .dur!"seconds");
-        _socket.setOption(SocketOptionLevel.SOCKET, SocketOption.RCVTIMEO, readTimeoutSec
-                .dur!"seconds");
-
-        version (linux)
+        auto socketType = SOCK_STREAM;
+        if (!isBlocking)
         {
-            assert(_socket.handle);
-
-            import socket_libs;
-
-            int optValue = 1;
-            if (setsockopt(_socket.handle, IPPROTO_TCP, TCP_QUICKACK, &optValue, optValue
-                    .sizeof) == -1)
-            {
-                throw new Exception("TCP_QUICKACK");
-            }
-
-            optValue = keepAliveMaxFail;
-            if (setsockopt(_socket.handle, IPPROTO_TCP, TCP_KEEPCNT, &optValue, optValue
-                    .sizeof) == -1)
-            {
-                throw new Exception("TCP_KEEPCNT");
-            }
-
+            socketType |= SOCK_NONBLOCK;
         }
 
+        _sd = socket(PF_INET, socketType, IPPROTO_TCP);
+        if (_sd < 0)
+        {
+            throw new Exception("Socket creating error: " ~ getLastErrorNew);
+        }
+
+        int opt = 1;
+        setOption(_sd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, opt.sizeof);
+        setOption(_sd, SOL_SOCKET, SO_KEEPALIVE, &opt, opt.sizeof);
+        setOption(_sd, IPPROTO_TCP, TCP_QUICKACK, &opt, opt.sizeof);
+
+        setOption(_sd, IPPROTO_TCP, TCP_KEEPIDLE, &keepAliveSentIfNoActivitySec, keepAliveSentIfNoActivitySec
+                .sizeof);
+        setOption(_sd, IPPROTO_TCP, TCP_KEEPINTVL, &keepAliveIntervalSec, keepAliveIntervalSec
+                .sizeof);
+        setOption(_sd, IPPROTO_TCP, TCP_KEEPCNT, &keepAliveMaxFail, keepAliveMaxFail.sizeof);
+
+        //int synCount = 6;
+        //setOption(_sd, IPPROTO_TCP, TCP_SYNCNT, &synCount, synCount.sizeof); //client
+
+        int disable = 0;
+        setOption(_sd, IPPROTO_TCP, TCP_NODELAY, &disable, disable.sizeof);
+
+        import time_libs;
+
+        timeval sendTimeout;
+        sendTimeout.tv_sec = sendTimeoutSec;
+
+        setOption(_sd, SOL_SOCKET, SO_SNDTIMEO, &sendTimeout, sendTimeout.sizeof);
+
+        timeval readTimeout;
+        readTimeout.tv_sec = readTimeoutSec;
+        setOption(_sd, SOL_SOCKET, SO_RCVTIMEO, &readTimeout, readTimeout.sizeof);
+
+        if (bind(_sd, cast(sockaddr*)&addr, addr.sizeof) != 0)
+        {
+            dispose;
+            throw new Exception("Socket binding error: " ~ getLastErrorNew);
+        }
+    }
+
+    bool isBlockingMode()
+    {
+        import stdio_libs;
+
+        int flags = fcntl(_sd, F_GETFL, 0);
+        if (flags == -1)
+        {
+            return false;
+        }
+
+        if (flags & O_NONBLOCK)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    void setOption(int socket, int level, int optionName,
+        const void* optionValue, socklen_t optionLen)
+    {
+        if (setsockopt(socket, level, optionName, optionValue, optionLen) == -1)
+        {
+            throw new Exception("Socket option error: ", getLastErrorNew);
+        }
+    }
+
+    string getLastErrorNew()
+    {
+        import std.string : fromStringz;
+
+        return strerror(errno).fromStringz.idup;
     }
 
     override void run()
     {
         super.run;
-        assert(_socket);
-        _socket.bind(new InternetAddress(host, port));
-        _socket.listen(backlog);
+
+        if (listen(_sd, backlog) != 0)
+        {
+            dispose;
+            throw new Exception("Socket listen error: " ~ getLastErrorNew);
+        }
 
         logger.infof("Bind server %s:%d", host, port);
     }
 
     int fd()
     {
-        assert(_socket);
-        return _socket.handle;
+        assert(isCreated || isRunning);
+        return _sd;
     }
 
-    void close()
+    override void dispose()
     {
-        assert(_socket);
-        _socket.close;
-        _socket = null;
+        super.dispose;
+
+        if (close(_sd) == -1)
+        {
+            logger.errorf("Error closing socket %d: %s", _sd, getLastErrorNew);
+        }
+        else
+        {
+            logger.trace("Close socket: ", _sd);
+        }
     }
 
 }
