@@ -54,6 +54,7 @@ void io_uring_sqe_set_data(io_uring_sqe* sqe, void* data);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, __u64 data);
 void io_uring_prep_cancel(io_uring_sqe* sqe, void* user_data, int flags);
 void io_uring_prep_splice(io_uring_sqe *sqe, int fd_in,int64_t off_in, int fd_out, int64_t off_out, uint nbytes, uint splice_flags);
+void io_uring_prep_shutdown(io_uring_sqe *sqe, int sockfd, int how);
 
 import time_libs;
 

@@ -466,6 +466,21 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
+    void addSocketShutdown(io_uring* ring, FdChannel* conn, int how)
+    {
+        conn.state = SocketConnectState.close;
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, conn, sqe))
+        {
+            return;
+        }
+
+        applySQE(sqe, conn);
+
+        io_uring_prep_shutdown(sqe, conn.fd, how);
+        io_uring_sqe_set_data(sqe, conn);
+    }
+
     void addSocketAccept(io_uring* ring, FdChannel* conn, sockaddr* client_addr, socklen_t* client_len)
     {
         conn.state = SocketConnectState.accept;
