@@ -59,7 +59,7 @@ class HTTPSServer : HTTPServer
                     "Private key not found in config with key: " ~ privateKeyPathConfigKey);
             }
 
-            privateKeyPath = config.getNotEmptyString(privateKeyPathConfigKey).get;
+            privateKeyPath = config.getNotEmptyString(privateKeyPathConfigKey);
             logger.trace("Found private key path in config: ", webroot);
         }
 
@@ -71,7 +71,7 @@ class HTTPSServer : HTTPServer
                     "Сertificate file found in config with key: " ~ certPathConfigKey);
             }
 
-            certPath = config.getNotEmptyString(certPathConfigKey).get;
+            certPath = config.getNotEmptyString(certPathConfigKey);
             logger.trace("Found certificate file in config: ", certPath);
         }
 

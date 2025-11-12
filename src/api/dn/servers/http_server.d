@@ -66,7 +66,7 @@ class HTTPServer : Controller!UniComponent
                     "Webroot directory not found in config with key: " ~ webrootConfigKey);
             }
 
-            webroot = config.getNotEmptyString(webrootConfigKey).get;
+            webroot = config.getNotEmptyString(webrootConfigKey);
             logger.trace("Found webroot in config: ", webroot);
         }
 

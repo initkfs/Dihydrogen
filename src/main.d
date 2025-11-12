@@ -23,7 +23,6 @@ int main(string[] args)
     import api.dn.apps.server_app : ServerApp;
 
     auto app = new ServerApp;
-    app.isStrictConfigs = true;
     auto initRes = app.initialize(args);
     if (!initRes.isInit)
     {
