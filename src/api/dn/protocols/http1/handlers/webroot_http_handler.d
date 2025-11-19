@@ -18,13 +18,6 @@ class WebrootHttpHandler : HttpHandler
 {
     string webroot;
 
-    char[256] uri;
-    size_t uriLen;
-
-    char[256] buffer;
-    char[256] buffer2;
-    char[] targetFile;
-
     ubyte[][string] fileMap;
 
     string indexFile = "index.html";
@@ -42,6 +35,9 @@ class WebrootHttpHandler : HttpHandler
 
     override void onReadStart(ChannelContext ctx)
     {
+        char[256] uri;
+        size_t uriLen;
+
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0 || chanBuff[0] == '\0')
         {
@@ -86,9 +82,12 @@ class WebrootHttpHandler : HttpHandler
         }
 
         assert(indexFile.length > 0);
-        const uriSlice = rawUriSlice == indexUri ? indexFile : rawUriSlice; 
+        const uriSlice = rawUriSlice == indexUri ? indexFile : rawUriSlice;
 
         import std.format : sformat;
+
+        char[256] buffer;
+        char[256] buffer2;
 
         char[] filePath = sformat(buffer, "%s/%s\0", webroot, uriSlice);
 
@@ -111,7 +110,7 @@ class WebrootHttpHandler : HttpHandler
             return;
         }
 
-        targetFile = path;
+        auto targetFile = path;
 
         ubyte[] fileContent;
 
@@ -124,44 +123,29 @@ class WebrootHttpHandler : HttpHandler
             import std.file : read;
             import std.conv : to;
 
-            import std.algorithm.searching : endsWith;
+            import HttpResp = api.dn.protocols.http1.http_responses;
 
             auto content = cast(ubyte[]) path.read;
             string contentLen = content.length.to!string;
 
-            string mimeType;
-            if (path.endsWith(".png"))
+            string mimeType = HttpResp.mimeType(path);
+            if (mimeType.length == 0)
             {
-                mimeType = "image/png";
-            }
-            else if (path.endsWith(".js"))
-            {
-                mimeType = "text/javascript";
-            }
-            else if (path.endsWith(".ico"))
-            {
-                mimeType = "image/vnd.microsoft.icon";
-            }
-            else if (path.endsWith(".css"))
-            {
-                mimeType = "text/css";
-            }
-            else if (path.endsWith(".html"))
-            {
-                mimeType = "text/html";
-            }
-            else
-            {
-                mimeType = "text/plain";
+                ctx.outEvent.setWrite;
+                ctx.outEvent.chan.outb.slice = cast(ubyte[]) HttpResp._500;
+                ctx.send;
+                return;
             }
 
-            string headerLine = "HTTP/1.1 200 OK\r\n" ~ mimeType ~"\r\nContent-Length: " ~ contentLen ~ "\r\nConnection: close\r\n\r\n";
+            string headerLine = HttpResp.headerLine(mimeType, contentLen);
 
             content = (cast(ubyte[]) headerLine.dup) ~ content;
 
             fileMap[path.idup] = content;
             fileContent = content;
         }
+
+        import api.dn.protocols.http1.http_responses;
 
         ctx.outEvent.setWrite;
         ctx.outEvent.chan.outb.slice = cast(ubyte[]) fileContent;

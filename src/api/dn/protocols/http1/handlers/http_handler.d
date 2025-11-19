@@ -18,13 +18,7 @@ debug import std.stdio : writeln, writefln;
  */
 class HttpHandler : ChannelHandler
 {
-    ubyte[2048] buff;
     Logging logging;
-
-    char[] response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\nConnection: close\r\n\r\nHello, world!"
-        .dup;
-    char[] responseErr = "HTTP/1.1 400 Bad Request\r\nContent-Length: 11\r\nConnection: close\r\n\r\nBad Request"
-        .dup;
 
     StaticHttpDecoder decoder;
 
@@ -84,8 +78,10 @@ class HttpHandler : ChannelHandler
 
         //ubyte[] res = ctx.inEvent.chan.readableBytes;
 
+        import HttpResp = api.dn.protocols.http1.http_responses;
+
         ctx.outEvent.setWrite;
-        ctx.outEvent.chan.outb.slice = cast(ubyte[]) response;
+        ctx.outEvent.chan.outb.slice = cast(ubyte[]) HttpResp._html;
         ctx.send;
     }
 
@@ -115,9 +111,3 @@ class HttpHandler : ChannelHandler
     }
 
 }
-
-// unittest {
-//     auto httpHandler = new HttpHandler;
-//     ubyte[] buffer = cast(ubyte[]) "GET /hello/world HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nUser-Agent: curl/7.81.0\r\nAccept: */*\r\n\r\nmessage\0".dup;
-//     httpHandler.decode(buffer);
-// }

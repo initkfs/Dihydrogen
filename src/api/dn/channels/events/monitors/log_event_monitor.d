@@ -111,7 +111,7 @@ class LogEventMonitor : EventMonitor
     {
         if (buffer.length > maxLen)
         {
-            buffer = buffer[0 .. maxPrintLengthInEvents];
+            buffer = buffer[0 .. maxLen];
             return true;
         }
         return false;

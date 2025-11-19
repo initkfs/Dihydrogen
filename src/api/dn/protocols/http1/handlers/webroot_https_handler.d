@@ -22,13 +22,6 @@ class WebrootHttpsHandler : HttpHandler
 {
     string webroot;
 
-    char[256] uri;
-    size_t uriLen;
-
-    char[256] buffer;
-    char[256] buffer2;
-    char[] targetFile;
-
     ubyte[][string] fileMap;
 
     string indexFile = "index.html";
@@ -62,6 +55,9 @@ class WebrootHttpsHandler : HttpHandler
 
     override void onReadStart(ChannelContext ctx)
     {
+        char[256] uri;
+        size_t uriLen;
+
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0)
         {
@@ -212,6 +208,9 @@ class WebrootHttpsHandler : HttpHandler
 
             import std.format : sformat;
 
+            char[256] buffer;
+            char[256] buffer2;
+
             char[] filePath = sformat(buffer, "%s/%s\0", webroot, uriSlice);
 
             auto result = realpath(filePath.ptr, buffer2.ptr);
@@ -232,8 +231,6 @@ class WebrootHttpsHandler : HttpHandler
                 logging.logger.error("URI path is not in webroot: ", escapeunw(path));
                 return;
             }
-
-            targetFile = path;
 
             ubyte[] fileContent;
 
