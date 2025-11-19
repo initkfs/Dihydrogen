@@ -164,7 +164,7 @@ class WebrootHttpHandler : HttpHandler
         }
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[]) fileContent;
+        ctx.outEvent.chan.outb.slice = cast(ubyte[]) fileContent;
         ctx.send;
 
         //ctx.outEvent.setWrite;

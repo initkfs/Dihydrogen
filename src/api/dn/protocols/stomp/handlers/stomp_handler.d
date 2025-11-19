@@ -241,7 +241,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         ctx.inEvent.chan.resetBufferIndices;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[])(*bufferData).buffer[];
+        ctx.outEvent.chan.outb.slice = cast(ubyte[])(*bufferData).buffer[];
         ctx.send;
     }
 

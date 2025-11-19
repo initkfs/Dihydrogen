@@ -160,9 +160,9 @@ class LogEventMonitor : EventMonitor
 
             try
             {
-                char[] buffer = cast(char[]) outEvent.buffer;
+                char[] buffer = cast(char[]) outEvent.chan.outb.slice;
                 bool isClip = clipBuffer(buffer, maxPrintLengthOutEvents);
-                logger.tracef("OUT: %s, %s, len %d, %s%s", outEvent.chan.fd, outEvent.state, outEvent.buffer.length, buffer, isClip ? clipSymbol : "");
+                logger.tracef("OUT: %s, %s, len %d, %s%s", outEvent.chan.fd, outEvent.state, outEvent.chan.outb.length, buffer, isClip ? clipSymbol : "");
             }
 
             catch (Exception e)

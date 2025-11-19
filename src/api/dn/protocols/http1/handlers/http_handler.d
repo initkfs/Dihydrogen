@@ -85,7 +85,7 @@ class HttpHandler : ChannelHandler
         //ubyte[] res = ctx.inEvent.chan.readableBytes;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.buffer = cast(ubyte[]) response;
+        ctx.outEvent.chan.outb.slice = cast(ubyte[]) response;
         ctx.send;
     }
 

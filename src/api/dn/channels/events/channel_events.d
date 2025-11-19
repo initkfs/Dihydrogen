@@ -37,7 +37,6 @@ struct ChanOutEvent
 
     FdChannel* chan;
     ChanOutEventState state;
-    ubyte[] buffer;
     bool isConsumed;
 
     void setRead()

@@ -274,6 +274,11 @@ class EventLoop : LoggableUnit
                     //TODO or onClose?
                     newConnect.resetPart;
 
+                    if (newConnect.outb.isMustClose)
+                    {
+                        newConnect.outb.dispose;
+                    }
+
                     //addTimer(&ring, newConnect, 10, 1);
 
                     onAcceptEnd(newConnect);
@@ -295,14 +300,14 @@ class EventLoop : LoggableUnit
                 else
                 {
                     auto buffSize = bytesRead;
-                    if (!connection.incRead(buffSize))
+                    if (!connection.inb.incRead(buffSize))
                     {
-                        connection.incMaxRead;
+                        connection.inb.incMaxRead;
                     }
 
-                    if (!connection.incWrite(buffSize))
+                    if (!connection.inb.incWrite(buffSize))
                     {
-                        connection.incMaxWrite;
+                        connection.inb.incMaxWrite;
                     }
 
                     onReadStart(connection);
@@ -388,9 +393,11 @@ class EventLoop : LoggableUnit
         newChan.type = FdChannelType.socket;
         newChan.fd = fd;
         newChan.state = state;
-        newChan.readIndex = 0;
-        newChan.writeIndex = 0;
         newChan.isChain = false;
+
+        newChan.inb.reset;
+
+        newChan.outb.resetUnsafe;
 
         if (maxMessageLen > 0)
         {
@@ -401,11 +408,11 @@ class EventLoop : LoggableUnit
                 exit(1);
             }
 
-            newChan.buff = cast(ubyte[]) mustBeBuffPtr[0 .. maxMessageLen];
+            newChan.inb.buff = cast(ubyte[]) mustBeBuffPtr[0 .. maxMessageLen];
         }
         else
         {
-            newChan.buff = null;
+            newChan.inb.buff = null;
         }
 
         return newChan;
@@ -532,7 +539,7 @@ class EventLoop : LoggableUnit
     {
         assert(buff);
         assert(len >= 0);
-        
+
         conn.state = SocketConnectState.write;
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
@@ -542,7 +549,7 @@ class EventLoop : LoggableUnit
 
         applySQE(sqe, conn);
 
-        enum IORING_SEND_ZC_REPORT_USAGE  =  1U << 0;
+        enum IORING_SEND_ZC_REPORT_USAGE = 1U << 0;
 
         io_uring_prep_send_zc(sqe, conn.fd, buff, len, 0, IORING_SEND_ZC_REPORT_USAGE);
         io_uring_sqe_set_data(sqe, conn);
