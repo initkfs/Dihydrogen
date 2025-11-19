@@ -22,6 +22,7 @@ struct FdChannel
     size_t readIndex;
     size_t writeIndex;
     bool isChain;
+    bool isText;
     void* data;
 
     import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free;
@@ -61,6 +62,7 @@ struct FdChannel
         data = null;
         isChain = false;
         isInitSSL = false;
+        isText = false;
     }
 
     bool incRead(size_t offset = 1) @nogc nothrow @safe
