@@ -14,6 +14,9 @@ class LogEventMonitor : EventMonitor
     size_t maxPrintLengthOutEvents = 50;
     string clipSymbol = "....";
 
+    int targetChanIn = -1;
+    int targetChanOut = -1;
+
     this(Logging logging)
     {
         super(logging);
@@ -114,8 +117,13 @@ class LogEventMonitor : EventMonitor
         return false;
     }
 
-    override void onInEvent(ChanInEvent inEvent)
+    override bool onInEvent(ChanInEvent inEvent)
     {
+        if (targetChanIn >= 0 && inEvent.chan.fd != targetChanIn)
+        {
+            return false;
+        }
+
         if (inEvent.state == ChanInEvent.ChanInEventState.readStart)
         {
             import std.conv : to;
@@ -124,22 +132,28 @@ class LogEventMonitor : EventMonitor
             {
                 char[] buffer = cast(char[]) inEvent.chan.readableBytes;
                 bool isClip = clipBuffer(buffer, maxPrintLengthInEvents);
-                logger.tracef("IN: %s, %s, len %d, %s%s", inEvent.chan.fd, inEvent.state, inEvent.chan.readableBytes.length, escape(buffer), isClip ? clipSymbol
-                        : "");
+                logger.tracef("IN: %s, %s, len %d, %s%s", inEvent.chan.fd, inEvent.state, inEvent.chan
+                        .readableBytes.length, escape(buffer), isClip ? clipSymbol : "");
             }
 
             catch (Exception e)
             {
                 logger.error("IN monitor error:", e.toString);
             }
-            return;
+            return true;
         }
 
         logger.tracef("IN: %s, %s", inEvent.chan.fd, inEvent.state);
+        return true;
     }
 
-    override void onOutRouterEvent(ChanOutEvent outEvent)
+    override bool onOutRouterEvent(ChanOutEvent outEvent)
     {
+        if (targetChanOut >= 0 && outEvent.chan.fd != targetChanOut)
+        {
+            return false;
+        }
+
         if (outEvent.state == ChanOutEvent.ChanOutEventState.write)
         {
             import std.conv : to;
@@ -148,17 +162,17 @@ class LogEventMonitor : EventMonitor
             {
                 char[] buffer = cast(char[]) outEvent.buffer;
                 bool isClip = clipBuffer(buffer, maxPrintLengthOutEvents);
-                logger.tracef("OUT: %s, %s, len %d, %s%s",  outEvent.chan.fd, outEvent.state, outEvent.buffer.length, buffer, isClip ? clipSymbol
-                        : "");
+                logger.tracef("OUT: %s, %s, len %d, %s%s", outEvent.chan.fd, outEvent.state, outEvent.buffer.length, buffer, isClip ? clipSymbol : "");
             }
 
             catch (Exception e)
             {
                 logger.error("OUT monitor error:", e.toString);
             }
-            return;
+            return true;
         }
 
         logger.tracef("OUT: %s, %s", outEvent.chan.fd, outEvent.state);
+        return true;
     }
 }

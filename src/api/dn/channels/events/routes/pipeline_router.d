@@ -18,17 +18,19 @@ class PipelineRouter : EventRouter
         this.pipeline = pipeline;
 
         //TODO move to create()
-        pipeline.onOutEvent = (event) => routeOutEvent(event);
+        pipeline.onOutEvent = (event) {
+            routeOutEvent(event);
+        };
     }
 
-    override void routeInEvent(ChanInEvent eventIn)
+    override bool routeInEvent(ChanInEvent eventIn)
     {
-        pipeline.onInEvent(eventIn);
+        return pipeline.onInEvent(eventIn);
     }
 
-    override void routeOutEvent(ChanOutEvent eventOut)
+    override bool routeOutEvent(ChanOutEvent eventOut)
     {
         assert(onOutEvent, "On out event listener must not be null");
-        onOutEvent(eventOut);
+        return onOutEvent(eventOut);
     }
 }

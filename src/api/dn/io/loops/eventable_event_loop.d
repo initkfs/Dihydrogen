@@ -11,8 +11,8 @@ import api.core.loggers.logging : Logging;
  */
 class EventableEventLoop : EventLoop
 {
-    void delegate(ChanInEvent) onInEvent;
-    void delegate(ChanOutEvent) onOutEvent;
+    bool delegate(ChanInEvent) onInEvent;
+    bool delegate(ChanOutEvent) onOutEvent;
 
     this(Logging logger)
     {
@@ -39,24 +39,27 @@ class EventableEventLoop : EventLoop
         sendInEvent(newChanInEvent(conn, state));
     }
 
-    void sendInEvent(ChanInEvent inEvent)
+    bool sendInEvent(ChanInEvent inEvent)
     {
         if (onInEvent)
         {
-            onInEvent(inEvent);
+            return onInEvent(inEvent);
         }
+
+        return false;
     }
 
-    void sendOutEvent(ChanOutEvent event)
+    bool sendOutEvent(ChanOutEvent event)
     {
+        bool isSend;
         if (onOutEvent)
         {
-            onOutEvent(event);
+            isSend |= onOutEvent(event);
         }
 
         if (event.isConsumed)
         {
-            return;
+            return isSend;
         }
 
         switch (event.state) with (ChanOutEvent.ChanOutEventState)
@@ -79,6 +82,8 @@ class EventableEventLoop : EventLoop
             default:
                 break;
         }
+
+        return true;
     }
 
 }

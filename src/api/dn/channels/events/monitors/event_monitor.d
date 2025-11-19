@@ -1,31 +1,22 @@
 module api.dn.channels.events.monitors.event_monitor;
 
-import api.core.loggers.logging: Logging;
-import api.core.components.units.services.loggable_unit: LoggableUnit;
+import api.core.loggers.logging : Logging;
+import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 /**
  * Authors: initkfs
  */
-class EventMonitor : LoggableUnit {
+class EventMonitor : LoggableUnit
+{
 
-    this(Logging logging){
+    this(Logging logging)
+    {
         super(logging);
     }
-    
-    void onInEvent(ChanInEvent inEvent){
 
-    }
-
-    void onConvertedInEvent(ChanInEvent inEvent, ChanInEvent transEvent){
-
-    }
-
-    void onOutRouterEvent(ChanOutEvent inEvent){
-
-    }
-
-    void onConvertedOutEvent(ChanOutEvent outEvent, ChanOutEvent convOutEvent){
-
-    }
+    bool onInEvent(ChanInEvent inEvent) => false;
+    bool onConvertedInEvent(ChanInEvent inEvent, ChanInEvent convertedInEvent) => false;
+    bool onOutRouterEvent(ChanOutEvent inEvent) => false;
+    bool onConvertedOutEvent(ChanOutEvent outEvent, ChanOutEvent convertedOutEvent) => false;
 }

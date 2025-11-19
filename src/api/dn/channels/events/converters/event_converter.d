@@ -8,15 +8,9 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 
 class EventConverter
 {
+    bool isNeedConvert(in ChanInEvent inEvent) => false;
+    ChanInEvent convertInEvent(ChanInEvent inEvent) => inEvent;
 
-    ChanInEvent convertInEvent(ChanInEvent inEvent)
-    {
-        return inEvent;
-    }
-
-    ChanOutEvent convertOutEvent(ChanOutEvent outEvent)
-    {
-        return outEvent;
-    }
-
+    bool isNeedConvert(in ChanOutEvent outEvent) => false;
+    ChanOutEvent convertOutEvent(ChanOutEvent outEvent) => outEvent;
 }

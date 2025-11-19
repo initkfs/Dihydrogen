@@ -18,7 +18,7 @@ class HandlerPipeline
         void delegate(ChanOutEvent) _onOutEvent;
     }
 
-    void onInEvent(ChanInEvent event)
+    bool onInEvent(ChanInEvent event)
     {
         switch (event.state) with (ChanInEvent.ChanInEventState)
         {
@@ -43,6 +43,8 @@ class HandlerPipeline
             default:
                 break;
         }
+
+        return true;
     }
 
     void sendEvent(ChanOutEvent event)

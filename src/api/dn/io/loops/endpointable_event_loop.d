@@ -30,13 +30,13 @@ class EndpointableEventLoop : EventableEventLoop
         this.eventMonitor = monitor;
 
         eventRouter.onOutEvent = (outEvent) {
-            
+
             if (eventMonitor)
             {
                 eventMonitor.onOutRouterEvent(outEvent);
             }
 
-            if (eventConverter)
+            if (eventConverter && eventConverter.isNeedConvert(outEvent))
             {
                 auto convOutEvent = eventConverter.convertOutEvent(outEvent);
                 if (eventMonitor)
@@ -46,11 +46,11 @@ class EndpointableEventLoop : EventableEventLoop
                 outEvent = convOutEvent;
             }
 
-            sendOutEvent(outEvent);
+            return sendOutEvent(outEvent);
         };
     }
 
-    override void sendInEvent(ChanInEvent chanInEvent)
+    override bool sendInEvent(ChanInEvent chanInEvent)
     {
         super.sendInEvent(chanInEvent);
 
@@ -59,7 +59,7 @@ class EndpointableEventLoop : EventableEventLoop
             eventMonitor.onInEvent(chanInEvent);
         }
 
-        if (eventConverter)
+        if (eventConverter && eventConverter.isNeedConvert(chanInEvent))
         {
             auto convInEvent = eventConverter.convertInEvent(chanInEvent);
             if (eventMonitor)
@@ -70,7 +70,7 @@ class EndpointableEventLoop : EventableEventLoop
         }
 
         assert(eventRouter);
-        eventRouter.routeInEvent(chanInEvent);
+        return eventRouter.routeInEvent(chanInEvent);
     }
 
     override void create()
