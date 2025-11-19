@@ -10,19 +10,22 @@ import api.core.loggers.logging : Logging;
  */
 class LogEventMonitor : EventMonitor
 {
+    size_t maxPrintLengthInEvents = 100;
+    size_t maxPrintLengthOutEvents = 50;
+    string clipSymbol = "....";
 
     this(Logging logging)
     {
         super(logging);
     }
 
-    private char[] escape(const(char[]) buff)
+    static char[] escape(const(char[]) buff)
     {
         string formatChar(char ch)
         {
             import std.format : format;
 
-            return format("\\x%02X", ch);
+            return format("\\x%X", ch);
         }
 
         import std.ascii : isASCII, isControl;
@@ -86,17 +89,29 @@ class LogEventMonitor : EventMonitor
                 "Привет") == "\\xD0\\x9F\\xD1\\x80\\xD0\\xB8\\xD0\\xB2\\xD0\\xB5\\xD1\\x82");
         assert(escape("Hello\tПривет\nWorld") == "Hello\\x09\\xD0\\x9F\\xD1\\x80\\xD0\\xB8\\xD0\\xB2\\xD0\\xB5\\xD1\\x82\\x0AWorld");
 
+        import std.conv : to;
+
         foreach (char ch; 0x00 .. 0x20) // 0x00 до 0x1F
         {
-            string result = escape(ch);
-            string expected = "\\x" ~ (ch < 0x10 ? "0" : "") ~
-                ([
-                    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B",
-                    "C", "D", "E", "F"
-            ][ch & 0xF]);
+            auto result = escape(ch.to!string);
+            auto hexDigit = [
+                "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C",
+                "D", "E", "F"
+            ];
+            string expected = "\\x" ~ hexDigit[(ch >> 4) & 0xF] ~ hexDigit[ch & 0xF];
             assert(result == expected,
-                "0x" ~ to!string(ch, 16) ~ " must be escaped as " ~ expected ~ ", but received: " ~ result);
+                "0x" ~ to!string(cast(int) ch, 16) ~ " must be escaped as " ~ expected ~ ", but received: " ~ result);
         }
+    }
+
+    protected bool clipBuffer(ref char[] buffer, size_t maxLen)
+    {
+        if (buffer.length > maxLen)
+        {
+            buffer = buffer[0 .. maxPrintLengthInEvents];
+            return true;
+        }
+        return false;
     }
 
     override void onInEvent(ChanInEvent inEvent)
@@ -107,21 +122,20 @@ class LogEventMonitor : EventMonitor
 
             try
             {
-                bool isText = inEvent.chan.isText;
-
-                ubyte[] buffer = inEvent.chan.readableBytes;
-                logger.tracef("IN:%s, %s, %s", inEvent.chan.fd, inEvent.state, buffer);
-
+                char[] buffer = cast(char[]) inEvent.chan.readableBytes;
+                bool isClip = clipBuffer(buffer, maxPrintLengthInEvents);
+                logger.tracef("IN: %s, %s, len %d, %s%s", inEvent.chan.fd, inEvent.state, inEvent.chan.readableBytes.length, escape(buffer), isClip ? clipSymbol
+                        : "");
             }
 
             catch (Exception e)
             {
-                logger.error("Monitor error:", e.toString);
+                logger.error("IN monitor error:", e.toString);
             }
             return;
         }
 
-        logger.tracef("%s:%s, %s", typeof(inEvent).stringof, inEvent.chan.fd, inEvent.state);
+        logger.tracef("IN: %s, %s", inEvent.chan.fd, inEvent.state);
     }
 
     override void onOutRouterEvent(ChanOutEvent outEvent)
@@ -130,13 +144,21 @@ class LogEventMonitor : EventMonitor
         {
             import std.conv : to;
 
-            //TODO utf, remove unsafe cast
-            // dstring buffStr = (cast(string) outEvent.buffer).to!dstring;
-            // logger.tracef("%s:%s, %s, buff:%s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.state, escape(
-            //         buffStr));
+            try
+            {
+                char[] buffer = cast(char[]) outEvent.buffer;
+                bool isClip = clipBuffer(buffer, maxPrintLengthOutEvents);
+                logger.tracef("OUT: %s, %s, len %d, %s%s",  outEvent.chan.fd, outEvent.state, outEvent.buffer.length, buffer, isClip ? clipSymbol
+                        : "");
+            }
+
+            catch (Exception e)
+            {
+                logger.error("OUT monitor error:", e.toString);
+            }
             return;
         }
 
-        logger.tracef("%s:%s, %s", typeof(outEvent).stringof, outEvent.chan.fd, outEvent.state);
+        logger.tracef("OUT: %s, %s", outEvent.chan.fd, outEvent.state);
     }
 }
