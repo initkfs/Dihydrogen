@@ -273,6 +273,7 @@ class EventLoop : LoggableUnit
 
                     //TODO or onClose?
                     newConnect.resetPart;
+                    newConnect.start;
 
                     if (newConnect.outb.isMustClose)
                     {

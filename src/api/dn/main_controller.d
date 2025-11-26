@@ -20,7 +20,7 @@ class MainController : Controller!UniComponent
 
     override void run()
     {
-        server = new HTTPServer;
+        server = new HTTPSServer;
         buildInitCreateRun(server);
     }
 }

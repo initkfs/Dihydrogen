@@ -88,11 +88,12 @@ class HttpHandler : ChannelHandler
     override void onReadError(ChannelContext ctx)
     {
         import std;
+
         writeln("Read error");
         //loop
         //ctx.outEvent.setRead;
         //ctx.send;
-        
+
         //ctx.outEvent.setWrite;
         //ctx.outEvent.buffer = cast(ubyte[]) response;
         //ctx.send;
@@ -108,6 +109,23 @@ class HttpHandler : ChannelHandler
     {
         //import std.stdio;
         //writefln("Close: %s", ctx.channel.fd);
+    }
+
+    void sendRead(ref ChannelContext ctx)
+    {
+        ctx.outEvent.setRead;
+        ctx.send;
+    }
+
+    void sendWrite(ref ChannelContext ctx){
+        ctx.outEvent.setWrite;
+        ctx.send;
+    }
+    
+    void sendClose(ref ChannelContext ctx)
+    {
+        ctx.outEvent.setClose;
+        ctx.send;
     }
 
 }

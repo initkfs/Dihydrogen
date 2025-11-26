@@ -64,15 +64,15 @@ class SSLServerLoop : ServerLoop
                 return;
             }
 
-            conn.ssl = ssl;
-            conn.rbio = BIO_new(BIO_s_mem());
-            conn.wbio = BIO_new(BIO_s_mem());
+            conn.sslContext.ssl = ssl;
+            conn.sslContext.rbio = BIO_new(BIO_s_mem());
+            conn.sslContext.wbio = BIO_new(BIO_s_mem());
 
-            SSL_set_bio(conn.ssl, conn.rbio, conn.wbio);
+            SSL_set_bio(conn.sslContext.ssl, conn.sslContext.rbio, conn.sslContext.wbio);
             //SSL_set_read_ahead(conn.ssl, 1);
             //SSL_set_early_data_enabled(conn.ssl, false);
 
-            SSL_set_accept_state(conn.ssl);
+            SSL_set_accept_state(conn.sslContext.ssl);
 
             // if (!SSL_is_init_finished(conn.ssl))
             // {
