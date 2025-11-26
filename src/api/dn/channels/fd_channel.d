@@ -23,7 +23,6 @@ struct FdChannel
     InBuffer inb;
     OutBuffer outb;
     bool isChain;
-    bool isText;
 
     void* data;
 
@@ -70,7 +69,6 @@ struct FdChannel
         data = null;
         isChain = false;
         isInitSSL = false;
-        isText = false;
     }
 
     ubyte[] readableBytes() => inb.readableBytes;
