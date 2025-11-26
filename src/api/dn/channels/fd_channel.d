@@ -16,13 +16,22 @@ enum FdChannelType
 
 struct SSLContext
 {
-    import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free, BIO_reset;
+    import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free, BIO_reset, SSL_clear;
 
     SSL* ssl;
     BIO* rbio;
     BIO* wbio;
     bool isInitSSL;
     bool isOpen;
+
+    void clear()
+    {
+        ssl = null;
+        rbio = null;
+        wbio = null;
+        isInitSSL = false;
+        isOpen = false;
+    }
 
     void shutdown()
     {
@@ -39,7 +48,10 @@ struct SSLContext
             return;
         }
 
-        shutdown;
+        if (ssl)
+        {
+            SSL_clear(ssl);
+        }
 
         resetbio;
         isOpen = false;
@@ -48,15 +60,15 @@ struct SSLContext
 
     void resetbio()
     {
-        // if (rbio)
-        // {
-        //     BIO_reset(rbio);
-        // }
+        if (rbio)
+        {
+            BIO_reset(rbio);
+        }
 
-        // if (wbio)
-        // {
-        //     BIO_reset(wbio);
-        // }
+        if (wbio)
+        {
+            BIO_reset(wbio);
+        }
     }
 
     void freeSSL()
@@ -64,12 +76,23 @@ struct SSLContext
         if (ssl)
         {
             SSL_free(ssl);
+            ssl = null;
         }
     }
 
     void reset()
     {
-        close;
+        if (ssl)
+        {
+            //TODO errror code == -1
+            SSL_clear(ssl);
+        }
+
+        resetbio;
+        isOpen = false;
+        isInitSSL = false;
+
+
     }
 }
 
@@ -87,6 +110,19 @@ struct FdChannel
     SSLContext sslContext;
 
     void* data;
+
+    void clear(){
+        fd = -1;
+        type = FdChannelType.none;
+        state = -1;
+        stateNext = -1;
+
+        outb.reset;
+        inb.reset;
+
+        sslContext = SSLContext();
+        resetPart;
+    }
 
     void resetFull()
     {

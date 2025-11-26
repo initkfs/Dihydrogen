@@ -54,7 +54,15 @@ class SSLServerLoop : ServerLoop
         super.create;
 
         onAcceptEnd = (conn) {
-            //assert(!conn.ssl);
+            //TODO reuse
+            //https://docs.openssl.org/3.5/man3/SSL_clear/#notes
+            //SSL_get_session; SSL_new; SSL_set_session; SSL_free
+            if (conn.sslContext.ssl)
+            {
+                //https://docs.openssl.org/3.5/man3/SSL_set_bio/#synopsis
+                //BIO will be automatically freed using BIO_free_all(3) when the ssl is freed.
+                conn.sslContext.freeSSL;
+            }
 
             auto ssl = SSL_new(ctx);
             if (!ssl)
@@ -64,14 +72,19 @@ class SSLServerLoop : ServerLoop
                 return;
             }
 
+            // SSL_MODE_AUTO_RETRY
+            //SSL_set_mode(ssl,
+            //    SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
+            //SSL_set_blocking_mode(ssl, 0); //non-blocking
             conn.sslContext.ssl = ssl;
             conn.sslContext.rbio = BIO_new(BIO_s_mem());
             conn.sslContext.wbio = BIO_new(BIO_s_mem());
 
-            SSL_set_bio(conn.sslContext.ssl, conn.sslContext.rbio, conn.sslContext.wbio);
             //SSL_set_read_ahead(conn.ssl, 1);
             //SSL_set_early_data_enabled(conn.ssl, false);
 
+            SSL_set_bio(conn.sslContext.ssl, conn.sslContext.rbio, conn.sslContext.wbio);
             SSL_set_accept_state(conn.sslContext.ssl);
 
             // if (!SSL_is_init_finished(conn.ssl))

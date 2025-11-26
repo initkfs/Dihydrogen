@@ -391,6 +391,9 @@ class EventLoop : LoggableUnit
         }
 
         auto newChan = cast(FdChannel*) mustBeChanPtr;
+
+        newChan.clear;
+
         newChan.type = FdChannelType.socket;
         newChan.fd = fd;
         newChan.state = state;
@@ -624,7 +627,7 @@ class EventLoop : LoggableUnit
         FdChannel* chan = cast(FdChannel*) malloc(FdChannel.sizeof);
         assert(chan);
 
-        chan.resetFull;
+        chan.clear;
 
         chan.type = FdChannelType.timer;
 
