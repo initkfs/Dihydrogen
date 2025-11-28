@@ -11,8 +11,6 @@ struct InBuffer
     size_t readIndex;
     size_t writeIndex;
 
-    bool isText;
-
     bool incRead(size_t offset = 1) @nogc nothrow @safe
     {
         size_t newIndex = readIndex + offset;
@@ -79,7 +77,6 @@ struct InBuffer
     {
         resetBufferIndices;
         buff = null;
-        isText = false;
     }
 
     void resetBufferIndices()
@@ -93,7 +90,6 @@ struct OutBuffer
 {
     ubyte[] slice;
     bool isMustClose;
-    bool isText;
 
     void function(void*) closeFunc;
 
@@ -104,7 +100,6 @@ struct OutBuffer
         isMustClose = false;
         slice = null;
         closeFunc = null;
-        isText = false;
     }
 
     void reset()

@@ -5,4 +5,5 @@
 /trace.def
 /trace.log
 /scripts
+/libs/wolftls/*
 /data
