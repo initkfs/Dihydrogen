@@ -6,4 +6,5 @@
 /trace.log
 /scripts
 /libs/wolftls/*
+/libs/liburing/*
 /data
