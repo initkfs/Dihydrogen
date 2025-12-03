@@ -9,7 +9,7 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.contexts.channel_context : ChannelContext;
 
 import api.dn.protocols.http1.http_common;
-import api.dn.protocols.http1.static_http_decoder : StaticHttpDecoder, DecoderState;
+import api.dn.protocols.http1.static_http_req_decoder : StaticHttpReqDecoder, DecoderState;
 
 import HttpResp = api.dn.protocols.http1.http_responses;
 

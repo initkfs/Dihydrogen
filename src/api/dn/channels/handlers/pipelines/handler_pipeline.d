@@ -25,6 +25,9 @@ class HandlerPipeline
             case accepted:
                 onAcceptEnd(event);
                 break;
+            case connect:
+                onConnect(event);
+                break;
             case readStart:
                 onReadStart(event);
                 break;
@@ -67,6 +70,14 @@ class HandlerPipeline
 
             curr = curr.next;
         }
+    }
+
+    void onConnect(ChanInEvent event)
+    {
+        onHandler((h) {
+            h.onConnect(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            return true;
+        });
     }
 
     void onAcceptEnd(ChanInEvent event)

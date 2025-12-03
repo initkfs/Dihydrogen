@@ -33,6 +33,8 @@ class EventLoop : LoggableUnit
     uint ringEntries = 4096;
     size_t maxMessageLen = 2048;
 
+    bool isClient;
+
     enum backlog = 512;
     enum ringFeatFastPollFlag = (1U << 5);
 
@@ -46,6 +48,9 @@ class EventLoop : LoggableUnit
     {
         super(logging);
     }
+
+    void delegate() onStartLoop;
+    void delegate() onEndLoop;
 
     void delegate(FdChannel*) onAcceptEnd;
     void delegate(FdChannel*) onReadStart;
@@ -368,12 +373,22 @@ class EventLoop : LoggableUnit
     {
         super.run;
 
+        if (onStartLoop)
+        {
+            onStartLoop();
+        }
+
         while (true)
         {
             if (!runStepIsContinue)
             {
                 break;
             }
+        }
+
+        if (onEndLoop)
+        {
+            onEndLoop();
         }
 
         logger.info("Exit");

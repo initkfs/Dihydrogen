@@ -15,6 +15,14 @@ class ChannelHandler
 
     void delegate(ChanOutEvent) onOutEvent;
 
+    void onConnect(ChannelContext ctx)
+    {
+        if (next)
+        {
+            next.onConnect(ctx);
+        }
+    }
+
     void onAcceptEnd(ChannelContext ctx)
     {
         if (next)

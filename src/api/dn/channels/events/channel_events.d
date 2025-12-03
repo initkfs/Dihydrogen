@@ -11,6 +11,7 @@ struct ChanInEvent
     {
         none,
         accepted,
+        connect,
         readStart,
         readEnd,
         readError,

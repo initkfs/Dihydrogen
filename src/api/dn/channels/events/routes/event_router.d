@@ -9,7 +9,7 @@ import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
 abstract class EventRouter
 {
     bool delegate(ChanOutEvent) onOutEvent;
-
+    
     bool routeInEvent(ChanInEvent eventIn);
     bool routeOutEvent(ChanOutEvent eventOut);
 }

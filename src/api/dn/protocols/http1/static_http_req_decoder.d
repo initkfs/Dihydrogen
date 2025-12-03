@@ -1,4 +1,4 @@
-module api.dn.protocols.http1.static_http_decoder;
+module api.dn.protocols.http1.static_http_req_decoder;
 
 import api.dn.codecs.codec : Codec;
 
@@ -53,7 +53,7 @@ enum DecoderState : string
 /**
  * Authors: initkfs
  */
-class StaticHttpDecoder : Codec
+class StaticHttpReqDecoder : Codec
 {
     DecoderState state;
 
@@ -689,7 +689,7 @@ class StaticHttpDecoder : Codec
 
 // unittest
 // {
-//     auto decoder = new StaticHttpDecoder;
+//     auto decoder = new StaticHttpReqDecoder;
 
 //     ubyte[] request = cast(ubyte[]) "GET /path/to/resource HTTP/1.1\r\nHost: example.com\r\nUser-Agent: MyCustomClient/1.0\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\nConnection: close\r\n\r\n"
 //         .dup;
@@ -706,7 +706,7 @@ class StaticHttpDecoder : Codec
 
 unittest
 {
-    auto decoder = new StaticHttpDecoder;
+    auto decoder = new StaticHttpReqDecoder;
 
     decoder.decode(null);
     assert(decoder.state == DecoderState.errorEmptyRequest);
@@ -754,7 +754,7 @@ unittest
 
 unittest
 {
-    auto decoder = new StaticHttpDecoder;
+    auto decoder = new StaticHttpReqDecoder;
 
     decoder.decode(cast(ubyte[]) "GET /");
     assert(decoder.state == DecoderState.errorNoProtoVersion);
@@ -804,7 +804,7 @@ unittest
 
 unittest
 {
-    auto decoder = new StaticHttpDecoder;
+    auto decoder = new StaticHttpReqDecoder;
 
     decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\n\r\n");
     assert(decoder.state == DecoderState.end);
@@ -824,7 +824,7 @@ unittest
 
 unittest
 {
-    auto decoder = new StaticHttpDecoder;
+    auto decoder = new StaticHttpReqDecoder;
 
     decoder.decode(cast(ubyte[]) "GET / HTTP/1.1\r\nHost");
     assert(decoder.state == DecoderState.errorInvalidHeadersLine);
