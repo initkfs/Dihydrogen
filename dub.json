@@ -30,10 +30,14 @@
             "libs": ["openssl"]
         }
     ],
+    "buildRequirements":[
+        "allowWarnings"
+    ],
     "dflags": [
         "-dip1000",
         "-preview=in",
-        "-preview=fixAliasThis"
+        "-preview=fixAliasThis",
+        "-P=-D_POSIX_C_SOURCE=200809L"
     ],
     "dependencies": {}
 }

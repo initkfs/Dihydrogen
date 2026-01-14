@@ -35,6 +35,8 @@ class SocketTcpClient : LoggableUnit
 
     addrinfo* p;
 
+    string addrtype = "http";
+
     protected
     {
         int _sd;
@@ -61,7 +63,7 @@ class SocketTcpClient : LoggableUnit
         strport = port.to!(char[]).ptr;
 
         int rv;
-        if ((rv = getaddrinfo(host.toStringz, "http", &hints, &servinfo)) != 0)
+        if ((rv = getaddrinfo(host.toStringz, addrtype.toStringz, &hints, &servinfo)) != 0)
         {
             import std.format : format;
 

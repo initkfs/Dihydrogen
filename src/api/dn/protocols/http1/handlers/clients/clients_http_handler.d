@@ -41,7 +41,7 @@ class ClientHttpHandler : ChannelHandler
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0)
         {
-            decode(chanBuff);
+            decoder.decode(chanBuff);
             if (decoder.state != DecoderState.end && decoder.state != DecoderState.errorNoBody)
             {
                 debug writeln("HTTP decoder error: ", decoder.state);

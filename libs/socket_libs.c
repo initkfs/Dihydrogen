@@ -1,5 +1,5 @@
 #include <sys/socket.h>
-#include <bits/socket-constants.h>
+#include <asm-generic/socket.h>
 #include <arpa/inet.h>
 #include <netdb.h> //gethostbyname
 #include <netinet/in.h>

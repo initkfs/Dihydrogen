@@ -6,13 +6,13 @@ import time_libs;
  * Authors: initkfs
  */
 
-enum realClockId = CLOCK_REALTIME_COARSE;
+enum realClockId = CLOCK_REALTIME;
 
 long timestamp()
 {
     timespec tms;
     enum clockErr = -1;
-    if (time_libs.clock_gettime(realClockId, &tms) == clockErr)
+    if (clock_gettime(realClockId, &tms) == clockErr)
     {
         return clockErr;
     }
