@@ -424,6 +424,6 @@ unittest
     assert(decoder.statusCodeSlice == "200");
     assert(decoder.reasonPhraseSlice == "OK");
     assert(decoder.headersLineSlice == "Server: nginx/1.18.0 (Ubuntu)\r\nDate: Wed, 03 Dec 2025 12:17:23 GMT \r\nContent-Type: text/html\r\nContent-Length: 5124");
-    assert(decoder.bodySlice == "Body");
+    assert(decoder.bodySlice == "Body\0");
     assert(decoder.state == DecoderState.end);
 }

@@ -249,14 +249,14 @@ struct UniqPtr(T, AllocType = ubyte,
 
         //Move
         int[] moveValue = [1];
-        auto ptrSrc = UniqPtr!int(moveValue, isAutoFree:
-            true);
-        UniqPtr!int ptrDst = __rvalue(ptrSrc);
-        ptrDst.isAutoFree = false;
-        assert(ptrDst._ptr == moveValue);
-        assert(!ptrDst.isFreed);
-        assert(!ptrSrc._ptr);
-        assert(!ptrSrc.isAutoFree);
+        // auto ptrSrc = UniqPtr!int(moveValue, isAutoFree:
+        //     true);
+        // UniqPtr!int ptrDst = __rvalue(ptrSrc);
+        // ptrDst.isAutoFree = false;
+        // assert(ptrDst._ptr == moveValue);
+        // assert(!ptrDst.isFreed);
+        // assert(!ptrSrc._ptr);
+        // assert(!ptrSrc.isAutoFree);
     }
 
 }

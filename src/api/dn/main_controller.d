@@ -6,6 +6,7 @@ import api.core.components.uni_component : UniComponent;
 import api.dn.servers.https_server: HTTPSServer;
 import api.dn.servers.http_server: HTTPServer;
 import api.dn.clients.http_client: HTTPClient;
+import api.dn.clients.udp_client: UDPClient;
 
 debug import std.stdio: writeln, writefln;
 
@@ -18,13 +19,13 @@ import api.dn.sys.locale;
 class MainController : Controller!UniComponent
 {
     HTTPServer server;
-    HTTPClient client;
+    UDPClient client;
 
     override void run()
     {
-        client = new HTTPClient;
-        client.host = "http://site";
-        client.path = "/echo/get/json";
+        client = new UDPClient;
+        client.host = "8.8.8.8";
+        client.port = 53;
         buildInitCreateRun(client);
     }
 }
