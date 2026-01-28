@@ -25,7 +25,7 @@ class MainController : Controller!UniComponent
     {
         client = new UDPClient;
         client.host = "8.8.8.8";
-        client.port = 53;
+        client.port = "53";
         buildInitCreateRun(client);
     }
 }

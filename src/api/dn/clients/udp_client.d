@@ -2,13 +2,12 @@ module api.dn.clients.udp_client;
 /**
  * Authors: initkfs
  */
-import api.core.controllers.controller : Controller;
-import api.core.components.uni_component : UniComponent;
+import api.dn.clients.base_handler_client : BaseHandlerClient;
 
-import api.dn.net.sockets.socket_udp_client : SocketUdpClient;
+import api.dn.net.sockets.clients.socket_udp_client : SocketUdpClient;
 import api.dn.protocols.dns.handlers.clients.clients_udp_handler : ClientUdpHandler;
 import api.dn.io.loops.event_loop : EventLoop;
-import api.dn.io.loops.client_loop : ClientLoop;
+
 import api.dn.channels.handlers.pipelines.handler_pipeline : HandlerPipeline;
 import api.dn.channels.handlers.channel_handler : ChannelHandler;
 import api.dn.channels.server_channel : ServerChannel;
@@ -26,37 +25,26 @@ debug import std.stdio : writeln, writefln;
 import signal_libs;
 import api.dn.sys.locale;
 
-class UDPClient : Controller!UniComponent
+class UDPClient : BaseHandlerClient
 {
-    string host = "8.8.8.8";
-    ushort port = 53;
-    string path;
+    this()
+    {
+        host = "8.8.8.8";
+        port = "53";
+    }
 
     protected
     {
         static SocketUdpClient clientSocket;
-        static ClientLoop loop;
     }
 
-    ChannelHandler newHandler(Logging logging)
-    {
-        return new ClientUdpHandler(logging);
-    }
-
-    HandlerPipeline createPipeline()
-    {
-        auto pipe = new HandlerPipeline;
-        pipe.add(newHandler(logging));
-        return pipe;
-    }
+    override ChannelHandler newHandler(Logging logging) => new ClientUdpHandler(logging);
 
     override void run()
     {
         super.run;
 
-        clientSocket = new SocketUdpClient(logging);
-        clientSocket.host = host;
-        clientSocket.port = port;
+        clientSocket = new SocketUdpClient(logging, host, port);
         clientSocket.initialize;
         clientSocket.create;
         clientSocket.run;
@@ -73,34 +61,29 @@ class UDPClient : Controller!UniComponent
         loop.run;
     }
 
-    ClientLoop newClientLoop(Logging logger, ServerChannel serverChan, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
-    {
-        return new ClientLoop(logger, serverChan, router, translator, monitor);
-    }
+    // static extern (C) void sigintHandler(int signo)
+    // {
+    //     import std.stdio : writefln;
 
-    static extern (C) void sigintHandler(int signo)
-    {
-        import std.stdio : writefln;
+    //     writefln("^C pressed. Client socket '%s'", [
+    //             clientSocket.fd
+    //         ]);
 
-        writefln("^C pressed. Client socket '%s'", [
-            clientSocket.fd
-        ]);
+    //     if (loop)
+    //     {
+    //         loop.stop;
+    //         loop.dispose;
+    //         loop = null;
+    //     }
 
-        if (loop)
-        {
-            loop.stop;
-            loop.dispose;
-            loop = null;
-        }
+    //     if (clientSocket)
+    //     {
+    //         clientSocket.stop;
+    //         clientSocket.dispose;
+    //         clientSocket = null;
+    //     }
 
-        if (clientSocket)
-        {
-            clientSocket.stop;
-            clientSocket.dispose;
-            clientSocket = null;
-        }
-
-        exit(0);
-    }
+    //     exit(0);
+    // }
 
 }

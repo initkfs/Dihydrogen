@@ -1,4 +1,4 @@
-module api.dn.net.sockets.socket_tcp_server;
+module api.dn.net.sockets.servers.socket_tcp_server;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 
