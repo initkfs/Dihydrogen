@@ -17,9 +17,9 @@ import std.string : toStringz, fromStringz;
 import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
-import api.dn.pools.linear_pool : LinearPool;
+import api.dn.utils.pools.linear_pool : LinearPool;
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
-import api.dn.net.sockets.socket_connect : SocketConnectState;
+import api.dn.sockets.socket_connect : SocketConnectState;
 
 import api.dn.channels.server_channel : ServerChannel;
 

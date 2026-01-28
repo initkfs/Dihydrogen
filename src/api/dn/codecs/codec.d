@@ -6,5 +6,4 @@ module api.dn.codecs.codec;
 class Codec
 {
 
-   
 }

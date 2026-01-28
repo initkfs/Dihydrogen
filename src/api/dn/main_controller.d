@@ -3,10 +3,10 @@ module api.dn.main_controller;
 import api.core.controllers.controller : Controller;
 import api.core.components.uni_component : UniComponent;
 
-import api.dn.servers.https_server: HTTPSServer;
-import api.dn.servers.http_server: HTTPServer;
-import api.dn.clients.http_client: HTTPClient;
-import api.dn.clients.udp_client: UDPClient;
+import api.dn.protos.http1.servers.https_server: HTTPSServer;
+import api.dn.protos.http1.servers.http_server: HTTPServer;
+import api.dn.protos.http1.clients.http_client: HTTPClient;
+import api.dn.protos.udp.clients.udp_client: UDPClient;
 
 debug import std.stdio: writeln, writefln;
 

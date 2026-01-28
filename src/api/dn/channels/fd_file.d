@@ -1,6 +1,6 @@
 module api.dn.channels.fd_file;
 
-import api.dn.net.sockets.socket_connect : SocketConnectState;
+import api.dn.sockets.socket_connect : SocketConnectState;
 
 /**
  * Authors: initkfs

@@ -10,7 +10,7 @@ enum EventCommandType
     socket
 }
 
-struct EvenCommand
+struct EventCommand
 {
     FdChannel chan;
 }

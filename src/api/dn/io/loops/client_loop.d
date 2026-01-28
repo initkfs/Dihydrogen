@@ -17,17 +17,17 @@ import std.string : toStringz, fromStringz;
 import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
-import api.dn.pools.linear_pool : LinearPool;
+import api.dn.utils.pools.linear_pool : LinearPool;
 import api.dn.channels.fd_channel : FdChannel, FdChannelType;
-import api.dn.net.sockets.socket_connect : SocketConnectState;
+import api.dn.sockets.socket_connect : SocketConnectState;
 
 import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
 import api.dn.channels.server_channel : ServerChannel;
-import api.dn.channels.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.events.routes.event_router : EventRouter;
-import api.dn.channels.events.converters.event_converter : EventConverter;
-import api.dn.channels.events.monitors.event_monitor : EventMonitor;
+import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.routes.event_router : EventRouter;
+import api.dn.events.converters.event_converter : EventConverter;
+import api.dn.events.monitors.event_monitor : EventMonitor;
 
 /**
  * Authors: initkfs
