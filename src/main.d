@@ -23,21 +23,12 @@ int main(string[] args)
     import api.dn.apps.server_app : ServerApp;
 
     auto app = new ServerApp;
-    auto initRes = app.initialize(args);
-    if (!initRes.isInit)
+    if (!app.initialize(args))
     {
         import std.stdio : stderr;
 
         stderr.writeln("Not initialized!");
         return errorCode;
-    }
-
-    if (initRes.isExit)
-    {
-        import std.stdio : writeln;
-
-        writeln("App exit");
-        return successCode;
     }
 
     assert(app.isInitializing);

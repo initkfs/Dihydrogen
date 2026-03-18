@@ -1,6 +1,6 @@
 module api.dn.protos.stomp.stomp_common;
 
-import api.core.utils.adt.buffers.dense_buffer : DenseBuffer;
+import api.core.utils.buffers.dense_buffer : DenseBuffer;
 
 import std.typecons : Nullable;
 

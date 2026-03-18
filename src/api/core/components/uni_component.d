@@ -10,20 +10,33 @@ import api.core.loggers.logging : Logging;
 import api.core.configs.configs : Configuration;
 import api.core.configs.keyvalues.config : Config;
 import api.core.clis.cli : Cli;
-import api.core.supports.support : Support;
-import api.core.resources.locals.local_resources : LocalResources;
-import api.core.resources.resourcing : Resourcing;
+import api.core.validations.validation : Validation;
 import api.core.contexts.locators.locator_context : LocatorContext;
 import api.core.mems.memory : Memory;
-import api.core.utils.allocs.allocator : Allocator;
+import api.core.mems.allocs.allocator : Allocator;
 
-import std.logger : Logger;
+import api.core.loggers.builtins.logger : Logger;
 
 /**
  * Authors: initkfs
  */
 class UniComponent : SimpleUnit
 {
+    protected
+    {
+        @Service Context _context;
+        @Service Logging _logging;
+        @Service Configuration _configs;
+
+        @Service Cli _cli;
+
+        @Service Validation _validation;
+        @Service Memory _memory;
+    }
+    
+    bool delegate(UniComponent component, UniComponent) onPreBuildWithParentIsContinue;
+    void delegate(UniComponent component, UniComponent) onPostBuildWithParent;
+
     bool isBuilt;
     bool isAllowRebuild;
     bool isAllowRebuildServices;
@@ -33,25 +46,9 @@ class UniComponent : SimpleUnit
     bool isCallBeforeBuild;
     bool isCallAfterBuild;
 
-    bool delegate(UniComponent component, UniComponent) onPreBuildWithParentIsContinue;
-    void delegate(UniComponent component, UniComponent) onPostBuildWithParent;
-
     bool isComponentInitialized;
     bool isComponentCreated;
     bool isComponentDisposed;
-
-    protected
-    {
-        @Service Context _context;
-        @Service Logging _logging;
-        @Service Configuration _configs;
-
-        @Service Cli _cli;
-        @Service Resourcing _resources;
-
-        @Service Support _support;
-        @Service Memory _memory;
-    }
 
     void build(UniComponent uniComponent)
     {
@@ -221,9 +218,10 @@ class UniComponent : SimpleUnit
 
     void context(Context context) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(context, "Context must not be null");
+        if (!context)
+        {
+            throw new Exception("Context must not be null");
+        }
         _context = context;
     }
 
@@ -238,9 +236,10 @@ class UniComponent : SimpleUnit
 
     void logging(Logging newLoggers) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(newLoggers !is null, "Logging must not be null");
+        if (!newLoggers)
+        {
+            throw new Exception("Logging must not be null");
+        }
         _logging = newLoggers;
 
     }
@@ -256,14 +255,15 @@ class UniComponent : SimpleUnit
 
     void configs(Configuration newConfigs) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(newConfigs !is null, "Configuration must not be null");
+        if (!newConfigs)
+        {
+            throw new Exception("Configuration must not be null");
+        }
         _configs = newConfigs;
     }
 
     bool hasMemory() const nothrow pure @safe => _memory !is null;
-    inout(Allocator!ubyte) alloc() inout nothrow pure @safe => memory.alloc;
+    inout(Allocator*) alloc() inout nothrow pure @safe => memory.alloc;
 
     inout(Memory) memory() inout nothrow pure @safe
     out (_memory; _memory !is null)
@@ -273,9 +273,10 @@ class UniComponent : SimpleUnit
 
     void memory(Memory newMemory) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(newMemory !is null, "Service memory must not be null");
+        if (!newMemory)
+        {
+            throw new Exception("Service memory must not be null");
+        }
         _memory = newMemory;
     }
 
@@ -289,42 +290,27 @@ class UniComponent : SimpleUnit
 
     void cli(Cli cli) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(cli !is null, "CLI must not be null");
+        if (!cli)
+        {
+            throw new Exception("CLI must not be null");
+        }
         _cli = cli;
     }
 
-    bool hasSupport() const nothrow pure @safe => _support !is null;
+    bool hasValidation() const nothrow pure @safe => _validation !is null;
 
-    inout(Support) support() inout nothrow pure @safe
-    out (_support; _support !is null)
+    inout(Validation) validation() inout nothrow pure @safe
+    out (_validation; _validation !is null)
     {
-        return _support;
+        return _validation;
     }
 
-    void support(Support support) pure @safe
+    void validation(Validation newValidation) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(support !is null, "Support must not be null");
-        _support = support;
-    }
-
-    bool hasResources() const nothrow pure @safe => _resources !is null;
-    inout(LocalResources) reslocal() inout pure @safe => resources.local;
-
-    inout(Resourcing) resources() inout nothrow pure @safe
-    out (_resources; _resources !is null)
-    {
-        return _resources;
-    }
-
-    void resources(Resourcing resources) pure @safe
-    {
-        import std.exception : enforce;
-
-        enforce(resources !is null, "Resourcing must not be null");
-        _resources = resources;
+        if (!newValidation)
+        {
+            throw new Exception("Validation must not be null");
+        }
+        _validation = newValidation;
     }
 }

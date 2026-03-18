@@ -1,73 +1,63 @@
 module api.core.utils.types;
 
-import std.format : format;
-import std.algorithm.iteration : map;
-import std.array : join;
-import std.meta : allSatisfy;
-import std.traits : isSomeString, isSomeChar, isIntegral, Unqual;
-
 /**
  * Authors: initkfs
  */
+
+struct ProviderFactory(T)
+{
+    T delegate() getNew;
+    void delegate(scope void delegate(T) onT) getNewScoped;
+
+    this(T delegate() getNewProvider, void delegate(scope void delegate(T)) getNewScopeProvider) pure @safe
+    {
+        if (!getNewProvider)
+        {
+            throw new Exception("ProviderFactory must not be null");
+        }
+
+        if (!getNewScopeProvider)
+        {
+            throw new Exception("Scope provider must not be null");
+        }
+        this.getNew = getNewProvider;
+        this.getNewScoped = getNewScopeProvider;
+    }
+}
+
 enum hasOverloads(alias type, string symbol) = __traits(getOverloads, type, symbol).length != 0;
 
-enum isNamedEnumValidMemberName(alias T) = isSomeString!(typeof(T));
-
-mixin template NamedStrEnum(string enumName, enumMembersNames...)
-        if (allSatisfy!(isNamedEnumValidMemberName, enumMembersNames))
+auto castSafe(To, From)(From target)
 {
-    mixin(
-        "enum ", enumName, " : string { ",
-        [enumMembersNames].map!(name => format("%s=\"%s\"", name, name)).join(","),
-        " }");
-}
+    import std.traits : CopyTypeQualifiers;
 
-@safe unittest
-{
-    mixin NamedStrEnum!("En", "a", "b");
-    enum a = En.a;
-    assert(a == "a");
-    enum b = En.b;
-    assert(b == "b");
-}
-
-string enumNameByIndex(E)(size_t index = 0) if (is(E == enum))
-{
-    import std.traits : EnumMembers;
-
-    static foreach (i, member; EnumMembers!E)
-    {
-        if (i == index)
-            return member.stringof;
-    }
-
-    import std.format : format;
-
-    throw new Exception(format("Not found enum member with index %s for enum %s", index, E.stringof));
+    return cast(CopyTypeQualifiers!(typeof(target), To)) target;
 }
 
 unittest
 {
-    import std.exception : assertThrown;
-
-    const shared enum Foo
+    class Foo
     {
-        a,
-        b
     }
 
-    assert(enumNameByIndex!Foo(0) == "a");
-    assert(enumNameByIndex!Foo(1) == "b");
-    assertThrown(enumNameByIndex!Foo(2));
-
-    enum Bar
+    class Bar : Foo
     {
-        a = "aa",
-        b = "bb"
     }
 
-    assert(enumNameByIndex!Bar(0) == "a");
-    assert(enumNameByIndex!Bar(1) == "b");
+    class Baz
+    {
+    }
+
+    auto bar = new Bar;
+    assert(bar.castSafe!Bar == bar);
+    assert(bar.castSafe!Foo == bar);
+    assert(bar.castSafe!Object == bar);
+    assert(bar.castSafe!Baz is null);
+
+    import std.traits : isMutable;
+
+    const cbar = new Bar;
+    assert(!isMutable!(typeof(cbar.castSafe!Foo)));
 }
 
 template ChainHierarchy(T)
@@ -111,35 +101,15 @@ import std.meta : staticMap;
 
 alias AllFieldNamesTuple(T) = staticMap!(FieldNameTuple, ChainHierarchy!T);
 
-auto castSafe(To, From)(From target)
+void moduleIter(alias _module)(scope void delegate(string) onMod)
 {
-    import std.traits : CopyTypeQualifiers;
-
-    return cast(CopyTypeQualifiers!(typeof(target), To)) target;
-}
-
-unittest
-{
-    class Foo
+    foreach (key; __traits(allMembers, _module))
     {
+        if (key == "object")
+        {
+            continue;
+        }
+
+        onMod(key);
     }
-
-    class Bar : Foo
-    {
-    }
-
-    class Baz
-    {
-    }
-
-    auto bar = new Bar;
-    assert(bar.castSafe!Bar == bar);
-    assert(bar.castSafe!Foo == bar);
-    assert(bar.castSafe!Object == bar);
-    assert(bar.castSafe!Baz is null);
-
-    import std.traits : isMutable;
-
-    const cbar = new Bar;
-    assert(!isMutable!(typeof(cbar.castSafe!Foo)));
 }

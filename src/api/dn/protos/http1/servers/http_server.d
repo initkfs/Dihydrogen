@@ -2,7 +2,7 @@ module api.dn.protos.http1.servers.http_server;
 /**
  * Authors: initkfs
  */
-import api.core.controllers.controller : Controller;
+import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
 
 import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
@@ -27,7 +27,7 @@ import api.dn.sys.locale;
 
 immutable string webrootConfigKey = "webroot";
 
-class HTTPServer : Controller!UniComponent
+class HTTPServer : UniComposite!UniComponent
 {
     string webroot;
     bool isStartOnRun = true;

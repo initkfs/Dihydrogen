@@ -98,7 +98,7 @@ class WebrootHttpHandler : HttpHandler
         {
             import api.core.utils.text : escapeunw;
 
-            logging.logger.error("Realpath error: ", escapeunw(filePath));
+            logging.logger.error("Realpath error: " ~ escapeunw(filePath));
             return;
         }
 
@@ -108,7 +108,7 @@ class WebrootHttpHandler : HttpHandler
         {
             import api.core.utils.text : escapeunw;
 
-            logging.logger.error("URI path is not in webroot: ", escapeunw(path));
+            logging.logger.error("URI path is not in webroot: " ~ escapeunw(path));
             return;
         }
 
@@ -169,13 +169,13 @@ class WebrootHttpHandler : HttpHandler
 
         if (!path.exists)
         {
-            logging.logger.error("Server file not found: ", path);
+            logging.logger.error("Server file not found: " ~ path);
             return fileContent;
         }
 
         if (path.isDir)
         {
-            logging.logger.error("Sever file not a file, directory: ", path);
+            logging.logger.error("Sever file not a file, directory: " ~ path);
             return fileContent;
         }
 

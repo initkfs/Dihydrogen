@@ -8,21 +8,21 @@ import std.conv : to;
  * Authors: initkfs
  * TODO remove code duplications
  */
-class AAConstConfig(V = string) : Config
+class AAConstConfig : Config
 {
-    V[string] config;
+    string[string] config;
 
-    this(V[string] config) pure @safe
+    this(string[string] config) pure @safe
     {
         this.config = config;
     }
 
-    this(const V[string] config) const pure @safe
+    this(const string[string] config) const pure @safe
     {
         this.config = config;
     }
 
-    this(immutable V[string] config) immutable
+    this(immutable string[string] config) immutable
     {
         this.config = config;
     }
@@ -33,13 +33,13 @@ class AAConstConfig(V = string) : Config
 
     override bool hasKey(string key) const => containsPtr(key) !is null;
 
-    const(V*) containsPtr(string key) const
+    const(string*) containsPtr(string key) const
     {
         assert(key.length > 0);
         return key in config;
     }
 
-    T getValue(T)(const(V*) valuePtr) const
+    T getValue(T)(const(string*) valuePtr) const
     {
         return (*valuePtr).to!T;
     }
@@ -103,6 +103,20 @@ class AAConstConfig(V = string) : Config
 
     override bool setLong(string key, long value) const => false;
 
+    override float getFloat(string key) const
+    {
+        const valuePtr = containsPtr(key);
+        if (!valuePtr)
+        {
+            throw new Exception(
+                "Not found float value in AA config with key: " ~ key);
+        }
+
+        return getValue!float(valuePtr);
+    }
+
+    override bool setFloat(string key, float value) const => false;
+
     override double getDouble(string key) const
     {
         const valuePtr = containsPtr(key);
@@ -132,7 +146,7 @@ class AAConstConfig(V = string) : Config
     override immutable(AAConstConfig) idup() const
     {
         //TODO unsafe hack        
-        immutable newConfig = cast(immutable(V[string])) config;
+        immutable newConfig = cast(immutable(string[string])) config;
         return new immutable AAConstConfig(newConfig);
     }
 }
@@ -148,7 +162,7 @@ unittest
         "value4": "true"
     ];
 
-    immutable config = new immutable AAConstConfig!string(aa);
+    immutable config = new immutable AAConstConfig(aa);
 
     assert(aa == config.config);
 
@@ -162,6 +176,9 @@ unittest
 
     auto val2 = config.getString("value2");
     assert(val2 == "random text", val2.to!string);
+
+    auto val3f = config.getFloat("value3");
+    assert(isClose(val3f, 2.5), val3f.to!string);
 
     auto val3 = config.getDouble("value3");
     assert(isClose(val3, 2.5), val3.to!string);

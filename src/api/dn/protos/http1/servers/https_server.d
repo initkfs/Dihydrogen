@@ -2,7 +2,6 @@ module api.dn.protos.http1.servers.https_server;
 
 import api.dn.protos.http1.servers.http_server : HTTPServer;
 
-import api.core.controllers.controller : Controller;
 import api.core.components.uni_component : UniComponent;
 
 import api.core.loggers.logging : Logging;

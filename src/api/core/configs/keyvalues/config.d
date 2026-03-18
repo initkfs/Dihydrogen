@@ -26,10 +26,39 @@ abstract class Config
         long getLong(string key) const;
         bool setLong(string key, long value);
 
+        float getFloat(string key) const;
+        bool setFloat(string key, float value);
+
         double getDouble(string key) const;
         bool setDouble(string key, double value);
 
         immutable(Config) idup() const;
+    }
+
+    int getPositiveInt(string key) const
+    {
+        auto value = getInt(key);
+        if (value <= 0)
+        {
+            import std.format : format;
+
+            throw new Exception(format(
+                    "Expected positive integer value from config with key '%s', but received %s", key, value));
+        }
+
+        return value;
+    }
+
+    bool setPositiveInt(string key, int value)
+    {
+        if (value <= 0)
+        {
+            import std.format : format;
+
+            throw new Exception(format(
+                    "Expected positive integer value for config with key '%s', but received %s", key, value));
+        }
+        return setInt(key, value);
     }
 
     long getPositiveLong(string key) const
@@ -88,6 +117,36 @@ abstract class Config
         return setDouble(key, value);
     }
 
+    float getFiniteFloat(string key) const
+    {
+        auto value = getFloat(key);
+        import std.math.traits : isFinite;
+
+        if (!isFinite(value))
+        {
+            import std.format : format;
+
+            throw new Exception(format(
+                    "Expected finite float value from config with key '%s', but received %s", key, value));
+        }
+
+        return value;
+    }
+
+    bool setFiniteFloat(string key, float value)
+    {
+        import std.math.traits : isFinite;
+
+        if (!isFinite(value))
+        {
+            import std.format : format;
+
+            throw new Exception(format(
+                    "Expected finite float for config with key '%s', but received %s", key, value));
+        }
+        return setFloat(key, value);
+    }
+
     string getNotEmptyString(string key) const
     {
         auto value = getString(key);
@@ -109,5 +168,18 @@ abstract class Config
                 "String must not be empty for config with key: " ~ key);
         }
         return setString(key, value);
+    }
+
+    string[] getList(string key, char sep = ',') const
+    {
+        auto value = getString(key);
+        if (value.length == 0)
+        {
+            return null;
+        }
+
+        import std.array : split;
+
+        return value.split(sep);
     }
 }

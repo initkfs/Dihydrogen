@@ -55,7 +55,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
                 .length);
         if (res < 0)
         {
-            logging.logger.error("BIO write error: ", res);
+            logging.logger.errorf("BIO write error: %d", res);
             sendClose(ctx);
             return;
         }
@@ -82,7 +82,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
                     logging.logger.trace("SSL_EARLY_DATA_NOT_SENT");
                     break;
                 default:
-                    logging.logger.trace("Unknown ED status: ", tedStat);
+                    logging.logger.tracef("Unknown ED status: %s", tedStat);
                     break;
             }
         }
@@ -130,7 +130,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
             }
             else
             {
-                logging.logger.trace("SSL continue read: ", hsRet);
+                logging.logger.tracef("SSL continue read: %d", hsRet);
                 sendRead(ctx);
                 return;
             }
@@ -166,7 +166,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
 
         if (copyRet != 0)
         {
-            logging.logger.error("SSL read fail: ", copyRet);
+            logging.logger.errorf("SSL read fail: %d", copyRet);
             sendClose(ctx);
         }
 
@@ -236,7 +236,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
         {
             import api.core.utils.text : escapeunw;
 
-            logging.logger.error("Realpath error: ", escapeunw(filePath));
+            logging.logger.error("Realpath error: " ~ escapeunw(filePath));
             sendClose(ctx);
             return;
         }
@@ -267,7 +267,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
                 return;
             }
 
-            logging.logger.error("SSL writing error: ", sslErr);
+            logging.logger.errorf("SSL writing error: %d", sslErr);
             sendClose(ctx);
             return;
         }

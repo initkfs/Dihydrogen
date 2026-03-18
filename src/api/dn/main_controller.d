@@ -1,6 +1,6 @@
 module api.dn.main_controller;
 
-import api.core.controllers.controller : Controller;
+import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
 
 import api.dn.protos.http1.servers.https_server: HTTPSServer;
@@ -16,7 +16,7 @@ import api.dn.sys.locale;
 /**
  * Authors: initkfs
  */
-class MainController : Controller!UniComponent
+class MainController : UniComposite!UniComponent
 {
     HTTPServer server;
     UDPClient client;

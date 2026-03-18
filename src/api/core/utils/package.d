@@ -4,12 +4,13 @@ module api.core.utils;
  */
 public:
 
-import api.core.utils.adt;
-import api.core.utils.allocs;
-import api.core.utils.ptrs;
+import api.core.mems.allocs;
+import api.core.utils.buffers.dense_buffer;
+import api.core.contexts.libs.dynamics.dynamic_loader;
+import api.core.contexts.libs.dynamics.dynamic_loader;
+import api.core.utils.queues.ring_buffer_spsc;
 
 import api.core.utils.arrays;
-import api.core.utils.factories;
 import api.core.utils.mem;
 import api.core.utils.sync;
 import api.core.utils.text;

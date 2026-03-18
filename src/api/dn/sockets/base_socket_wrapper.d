@@ -106,7 +106,7 @@ class BaseSocketWrapper : LoggableUnit
         }
         else
         {
-            logger.trace("Close socket: ", _fd);
+            logger.tracef("Close socket: %d", _fd);
         }
     }
 }

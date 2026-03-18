@@ -1,6 +1,6 @@
 module api.dn.protos.stomp.static_stomp_encoder;
 
-import api.core.utils.adt.buffers.dense_buffer : DenseBuffer;
+import api.core.utils.buffers.dense_buffer : DenseBuffer;
 
 import api.dn.protos.stomp.stomp_common;
 
@@ -175,7 +175,7 @@ unittest
     encoder.addCONNECT(frame);
     encoder.addDefaultVersion(frame);
 
-    import api.core.utils.adt.buffers.dense_buffer: DenseBuffer;
+    import api.core.utils.buffers.dense_buffer: DenseBuffer;
 
     DenseBuffer!(char, 256) buff;
     encoder.decode!(256, '|')(frame, buff);

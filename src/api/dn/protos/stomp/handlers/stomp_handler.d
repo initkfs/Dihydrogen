@@ -8,7 +8,7 @@ import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.channels.channel_context : ChannelContext;
 
 import api.dn.utils.pools.linear_pool : LinearPool;
-import api.core.utils.adt.buffers.dense_buffer: DenseBuffer;
+import api.core.utils.buffers.dense_buffer: DenseBuffer;
 
 import api.core.utils.sync : MutexLock;
 

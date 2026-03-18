@@ -14,18 +14,15 @@ class FileCrashHandler : TimeCrashHandler
 
     this(string crashDir, string fileExtension = ".txt") pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(crashDir.length > 0, "Crash directory must not be empty path");
-
+        if (crashDir.length == 0)
+        {
+            throw new Exception("Crash directory must not be empty path");
+        }
         this.crashDir = crashDir;
         this.fileExtension = fileExtension;
     }
 
-    string createCrashFileName() inout @safe
-    {
-        return createCrashFileName(createCrashName);
-    }
+    string createCrashFileName() inout @safe => createCrashFileName(createCrashName);
 
     string createCrashFileName(string crashName) inout @safe
     {
@@ -58,7 +55,7 @@ class FileCrashHandler : TimeCrashHandler
     override void acceptCrash(Throwable t, const(char)[] message = "") inout
     {
         import std.file : exists, write;
-        import std.file: isFile;
+        import std.file : isFile;
 
         immutable string crashFileName = createCrashFileName;
         immutable string crashContent = createCrashInfo(t, message);

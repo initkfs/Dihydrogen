@@ -137,7 +137,7 @@ class EventLoop : LoggableUnit
         const submitRet = io_uring_submit(&ring);
         if (submitRet < 0)
         {
-            logger.error("Error events submitting: ", submitRet);
+            logger.errorf("Error events submitting: %d", submitRet);
             return true;
         }
 
@@ -147,7 +147,7 @@ class EventLoop : LoggableUnit
         if (cqeСount < 0)
         {
             //EAGAIN
-            logger.error("Batching error code: ", cqeСount);
+            logger.errorf("Batching error code: %d", cqeСount);
             return true;
         }
 
@@ -172,7 +172,7 @@ class EventLoop : LoggableUnit
             auto connectionPtr = io_uring_cqe_get_data(cqe);
             if (!connectionPtr)
             {
-                logger.error("Connection not found: ", cqe.res);
+                logger.errorf("Connection not found: %d", cqe.res);
                 continue;
             }
 
@@ -190,7 +190,7 @@ class EventLoop : LoggableUnit
                     applyFileChannel(connection, cqe);
                     break;
                 case none:
-                    logger.error("Non initialized channel: ", connection);
+                    logger.error("Non initialized channel: " ~ connection.toSimpleString);
                     break;
             }
         }
@@ -214,7 +214,7 @@ class EventLoop : LoggableUnit
             switch (ret)
             {
                 case -EAGAIN:
-                    logger.trace("Connection reagain fd %s, state '%s'", connection.fd, connection
+                    logger.tracef("Connection reagain fd %s, state '%s'", connection.fd, connection
                             .state);
                     return;
                     break;
@@ -358,7 +358,7 @@ class EventLoop : LoggableUnit
                     logger.trace("Timer canceled");
                     break;
                 default:
-                    logger.error("Unknown error without connection: ", ret);
+                    logger.errorf("Unknown error without connection: %d", ret);
                     break;
             }
         }

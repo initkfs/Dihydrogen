@@ -106,7 +106,7 @@ class ConfigAggregator : Config
         return false;
     }
 
-    inout(Config) searchConfigOrNull(string key) inout
+    inout(Config) findConfig(string key) inout
     {
         foreach (config; _configs)
         {
@@ -121,7 +121,7 @@ class ConfigAggregator : Config
 
     override bool getBool(string key) const
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.getBool(key);
         }
@@ -131,7 +131,7 @@ class ConfigAggregator : Config
 
     override bool setBool(string key, bool value)
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.setBool(key, value);
         }
@@ -147,7 +147,7 @@ class ConfigAggregator : Config
 
     override string getString(string key) const
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.getString(key);
         }
@@ -156,7 +156,7 @@ class ConfigAggregator : Config
 
     override bool setString(string key, string value)
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.setString(key, value);
         }
@@ -173,7 +173,7 @@ class ConfigAggregator : Config
 
     override int getInt(string key) const
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.getInt(key);
         }
@@ -182,7 +182,7 @@ class ConfigAggregator : Config
 
     override bool setInt(string key, int value)
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.setInt(key, value);
         }
@@ -198,7 +198,7 @@ class ConfigAggregator : Config
 
     override long getLong(string key) const
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.getLong(key);
         }
@@ -207,7 +207,7 @@ class ConfigAggregator : Config
 
     override bool setLong(string key, long value)
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.setLong(key, value);
         }
@@ -221,9 +221,34 @@ class ConfigAggregator : Config
         return false;
     }
 
+    override float getFloat(string key) const
+    {
+        if (auto config = findConfig(key))
+        {
+            return config.getFloat(key);
+        }
+        throw new Exception("Not found float value in configs with key: " ~ key);
+    }
+
+    override bool setFloat(string key, float value)
+    {
+        if (auto config = findConfig(key))
+        {
+            return config.setFloat(key, value);
+        }
+
+        if (isThrowOnFailSetter)
+        {
+            import std.conv : text;
+
+            throw new Exception(text("Not found config for key ", key, " and float value ", value));
+        }
+        return false;
+    }
+
     override double getDouble(string key) const
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.getDouble(key);
         }
@@ -232,11 +257,11 @@ class ConfigAggregator : Config
 
     override bool setDouble(string key, double value)
     {
-        if (auto config = searchConfigOrNull(key))
+        if (auto config = findConfig(key))
         {
             return config.setDouble(key, value);
         }
-        
+
         if (isThrowOnFailSetter)
         {
             import std.conv : text;
@@ -244,6 +269,15 @@ class ConfigAggregator : Config
             throw new Exception(text("Not found config for key ", key, " and double value ", value));
         }
         return false;
+    }
+
+    override string[] getList(string key, char sep = ',') const
+    {
+        if (auto config = findConfig(key))
+        {
+            return config.getList(key, sep);
+        }
+        throw new Exception("Not found string list in configs with key: " ~ key);
     }
 
     inout(Config[]) configs() inout => _configs;

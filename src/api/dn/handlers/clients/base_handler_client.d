@@ -1,6 +1,6 @@
 module api.dn.handlers.clients.base_handler_client;
 
-import api.core.controllers.controller : Controller;
+import api.core.components.uni_composite: UniComposite;
 import api.core.components.uni_component : UniComponent;
 import api.dn.handlers.channel_handler : ChannelHandler;
 import api.dn.channels.server_channel : ServerChannel;
@@ -15,7 +15,7 @@ import api.core.loggers.logging : Logging;
 /**
  * Authors: initkfs
  */
-abstract class BaseHandlerClient : Controller!UniComponent
+abstract class BaseHandlerClient : UniComposite!UniComponent
 {
     string host;
     string port;

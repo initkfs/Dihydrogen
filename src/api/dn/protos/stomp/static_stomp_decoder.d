@@ -1,7 +1,7 @@
 module api.dn.protos.stomp.static_stomp_decoder;
 
 import api.dn.codecs.codec : Codec;
-import api.core.utils.adt.buffers.dense_buffer : DenseBuffer;
+import api.core.utils.buffers.dense_buffer : DenseBuffer;
 
 import api.dn.protos.stomp.stomp_common;
 

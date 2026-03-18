@@ -2,7 +2,6 @@ module api.core.apps.cli_app;
 
 import api.core.components.units.simple_unit : SimpleUnit;
 import api.core.apps.crashes.crash_handler : CrashHandler;
-import api.core.apps.app_result : AppResult;
 import api.core.components.uni_component : UniComponent;
 import api.core.loggers.logging : Logging;
 import api.core.configs.configs : Configuration;
@@ -12,21 +11,19 @@ import api.core.clis.printers.cli_printer : CliPrinter;
 import api.core.clis.parsers.cli_parser : CliParser;
 import api.core.contexts.platforms.platform_context : PlatformContext;
 import api.core.contexts.context : Context;
-import api.core.supports.support : Support;
+import api.core.validations.validation : Validation;
+import api.core.validations.validators.validator : Validator;
 import api.core.contexts.apps.app_context : AppContext;
-import api.core.resources.locals.local_resources : LocalResources;
-import api.core.resources.resourcing : Resourcing;
 import api.core.contexts.locators.locator_context : LocatorContext;
 import api.core.mems.memory : Memory;
-import api.core.utils.allocs.allocator : Allocator;
-import api.core.utils.allocs.mallocator : Mallocator;
-import api.core.supports.errors.err_status : ErrStatus;
-import api.core.supports.decisions.decision_system : DecisionSystem;
+import api.core.mems.allocs.allocator : Allocator;
+import api.core.mems.allocs.mallocator : Mallocator;
+import api.core.mems.allocs.arena_allocator : ArenaAllocator;
+import api.core.validations.errors.err_status : ErrStatus;
 
 import CoreEnvKeys = api.core.core_env_keys;
 
-import std.logger : Logger;
-import std.typecons : Nullable;
+import api.core.loggers.builtins.logger : Logger;
 import std.getopt : GetoptResult;
 
 /**
@@ -34,14 +31,19 @@ import std.getopt : GetoptResult;
  */
 class CliApp : SimpleUnit
 {
+    string appname = "app";
+    string appver = "0.1";
+    string appid = "app.app";
+
     bool isStopMainController = true;
 
     string defaultDataDir = "data";
     string defaultConfigsDir = "configs";
     string defaultUserDataDir = "userdata";
-    string defaultResourcesDir = "resources";
 
     CrashHandler[] crashHandlers;
+
+    int exitCode;
 
     private
     {
@@ -54,7 +56,7 @@ class CliApp : SimpleUnit
         size_t cliStartupDelayMs;
     }
 
-    AppResult initialize(string[] args)
+    bool initialize(string[] args)
     {
         super.initialize;
 
@@ -70,22 +72,12 @@ class CliApp : SimpleUnit
             uservices.cli = cli;
 
             auto cliResult = parseCli(uservices.cli);
-            if (!isSilentMode)
-            {
-                import std.stdio : writeln, writefln;
-
-                writeln("Received cli: ", cli.parser.cliArgs);
-                writefln("Config dir: '%s', data dir: '%s', debug: %s, silent: %s, wait ms: %s",
-                    cliConfigDir, cliDataDir, isDebugMode, isSilentMode, cliStartupDelayMs);
-            }
-
             cli.printer.isSilentMode = isSilentMode;
 
             if (cliResult.helpWanted)
             {
                 cli.printer.printHelp(cliResult);
-                return AppResult(isExit : true, isInit:
-                    false);
+                return false;
             }
 
             if (cliStartupDelayMs > 0)
@@ -106,27 +98,23 @@ class CliApp : SimpleUnit
                 cli.printer.printIfNotSilent("Debug mode active");
             }
 
-            uservices.support = createSupport;
-            assert(uservices.support);
-
             uservices.context = createContext;
-            assert(uservices.context);
+            assert(uservices.hasContext);
 
             uservices.configs = createConfiguration(uservices.context);
-            assert(uservices.config);
+            assert(uservices.hasConfigs);
 
-            uservices.logging = createLogging(uservices.support);
-            assert(uservices.logging);
+            uservices.logging = createLogging;
+            assert(uservices.hasLogging);
+
+            assert(uservices.logging.logger);
+            uservices.validation = createValidation(uservices.logging, uservices.config, uservices
+                    .context);
+            assert(uservices.hasValidation);
 
             uservices.memory = createMemory(uservices.logging, uservices.config, uservices
                     .context);
-            assert(uservices.memory);
-
-            uservices.resources = createResourcing(uservices.logging, uservices.config, uservices
-                    .context);
-            assert(uservices.resources);
-
-            uservices.logger.trace("Cli services built");
+            assert(uservices.hasMemory);
 
             uservices.isBuilt = true;
         }
@@ -135,18 +123,85 @@ class CliApp : SimpleUnit
             consumeThrowable(e, true);
         }
 
-        return AppResult(false, true);
+        return true;
     }
 
-    void exit(int code = 0)
+    Validator[] createValidators()
     {
-        assert(uservices.context);
-        uservices.context.app.exit(code);
+        return null;
+    }
+
+    Validator createConfigValidator(Config config, string[] configKeys)
+    {
+        import api.core.configs.keyvalues.validators.config_kv_validator : ConfigKValidator;
+
+        return new ConfigKValidator(config, configKeys);
+    }
+
+    Validation findAppValidation()
+    {
+        if (uservices.hasValidation)
+        {
+            return uservices.validation;
+        }
+        return null;
+    }
+
+    void validate()
+    {
+        auto validation = findAppValidation;
+        if (!validation)
+        {
+            return;
+        }
+
+        validation.validate;
+
+        if (!validation.isValid)
+        {
+            enum failMessage = "VALIDATION FAIL";
+            string message = validation.allMessages;
+            if (uservices.hasLogging && uservices.logging.logger)
+            {
+                uservices.logging.logger.error(failMessage);
+                if (message.length > 0)
+                {
+                    uservices.logging.logger.error(message);
+                }
+            }
+            else
+            {
+                import std.stdio : stderr, writeln;
+
+                stderr.writeln(failMessage);
+                if (message.length > 0)
+                {
+                    stderr.writeln(message);
+                }
+            }
+
+        }
+    }
+
+    override void dispose()
+    {
+        super.dispose;
+
+        if (uservices.hasContext)
+        {
+            uservices.context.app.exit(exitCode);
+        }
+        else
+        {
+            import StdcLib = core.stdc.stdlib;
+
+            StdcLib.exit(1);
+        }
     }
 
     UniComponent newUniServices() => new UniComponent;
 
-    protected void consumeThrowable(Throwable ex, bool isRethrow = true)
+    void consumeThrowable(Throwable ex, bool isRethrow = false)
     {
         try
         {
@@ -162,7 +217,7 @@ class CliApp : SimpleUnit
         catch (Exception exFromHandler)
         {
             exFromHandler.next = ex;
-            if (uservices.logging)
+            if (uservices && uservices.logging)
             {
                 uservices.logger.errorf("Exception from error handler: %s", exFromHandler);
             }
@@ -175,9 +230,15 @@ class CliApp : SimpleUnit
         }
         finally
         {
-            if (uservices.logging)
+            if (uservices && uservices.hasLogging)
             {
-                uservices.logger.errorf("Error from application. %s", ex);
+                uservices.logger.error("Error from application. " ~ ex.toString);
+            }
+            else
+            {
+                import std.stdio : stderr;
+
+                stderr.writefln("Error from application: %s", ex);
             }
 
             if (isRethrow)
@@ -254,9 +315,9 @@ class CliApp : SimpleUnit
 
         auto app = newAppContext(curDir, dataDirectory, userDir, isDebugMode, isSilentMode);
         auto platform = newPlatformContext;
-        
+
         auto locator = newServiceLocator;
-        
+
         auto context = newContext(app, platform, locator);
         return context;
     }
@@ -267,8 +328,8 @@ class CliApp : SimpleUnit
     }
 
     PlatformContext newPlatformContext() => new PlatformContext;
-    
-    LocatorContext newServiceLocator() =>  new LocatorContext;
+
+    LocatorContext newServiceLocator() => new LocatorContext;
 
     Context newContext(AppContext app, PlatformContext platform, LocatorContext locator)
     {
@@ -311,8 +372,16 @@ class CliApp : SimpleUnit
         import api.core.configs.keyvalues.aa_const_config : AAConstConfig;
         import std.process : environment;
 
-        auto envAA = environment.toAA;
-        return new AAConstConfig!string(envAA);
+        try
+        {
+            auto envAA = environment.toAA;
+            return new AAConstConfig(envAA);
+        }
+        catch (Exception e)
+        {
+            uservices.logger.error(e.toString);
+            return new AAConstConfig(new string[string]);
+        }
     }
 
     protected Config createConfig(Context context)
@@ -321,9 +390,10 @@ class CliApp : SimpleUnit
         assert(context);
 
         import std.path : buildPath, isAbsolute;
+        import std.file : isDir, exists;
 
         string configDir = cliConfigDir;
-        if (configDir)
+        if (configDir.length > 0)
         {
             uservices.cli.printer.printIfNotSilent(
                 "Received config directory from cli: " ~ configDir);
@@ -366,36 +436,21 @@ class CliApp : SimpleUnit
 
         if (configDir.length != 0)
         {
-            import std.file : isDir, exists;
-
-            if (!configDir.exists || !configDir.isDir)
-            {
-                uservices.cli.printer.printIfNotSilent(
-                    "Config directory does not exist or not a directory: " ~ configDir);
-            }
-            else
-            {
-                import api.core.configs.keyvalues.properties.property_config : PropertyConfig;
-                import api.core.configs.keyvalues.config_aggregator : ConfigAggregator;
-                import std.file : dirEntries, SpanMode;
-                import std.algorithm.iteration : filter;
-                import std.algorithm.searching : endsWith;
-
-                foreach (configPath; dirEntries(configDir, SpanMode
-                        .depth).filter!(f => f.isFile))
-                {
-                    auto newConfig = newConfigFromFile(
-                        configPath.name);
-                    configs ~= newConfig;
-                    uservices.cli.printer.printIfNotSilent(
-                        "Load config: " ~ configPath.name);
-                }
-            }
+            configs ~= createConfigsFromDir(configDir);
         }
         else
         {
             uservices.cli.printer.printIfNotSilent(
                 "Path to config directory is empty");
+        }
+
+        auto userConfigDir = buildPath(context.app.userDir, defaultConfigsDir);
+        if (userConfigDir.exists && userConfigDir.isDir)
+        {
+            configs ~= createConfigsFromDir(userConfigDir);
+        }else {
+            uservices.cli.printer.printIfNotSilent(
+                    "Check user config, not found: userConfigDir");
         }
 
         auto config = newConfigAggregator(configs);
@@ -415,6 +470,36 @@ class CliApp : SimpleUnit
         return config;
     }
 
+    protected Config[] createConfigsFromDir(string configDir)
+    {
+        import std.file : isDir, exists;
+
+        Config[] configs;
+
+        if (!configDir.exists || !configDir.isDir)
+        {
+            uservices.cli.printer.printIfNotSilent(
+                "Error loading config, directory does not exist or not a directory: " ~ configDir);
+            return configs;
+        }
+
+        import std.file : dirEntries, SpanMode;
+        import std.algorithm.iteration : filter;
+        import std.algorithm.searching : endsWith;
+
+        foreach (configPath; dirEntries(configDir, SpanMode
+                .depth).filter!(f => f.isFile))
+        {
+            auto newConfig = newConfigFromFile(
+                configPath.name);
+            configs ~= newConfig;
+            uservices.cli.printer.printIfNotSilent(
+                "Add config: " ~ configPath.name);
+        }
+
+        return configs;
+    }
+
     protected Configuration createConfiguration(Context context)
     {
         auto config = createConfig(context);
@@ -427,82 +512,48 @@ class CliApp : SimpleUnit
         return new Configuration(config);
     }
 
-    protected Logger createLogger(Support support)
+    protected Logger createLogger()
     {
-        assert(support);
+        import api.core.loggers.builtins.base_logger : LogLevel;
+        import api.core.loggers.builtins.logger : Logger;
+        import api.core.loggers.builtins.handlers.console_handler : ConsoleHandler;
 
-        import std.logger : MultiLogger, FileLogger, LogLevel, Logger;
-        import CoreConfigKeys = api.core.core_config_keys;
-
-        auto multiLogger = new MultiLogger(
-            LogLevel.trace);
-        import std.stdio : stdout;
+        //TODO from config
+        auto multiLogger = new Logger;
+        multiLogger.level = LogLevel.trace;
 
         enum consoleLoggerLevel = LogLevel.trace;
-        FileLogger consoleLogger;
-        if (!CoreConfigKeys.loggerIsShowMemory)
-        {
-            consoleLogger = new FileLogger(stdout, consoleLoggerLevel);
-        }
-        else
-        {
-            consoleLogger = new class FileLogger
-            {
-                this()
-                {
-                    super(stdout, consoleLoggerLevel);
-                }
+        auto consoleLogger = new ConsoleHandler;
+        consoleLogger.level = consoleLoggerLevel;
 
-                override protected void logMsgPart(scope const(char)[] msg)
-                {
-                    if(CoreConfigKeys.loggerIsShowMemory){
-                        import Mem = api.core.utils.mem;
-                        auto memSize = Mem.memBytes;
-                        if(memSize > 0){
-                            import std.format: format;
-                            msg ~= format("[%s]", Mem.formatBytes(memSize));
-                        }
-                    }
-                    
-                    super.logMsgPart(msg);
-                }
-            };
-        }
+        multiLogger.add(consoleLogger);
 
-        const string consoleLoggerName = "logger_stdout";
-        multiLogger.insertLogger(consoleLoggerName, consoleLogger);
+        // auto errLogger = new class Logger
+        // {
+        //     this()
+        //     {
+        //         super(LogLevel.warning);
+        //     }
 
-        import std.format : format;
-
-        auto errLogger = new class Logger
-        {
-            this()
-            {
-                super(LogLevel.warning);
-            }
-
-            override void writeLogMsg(ref LogEntry payload) @trusted
-            {
-                auto logLevel = payload.logLevel;
-                auto dt = payload.timestamp;
-                string message = format("%02d:%02d %s %s(%d): %s", dt.hour(), dt.minute(),
-                    payload.logLevel, payload.moduleName, payload.line, payload.msg);
-                support.errStatus.error(message);
-            }
-        };
-
-        multiLogger.insertLogger("Error logging", errLogger);
+        //     override void writeLogMsg(ref LogEntry payload) @trusted
+        //     {
+        //         auto logLevel = payload.logLevel;
+        //         auto dt = payload.timestamp;
+        //         string message = format("%02d:%02d %s %s(%d): %s", dt.hour(), dt.minute(),
+        //             payload.logLevel, payload.moduleName, payload.line, payload.msg);
+        //         support.errStatus.error(message);
+        //     }
+        // };
 
         multiLogger.tracef(
-            "Create stdout logging, name '%s', level '%s'",
-            consoleLoggerName, consoleLoggerLevel);
+            "Create stdout logging, level '%s'", consoleLoggerLevel);
 
         return multiLogger;
     }
 
-    protected Logging createLogging(Support support)
+    protected Logging createLogging()
     {
-        auto logger = createLogger(support);
+        auto logger = createLogger;
         assert(logger);
         return newLogging(logger);
     }
@@ -512,109 +563,53 @@ class CliApp : SimpleUnit
         return new Logging(logger);
     }
 
-    protected Support createSupport()
+    protected Validation createValidation(Logging logging, Config config, Context context)
     {
         auto errStatus = newErrStatus;
-        auto decision = newDecisionSystem;
-        auto support = newSupport(errStatus, decision);
+        auto support = newValidation(logging.logger, errStatus);
         return support;
     }
 
     ErrStatus newErrStatus() => new ErrStatus;
-    DecisionSystem newDecisionSystem() => new DecisionSystem;
 
-    Support newSupport(ErrStatus errStatus, DecisionSystem decision)
+    Validation newValidation(Logger logger, ErrStatus errStatus)
     {
-        return new Support(errStatus, decision);
+        auto validation = new Validation(logger, errStatus);
+        return validation;
     }
 
-    protected Resourcing createResourcing(Logging logging, Config config, Context context)
+    Mallocator* newMallocator() => new Mallocator(Allocator.init);
+
+    Allocator* createAllocator(Logging logging, Config config, Context context)
     {
-        assert(logging);
-        assert(config);
-        assert(context);
-
-        import std.path : buildPath, isAbsolute;
-        import std.file : exists, isDir;
-
-        string mustBeResDir = defaultResourcesDir;
-        if (mustBeResDir.length == 0)
-        {
-            logging.logger.infof(
-                "Resourcing path is empty, empty resources manager created");
-            //WARNING return
-            return newResource(logging);
-        }
-
-        if (mustBeResDir.isAbsolute)
-        {
-            if (!mustBeResDir.exists || !mustBeResDir
-                .isDir)
-            {
-                logging.logger.error(
-                    "Absolute resources directory path does not exist or not a directory: ", mustBeResDir);
-                //WARNING return
-                return newResource(logging);
-            }
-        }
-        else
-        {
-            const mustBeDataDir = context.app.dataDir;
-            if (mustBeDataDir.length == 0)
-            {
-                logging.logger.infof(
-                    "Received relative path '%s', but data directory not found", mustBeResDir);
-                //WARNING return
-                return newResource(logging);
-            }
-
-            mustBeResDir = buildPath(mustBeDataDir, mustBeResDir);
-            if (!mustBeResDir.exists || !mustBeResDir
-                .isDir)
-            {
-                logging.logger.warning(
-                    "Resourcing directory path relative to the data does not exist or is not a directory: ", mustBeResDir);
-                //WARNING return
-                return newResource(logging);
-            }
-        }
-
-        auto resources = newResource(logging, mustBeResDir);
-        logging.logger.trace(
-            "Create resources from directory: ", mustBeResDir);
-        return resources;
+        return cast(Allocator*) newMallocator;
     }
 
-    LocalResources newLocalResources(Logging logging, string resourcesDir = null)
+    ArenaAllocator* newArenaAllocator()
     {
-        return new LocalResources(logging, resourcesDir);
+        import api.core.mems.allocs.mallocator : initMallocator;
+
+        Allocator alloc;
+        initMallocator(&alloc);
+
+        return new ArenaAllocator(alloc);
     }
 
-    Resourcing newResource(Logging logging, string resourcesDir = null)
+    ArenaAllocator* createArenaAllocator(Logging logging, Config config, Context context)
     {
-        auto locals = newLocalResources(logging, resourcesDir);
-        return new Resourcing(locals);
+        return newArenaAllocator;
     }
 
-    Mallocator newMallocator()
+    Memory newMemory(Allocator* allocator, ArenaAllocator* arena)
     {
-        return new Mallocator;
-    }
-
-    Allocator!ubyte createAllocator(Logging logging, Config config, Context context)
-    {
-        return newMallocator;
-    }
-
-    Memory newMemory(Allocator!ubyte allocator)
-    {
-        return new Memory(allocator);
+        return new Memory(allocator, arena);
     }
 
     Memory createMemory(Logging logging, Config config, Context context)
     {
         auto alloc = createAllocator(logging, config, context);
-        return newMemory(alloc);
+        auto arena = createArenaAllocator(logging, config, context);
+        return newMemory(alloc, arena);
     }
 
     protected Cli createCli(string[] args)
@@ -712,9 +707,10 @@ class CliApp : SimpleUnit
 
     void uservices(UniComponent services) pure @safe
     {
-        import std.exception : enforce;
-
-        enforce(services !is null, "Services must not be null");
+        if (!services)
+        {
+            throw new Exception("Services must not be null");
+        }
         _uniServices = services;
     }
 }
