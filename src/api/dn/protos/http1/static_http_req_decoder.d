@@ -64,6 +64,7 @@ class StaticHttpReqDecoder : Codec
     size_t limitHeadersCount = 20;
     size_t limitUriLength = uriMaxSizeBytes;
     bool isStrictUri = true;
+    bool isStrictHeaders = true;
 
     //10-100Mb 
     enum defaultLimitBodyLength = 30 * 1024;
@@ -400,7 +401,7 @@ class StaticHttpReqDecoder : Codec
                     break;
                 }
 
-                if (!isValidHeaderKeyValueChars(ch) && ch != ' ')
+                if ((isStrictHeaders && !isValidHeaderKeyValueChars(ch)) && ch != ' ')
                 {
                     continue lineLoop;
                 }
@@ -416,7 +417,7 @@ class StaticHttpReqDecoder : Codec
             const value = line[sepPos + 1 .. $].strip;
             foreach (v; value)
             {
-                if (!isValidHeaderKeyValueChars(v))
+                if (isStrictHeaders && !isValidHeaderKeyValueChars(v))
                 {
                     continue lineLoop;
                 }

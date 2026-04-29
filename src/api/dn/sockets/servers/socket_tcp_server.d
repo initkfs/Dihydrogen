@@ -88,6 +88,6 @@ class SocketTcpServer : BaseSocketWrapper
             throw new Exception("Socket listen error: " ~ getLastErrorNew);
         }
 
-        logger.infof("Bind server %s:%d", host, port);
+        logger.infof("Bind server %s:%s", host, port);
     }
 }
