@@ -4,6 +4,9 @@ import api.core.utils.buffers.dense_buffer : DenseBuffer;
 
 import core.atomic;
 
+import Math = api.core.utils.math;
+import std.algorithm.comparison : min, max;
+
 /**
  * Authors: initkfs
  * Simple Single Producer, Single Consumer (SPSC) buffer
@@ -12,7 +15,7 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
 {
     private
     {
-        enum BufferSize = nextPowerOfTwo(RequestBufferSize);
+        enum BufferSize = Math.nextPowerOfTwo(RequestBufferSize);
         enum BufferSizeBitMask = BufferSize - 1;
 
         static if (isStaticArray)
@@ -40,6 +43,8 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
 
     void initialize()
     {
+        import Math = api.math;
+
         static if (isLockFree)
         {
             _readIndex.atomicStore(0);
@@ -97,8 +102,6 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
         {
             return 0;
         }
-
-        import std.algorithm.comparison : min;
 
         size_t write = min(BufferSize - size, buf.length);
 
@@ -160,8 +163,6 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
         {
             size_t currToEnd = void, fromStartAround = void;
 
-            import std.algorithm.comparison : min;
-
             size_t read = min(size, buf.length);
             size_t countOverflow = (readIdx & BufferSizeBitMask) + read;
             if (countOverflow > BufferSize)
@@ -204,25 +205,14 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
 
     inout(BufferType[]) raw() inout => _buffer;
 
-    static uint nextPowerOfTwo(uint x) pure @safe
-    {
-        if (x == 0)
-            return 1;
-
-        x--;
-        x |= x >> 1;
-        x |= x >> 2;
-        x |= x >> 4;
-        x |= x >> 8;
-        x |= x >> 16;
-        return x + 1;
-    }
-
 }
 
 unittest
 {
     import std.stdio;
+    import core.atomic : MemoryOrder;
+
+    import Math = api.math;
 
     alias Buffer4 = RingBuffer!(ubyte, 3, false);
     alias Buffer8 = RingBuffer!(ubyte, 5, false);
