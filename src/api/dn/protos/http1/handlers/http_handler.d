@@ -81,7 +81,7 @@ class HttpHandler : ChannelHandler
         import HttpResp = api.dn.protos.http1.http_responses;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.chan.outb.slice = cast(ubyte[]) HttpResp._html;
+        ctx.outEvent.chan.outb.buff = cast(ubyte[]) HttpResp._html;
         ctx.send;
     }
 

@@ -40,7 +40,7 @@ class WSHandler : HttpHandler
             auto frame = WsCodec.encode(WsCodec.createTextFrame(text));
             ctx.inEvent.chan.resetBufferIndices;
             ctx.outEvent.setWrite;
-            ctx.outEvent.chan.outb.slice = frame;
+            ctx.outEvent.chan.outb.buff = frame;
             ctx.send;
 
             return;
@@ -93,7 +93,7 @@ class WSHandler : HttpHandler
         isOpen = true;
         ctx.inEvent.chan.resetBufferIndices;
         ctx.outEvent.setWrite;
-        ctx.outEvent.chan.outb.slice = cast(ubyte[]) response;
+        ctx.outEvent.chan.outb.buff = cast(ubyte[]) response;
         ctx.send;
     }
 

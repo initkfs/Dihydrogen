@@ -110,7 +110,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
                     {
                         char[] buf = new char[pending];
                         int len = BIO_read(ctx.inEvent.chan.sslContext.wbio, buf.ptr, pending);
-                        ctx.outEvent.chan.outb.slice = cast(ubyte[]) buf[0 .. len];
+                        ctx.outEvent.chan.outb.buff = cast(ubyte[]) buf[0 .. len];
                         ctx.outEvent.setWrite;
                         ctx.send;
                         logging.logger.trace("Send data from SSL");
@@ -182,7 +182,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
             //     char[] buff = new char[wpending];
             //     int encryptLen = BIO_read(wbio, buff.ptr, wpending);
             //     ctx.outEvent.chan.stateNext = SocketConnectState.close;
-            //     ctx.outEvent.chan.outb.slice = cast(ubyte[]) buff[0 .. encryptLen];
+            //     ctx.outEvent.chan.outb.buff = cast(ubyte[]) buff[0 .. encryptLen];
             //     sendWrite(ctx);
             //     return;
             // }
@@ -280,7 +280,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
             char[] buff = new char[wpending];
             int encryptLen = BIO_read(wbio, buff.ptr, wpending);
             assert(encryptLen > 0);
-            ctx.outEvent.chan.outb.slice = cast(ubyte[]) buff[0 .. encryptLen];
+            ctx.outEvent.chan.outb.buff = cast(ubyte[]) buff[0 .. encryptLen];
             ctx.outEvent.chan.stateNext = SocketConnectState.close;
             sendWrite(ctx);
         }

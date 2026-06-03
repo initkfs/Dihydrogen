@@ -32,7 +32,7 @@ class ClientHttpHandler : ChannelHandler
     {
         import HTTPReq = api.dn.protos.http1.http_requests;
 
-        ctx.outEvent.chan.outb.slice = cast(ubyte[]) HTTPReq.get("localhost");
+        ctx.outEvent.chan.outb.buff = cast(ubyte[]) HTTPReq.get("localhost");
         sendWrite(ctx);
     }
 

@@ -27,7 +27,7 @@ class ClientUdpHandler : ChannelHandler
 
     override void onConnect(ChannelContext ctx)
     {
-        ctx.outEvent.chan.outb.slice = simpleDNSQuery;
+        ctx.outEvent.chan.outb.buff = simpleDNSQuery;
         ctx.outEvent.setWrite;
         ctx.send;
     }

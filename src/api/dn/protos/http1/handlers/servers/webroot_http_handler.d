@@ -134,7 +134,7 @@ class WebrootHttpHandler : HttpHandler
             if (mimeType.length == 0)
             {
                 ctx.outEvent.setWrite;
-                ctx.outEvent.chan.outb.slice = cast(ubyte[]) HttpResp._500;
+                ctx.outEvent.chan.outb.buff = cast(ubyte[]) HttpResp._500;
                 ctx.send;
                 return;
             }
@@ -150,7 +150,7 @@ class WebrootHttpHandler : HttpHandler
         import api.dn.protos.http1.http_responses;
 
         ctx.outEvent.setWrite;
-        ctx.outEvent.chan.outb.slice = cast(ubyte[]) fileContent;
+        ctx.outEvent.chan.outb.buff = cast(ubyte[]) fileContent;
         ctx.send;
     }
 
