@@ -2,6 +2,7 @@ module api.dn.channels.fd_channel;
 
 import api.dn.sockets.socket_connect : SocketConnectState;
 import api.dn.channels.fd_channel_buffers : InBuffer, OutBuffer;
+import api.dn.channels.channel_ssl_context: ChannelSSLContext;
 
 /**
  * Authors: initkfs
@@ -12,88 +13,6 @@ enum FdChannelType
     socket,
     timer,
     file
-}
-
-struct SSLContext
-{
-    import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free, BIO_reset, SSL_clear;
-
-    SSL* ssl;
-    BIO* rbio;
-    BIO* wbio;
-    bool isInitSSL;
-    bool isOpen;
-
-    void clear()
-    {
-        ssl = null;
-        rbio = null;
-        wbio = null;
-        isInitSSL = false;
-        isOpen = false;
-    }
-
-    void shutdown()
-    {
-        if (ssl)
-        {
-            SSL_shutdown(ssl);
-        }
-    }
-
-    void close()
-    {
-        if (!isOpen && !isInitSSL)
-        {
-            return;
-        }
-
-        if (ssl)
-        {
-            SSL_clear(ssl);
-        }
-
-        resetbio;
-        isOpen = false;
-        isInitSSL = false;
-    }
-
-    void resetbio()
-    {
-        if (rbio)
-        {
-            BIO_reset(rbio);
-        }
-
-        if (wbio)
-        {
-            BIO_reset(wbio);
-        }
-    }
-
-    void freeSSL()
-    {
-        if (ssl)
-        {
-            SSL_free(ssl);
-            ssl = null;
-        }
-    }
-
-    void reset()
-    {
-        if (ssl)
-        {
-            //TODO errror code == -1
-            SSL_clear(ssl);
-        }
-
-        resetbio;
-        isOpen = false;
-        isInitSSL = false;
-
-
-    }
 }
 
 struct FdChannel
@@ -107,7 +26,7 @@ struct FdChannel
     OutBuffer outb;
     bool isChain;
 
-    SSLContext sslContext;
+    ChannelSSLContext sslContext;
 
     void* data;
 
@@ -120,7 +39,7 @@ struct FdChannel
         outb.reset;
         inb.reset;
 
-        sslContext = SSLContext();
+        sslContext = ChannelSSLContext();
         resetPart;
     }
 
