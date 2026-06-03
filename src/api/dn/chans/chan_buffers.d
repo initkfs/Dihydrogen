@@ -1,4 +1,4 @@
-module api.dn.channels.fd_channel_buffers;
+module api.dn.chans.chan_buffers;
 
 /**
  * Authors: initkfs

@@ -1,11 +1,11 @@
-module api.dn.channels.channel_ssl_context;
+module api.dn.chans.chan_ssl_context;
 
 import openssl_libs : SSL, BIO, SSL_shutdown, SSL_free, BIO_reset, SSL_clear;
 
 /**
  * Authors: initkfs
  */
-struct ChannelSSLContext
+struct ChanSSLContext
 {
     SSL* ssl;
     BIO* rbio;

@@ -2,7 +2,7 @@ module api.dn.io.loops.eventable_event_loop;
 
 import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.core.loggers.logging : Logging;
 
@@ -32,9 +32,9 @@ class EventableEventLoop : EventLoop
         super.create;
     }
 
-    ChanInEvent newChanInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state) => ChanInEvent(conn, state);
+    ChanInEvent newChanInEvent(FdChan* conn, ChanInEvent.ChanInEventState state) => ChanInEvent(conn, state);
 
-    void sendNewInEvent(FdChannel* conn, ChanInEvent.ChanInEventState state)
+    void sendNewInEvent(FdChan* conn, ChanInEvent.ChanInEventState state)
     {
         sendInEvent(newChanInEvent(conn, state));
     }

@@ -18,12 +18,12 @@ import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.utils.pools.linear_pool : LinearPool;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.sockets.socket_connect : SocketConnectState;
 
 import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
@@ -39,10 +39,10 @@ class ClientLoop : EndpointableEventLoop
 
     protected
     {
-        ServerChannel clientChannel;
+        ServerChan clientChannel;
     }
 
-    this(Logging logger, ServerChannel clientChannel, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, ServerChan clientChannel, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         super(logger, router, translator, monitor);
         this.clientChannel = clientChannel;
@@ -60,7 +60,7 @@ class ClientLoop : EndpointableEventLoop
 
     struct ClientChannelData
     {
-        FdChannel* chan;
+        FdChan* chan;
         ushort port;
     }
 
@@ -72,7 +72,7 @@ class ClientLoop : EndpointableEventLoop
         channelData = ClientChannelData(clientSocket, clientChannel.port);
     }
 
-    override FdChannel* getChannel(int serverFd, int activeChannelFd)
+    override FdChan* getChannel(int serverFd, int activeChannelFd)
     {
         assert(serverFd == channelData.chan.fd);
         return channelData.chan;

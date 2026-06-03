@@ -1,4 +1,4 @@
-module api.dn.channels.fd_file;
+module api.dn.utils.io.fd_file;
 
 import api.dn.sockets.socket_connect : SocketConnectState;
 

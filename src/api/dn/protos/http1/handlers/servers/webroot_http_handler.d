@@ -8,7 +8,7 @@ import api.dn.protos.http1.handlers.http_handler : HttpHandler;
 
 import api.dn.handlers.channel_handler : ChannelHandler;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.protos.http1.http_common;
 import api.dn.protos.http1.static_http_req_decoder : StaticHttpReqDecoder, DecoderState;
@@ -35,7 +35,7 @@ class WebrootHttpHandler : HttpHandler
         this.webroot = root.isAbsolute ? root : root.absolutePath;
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         char[256] uri;
         size_t uriLen;
@@ -219,7 +219,7 @@ class WebrootHttpHandler : HttpHandler
         return content;
     }
 
-    override void onReadEnd(ChannelContext ctx)
+    override void onReadEnd(ChanContext ctx)
     {
         if (next)
         {
@@ -227,7 +227,7 @@ class WebrootHttpHandler : HttpHandler
         }
     }
 
-    override void onWriteEnd(ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         if (ctx.inEvent.chan.stateNext == SocketConnectState.close)
         {

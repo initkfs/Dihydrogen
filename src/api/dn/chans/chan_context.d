@@ -1,4 +1,4 @@
-module api.dn.channels.channel_context;
+module api.dn.chans.chan_context;
 
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
 import api.dn.pipelines.handler_pipeline: HandlerPipeline;
@@ -6,7 +6,7 @@ import api.dn.pipelines.handler_pipeline: HandlerPipeline;
 /**
  * Authors: initkfs
  */
-struct ChannelContext
+struct ChanContext
 {
     HandlerPipeline pipe;
     

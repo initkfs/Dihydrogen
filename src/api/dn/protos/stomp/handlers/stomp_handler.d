@@ -1,11 +1,11 @@
 module api.dn.protos.stomp.handlers.stomp_handler;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.handlers.buffered_channel_handler : BufferedChannelHandler;
 import api.dn.handlers.channel_handler : ChannelHandler;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.utils.pools.linear_pool : LinearPool;
 import api.core.utils.buffers.dense_buffer: DenseBuffer;
@@ -58,7 +58,7 @@ alias FrameStaticBuffer = DenseBuffer!(char, frameBufferLength);
 struct OutBufferData
 {
     StompCommand state = StompCommand.CONNECT;
-    FdChannel* chan;
+    FdChan* chan;
     FrameStaticBuffer buffer;
     long lastReadTime;
     long lastWriteTime;
@@ -108,7 +108,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         return frame;
     }
 
-    override void onAcceptEnd(ChannelContext ctx)
+    override void onAcceptEnd(ChanContext ctx)
     {
         synchronized (outBuffers)
         {
@@ -125,7 +125,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         }
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         synchronized (outBuffers)
         {
@@ -234,7 +234,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         }
     }
 
-    protected void sendFrame(OutBufferData* bufferData, ChannelContext ctx)
+    protected void sendFrame(OutBufferData* bufferData, ChanContext ctx)
     {
         bufferData.lastWriteTime = timestamp;
 
@@ -245,14 +245,14 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         ctx.send;
     }
 
-    protected void sendConnected(OutBufferData* bufferData, ChannelContext ctx)
+    protected void sendConnected(OutBufferData* bufferData, ChanContext ctx)
     {
         auto errorFrame = encoder.connected;
         encoder.decode!(frameBufferLength)(errorFrame, (*bufferData).buffer);
         sendFrame(bufferData, ctx);
     }
 
-    protected void sendError(OutBufferData* bufferData, ChannelContext ctx, const(char)[] message = "Unknown error")
+    protected void sendError(OutBufferData* bufferData, ChanContext ctx, const(char)[] message = "Unknown error")
     {
         auto errorFrame = encoder.error(message);
         encoder.decode!(frameBufferLength)(errorFrame, (*bufferData).buffer);
@@ -262,7 +262,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         ctx.send;
     }
 
-    protected void sendMessage(OutBufferData* bufferData, ChannelContext ctx, const(char)[] message = "Message", const(
+    protected void sendMessage(OutBufferData* bufferData, ChanContext ctx, const(char)[] message = "Message", const(
             char)[] dest = "/", const(char)[] messageId = "0", const(char)[] subscription = "0")
     {
         auto frame = encoder.message(message, dest, messageId, subscription);
@@ -271,14 +271,14 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         sendFrame(bufferData, ctx);
     }
 
-    protected void sendDisconnect(OutBufferData* bufferData, ChannelContext ctx)
+    protected void sendDisconnect(OutBufferData* bufferData, ChanContext ctx)
     {
         auto frame = encoder.disconnect;
         encoder.decode!(frameBufferLength)(frame, (*bufferData).buffer);
         sendFrame(bufferData, ctx);
     }
 
-    override void onReadEnd(ChannelContext ctx)
+    override void onReadEnd(ChanContext ctx)
     {
         // ctx.outEvent.setWrite;
         // ctx.outEvent.buff = cast(ubyte*) response.ptr;
@@ -286,7 +286,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
         // ctx.send;
     }
 
-    override void onWriteEnd(ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         synchronized (outBuffers)
         {
@@ -317,7 +317,7 @@ class StompHandler : BufferedChannelHandler!(OutBufferData*)
 
     }
 
-    override void onCloseEnd(ChannelContext ctx)
+    override void onCloseEnd(ChanContext ctx)
     {
         synchronized (outBuffers)
         {

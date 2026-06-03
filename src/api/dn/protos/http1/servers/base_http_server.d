@@ -10,7 +10,7 @@ import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.server_loop : ServerLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
 import api.dn.handlers.channel_handler : ChannelHandler;
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
 import api.dn.events.converters.event_converter : EventConverter;
@@ -64,7 +64,7 @@ abstract class BaseHTTPServer : UniComposite!UniComponent
         import std.conv: to;
 
         loop = newServerLoop(logging, [
-            ServerChannel(serverSocket1.fd, serverSocket1.port.to!ushort),
+            ServerChan(serverSocket1.fd, serverSocket1.port.to!ushort),
         ], eventRouter, translator:
         null, monitor);
 
@@ -101,7 +101,7 @@ abstract class BaseHTTPServer : UniComposite!UniComponent
         }
     }
 
-    ServerLoop newServerLoop(Logging logger, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    ServerLoop newServerLoop(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         return new ServerLoop(logger, serverChans, router, translator, monitor);
     }

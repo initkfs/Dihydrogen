@@ -18,10 +18,10 @@ import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.utils.pools.linear_pool : LinearPool;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.sockets.socket_connect : SocketConnectState;
 
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 
 import core.stdc.errno;
 
@@ -52,13 +52,13 @@ class EventLoop : LoggableUnit
     void delegate() onStartLoop;
     void delegate() onEndLoop;
 
-    void delegate(FdChannel*) onAcceptEnd;
-    void delegate(FdChannel*) onReadStart;
-    void delegate(FdChannel*) onReadEnd;
-    void delegate(FdChannel*) onReadError;
-    void delegate(FdChannel*) onWriteEnd;
-    void delegate(FdChannel*) onSpliceEnd;
-    void delegate(FdChannel*) onCloseEnd;
+    void delegate(FdChan*) onAcceptEnd;
+    void delegate(FdChan*) onReadStart;
+    void delegate(FdChan*) onReadEnd;
+    void delegate(FdChan*) onReadError;
+    void delegate(FdChan*) onWriteEnd;
+    void delegate(FdChan*) onSpliceEnd;
+    void delegate(FdChan*) onCloseEnd;
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
@@ -117,13 +117,13 @@ class EventLoop : LoggableUnit
         return getEventsWait(ring, cqes);
     }
 
-    FdChannel* hasChannelFromCQE(io_uring_cqe* cqe)
+    FdChan* hasChannelFromCQE(io_uring_cqe* cqe)
     {
-        auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
+        auto connection = cast(FdChan*) io_uring_cqe_get_data(cqe);
         return connection;
     }
 
-    FdChannel* channelFromCQE(io_uring_cqe* cqe)
+    FdChan* channelFromCQE(io_uring_cqe* cqe)
     {
         auto connection = hasChannelFromCQE(cqe);
         assert(connection);
@@ -153,9 +153,9 @@ class EventLoop : LoggableUnit
 
         if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqeСount]))
         {
-            auto connection = cast(FdChannel*) io_uring_cqe_get_data(cqe);
+            auto connection = cast(FdChan*) io_uring_cqe_get_data(cqe);
 
-            if (connection.type == FdChannelType.socket && connection.state == SocketConnectState
+            if (connection.type == FdChanType.socket && connection.state == SocketConnectState
                 .accept)
             {
                 addServerAccept(connection.fd);
@@ -176,9 +176,9 @@ class EventLoop : LoggableUnit
                 continue;
             }
 
-            auto connection = cast(FdChannel*) connectionPtr;
+            auto connection = cast(FdChan*) connectionPtr;
 
-            final switch (connection.type) with (FdChannelType)
+            final switch (connection.type) with (FdChanType)
             {
                 case socket:
                     applySocketChannel(connection, cqe);
@@ -203,9 +203,9 @@ class EventLoop : LoggableUnit
         return true;
     }
 
-    void applySocketChannel(FdChannel* connection, io_uring_cqe* cqe)
+    void applySocketChannel(FdChan* connection, io_uring_cqe* cqe)
     {
-        assert(connection.type == FdChannelType.socket);
+        assert(connection.type == FdChanType.socket);
 
         int ret = cqe.res;
 
@@ -340,7 +340,7 @@ class EventLoop : LoggableUnit
         }
     }
 
-    void applyTimerChannel(FdChannel* chan, io_uring_cqe* cqe)
+    void applyTimerChannel(FdChan* chan, io_uring_cqe* cqe)
     {
         int ret = cqe.res;
 
@@ -364,7 +364,7 @@ class EventLoop : LoggableUnit
         }
     }
 
-    void applyFileChannel(FdChannel* chan, io_uring_cqe* cqe)
+    void applyFileChannel(FdChan* chan, io_uring_cqe* cqe)
     {
 
     }
@@ -394,22 +394,22 @@ class EventLoop : LoggableUnit
         logger.info("Exit");
     }
 
-    FdChannel* newChannel(int fd = -1, SocketConnectState state = SocketConnectState
+    FdChan* newChannel(int fd = -1, SocketConnectState state = SocketConnectState
             .none)
     {
 
-        auto mustBeChanPtr = malloc(FdChannel.sizeof);
+        auto mustBeChanPtr = malloc(FdChan.sizeof);
         if (!mustBeChanPtr)
         {
             logger.error("Allocate channel error");
             exit(1);
         }
 
-        auto newChan = cast(FdChannel*) mustBeChanPtr;
+        auto newChan = cast(FdChan*) mustBeChanPtr;
 
         newChan.clear;
 
-        newChan.type = FdChannelType.socket;
+        newChan.type = FdChanType.socket;
         newChan.fd = fd;
         newChan.state = state;
         newChan.isChain = false;
@@ -437,7 +437,7 @@ class EventLoop : LoggableUnit
         return newChan;
     }
 
-    FdChannel* getChannel(int serverFd, int activeChannelFd)
+    FdChan* getChannel(int serverFd, int activeChannelFd)
     {
         throw new Exception("Not supported pool");
     }
@@ -455,7 +455,7 @@ class EventLoop : LoggableUnit
         return true;
     }
 
-    bool getSqe(io_uring* ring, FdChannel* conn, out io_uring_sqe* sqe)
+    bool getSqe(io_uring* ring, FdChan* conn, out io_uring_sqe* sqe)
     {
         io_uring_sqe* sqePtr = io_uring_get_sqe(ring);
         if (!sqePtr)
@@ -469,7 +469,7 @@ class EventLoop : LoggableUnit
         return true;
     }
 
-    void applySQE(io_uring_sqe* sqe, FdChannel* conn)
+    void applySQE(io_uring_sqe* sqe, FdChan* conn)
     {
         if (conn.isChain)
         {
@@ -477,7 +477,7 @@ class EventLoop : LoggableUnit
         }
     }
 
-    void addSocketClose(io_uring* ring, FdChannel* conn)
+    void addSocketClose(io_uring* ring, FdChan* conn)
     {
         conn.state = SocketConnectState.close;
         io_uring_sqe* sqe;
@@ -492,7 +492,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketShutdown(io_uring* ring, FdChannel* conn, int how)
+    void addSocketShutdown(io_uring* ring, FdChan* conn, int how)
     {
         conn.state = SocketConnectState.close;
         io_uring_sqe* sqe;
@@ -507,7 +507,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketAccept(io_uring* ring, FdChannel* conn, sockaddr* client_addr, socklen_t* client_len)
+    void addSocketAccept(io_uring* ring, FdChan* conn, sockaddr* client_addr, socklen_t* client_len)
     {
         conn.state = SocketConnectState.accept;
         io_uring_sqe* sqe;
@@ -522,7 +522,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketReadv(io_uring* ring, FdChannel* conn)
+    void addSocketReadv(io_uring* ring, FdChan* conn)
     {
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
@@ -537,7 +537,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketWrite(io_uring* ring, FdChannel* conn, const(void*) buff, size_t len)
+    void addSocketWrite(io_uring* ring, FdChan* conn, const(void*) buff, size_t len)
     {
         assert(buff);
         assert(len >= 0);
@@ -554,7 +554,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketWriteZC(io_uring* ring, FdChannel* conn, const(void*) buff, size_t len)
+    void addSocketWriteZC(io_uring* ring, FdChan* conn, const(void*) buff, size_t len)
     {
         assert(buff);
         assert(len >= 0);
@@ -574,7 +574,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addSocketSplice(io_uring* ring, FdChannel* conn)
+    void addSocketSplice(io_uring* ring, FdChan* conn)
     {
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
@@ -584,7 +584,7 @@ class EventLoop : LoggableUnit
 
         //io_uring_sqe_set_data(sqe, conn);
 
-        import api.dn.channels.fd_file;
+        import api.dn.utils.io.fd_file;
 
         auto file = cast(FdFile*) conn.data;
         assert(file, "File data must not be null");
@@ -616,7 +616,7 @@ class EventLoop : LoggableUnit
         conn.state = SocketConnectState.splice;
     }
 
-    void addSocketCancel(io_uring* ring, FdChannel* conn)
+    void addSocketCancel(io_uring* ring, FdChan* conn)
     {
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
@@ -639,12 +639,12 @@ class EventLoop : LoggableUnit
         //TODO allocator
         import core.stdc.stdlib : malloc;
 
-        FdChannel* chan = cast(FdChannel*) malloc(FdChannel.sizeof);
+        FdChan* chan = cast(FdChan*) malloc(FdChan.sizeof);
         assert(chan);
 
         chan.clear;
 
-        chan.type = FdChannelType.timer;
+        chan.type = FdChanType.timer;
 
         import time_libs;
 

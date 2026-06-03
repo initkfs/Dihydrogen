@@ -1,12 +1,12 @@
 module api.dn.protos.http1.handlers.http_handler;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.core.loggers.logging : Logging;
 
 import api.dn.handlers.channel_handler : ChannelHandler;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.protos.http1.http_common;
 import api.dn.protos.http1.static_http_req_decoder : StaticHttpReqDecoder, DecoderState;
@@ -28,7 +28,7 @@ class HttpHandler : ChannelHandler
         decoder = new StaticHttpReqDecoder;
     }
 
-    override void onAcceptEnd(ChannelContext ctx)
+    override void onAcceptEnd(ChanContext ctx)
     {
         ctx.outEvent.setRead;
         ctx.send;
@@ -39,7 +39,7 @@ class HttpHandler : ChannelHandler
         decoder.decode(buff);
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0 || chanBuff[0] == '\0')
@@ -70,7 +70,7 @@ class HttpHandler : ChannelHandler
         //ctx.send;
     }
 
-    override void onReadEnd(ChannelContext ctx)
+    override void onReadEnd(ChanContext ctx)
     {
         //loop
         //ctx.outEvent.setRead;
@@ -85,7 +85,7 @@ class HttpHandler : ChannelHandler
         ctx.send;
     }
 
-    override void onReadError(ChannelContext ctx)
+    override void onReadError(ChanContext ctx)
     {
         import std;
 
@@ -99,30 +99,30 @@ class HttpHandler : ChannelHandler
         //ctx.send;
     }
 
-    override void onWriteEnd(ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         ctx.outEvent.setClose;
         ctx.send;
     }
 
-    override void onCloseEnd(ChannelContext ctx)
+    override void onCloseEnd(ChanContext ctx)
     {
         //import std.stdio;
         //writefln("Close: %s", ctx.channel.fd);
     }
 
-    void sendRead(ref ChannelContext ctx)
+    void sendRead(ref ChanContext ctx)
     {
         ctx.outEvent.setRead;
         ctx.send;
     }
 
-    void sendWrite(ref ChannelContext ctx){
+    void sendWrite(ref ChanContext ctx){
         ctx.outEvent.setWrite;
         ctx.send;
     }
     
-    void sendClose(ref ChannelContext ctx)
+    void sendClose(ref ChanContext ctx)
     {
         ctx.outEvent.setClose;
         ctx.send;

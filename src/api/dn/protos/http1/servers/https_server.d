@@ -11,7 +11,7 @@ import api.dn.io.loops.server_loop : ServerLoop;
 import api.dn.io.loops.ssl_server_loop : SSLServerLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
 import api.dn.handlers.channel_handler : ChannelHandler;
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
 import api.dn.events.converters.event_converter : EventConverter;
@@ -121,7 +121,7 @@ class HTTPSServer : HTTPServer
         loop.run;
     }
 
-    override ServerLoop newServerLoop(Logging logger, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    override ServerLoop newServerLoop(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         return new SSLServerLoop(logger, ctx, serverChans, router, translator, monitor);
     }

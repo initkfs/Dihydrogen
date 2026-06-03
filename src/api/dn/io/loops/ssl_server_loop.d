@@ -19,12 +19,12 @@ import api.core.loggers.logging;
 import api.dn.io.loops.server_loop : ServerLoop;
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.utils.pools.linear_pool : LinearPool;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.sockets.socket_connect : SocketConnectState;
 
 import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
@@ -41,7 +41,7 @@ class SSLServerLoop : ServerLoop
 {
     SSL_CTX* ctx;
 
-    this(Logging logger, SSL_CTX* ctx, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, SSL_CTX* ctx, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         super(logger, serverChans, router, translator, monitor);
 

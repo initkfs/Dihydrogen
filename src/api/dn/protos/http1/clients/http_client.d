@@ -10,7 +10,7 @@ import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.client_loop : ClientLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
 import api.dn.handlers.channel_handler : ChannelHandler;
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
 import api.dn.events.converters.event_converter : EventConverter;
@@ -57,7 +57,7 @@ class HTTPClient : BaseHandlerClient
 
         auto monitor = new LogEventMonitor(logging);
 
-        loop = newClientLoop(logging, ServerChannel(clientSocket.fd), eventRouter, translator:
+        loop = newClientLoop(logging, ServerChan(clientSocket.fd), eventRouter, translator:
             null, monitor);
 
         loop.initialize;

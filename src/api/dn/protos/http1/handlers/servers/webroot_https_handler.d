@@ -6,7 +6,7 @@ import api.dn.sockets.socket_connect : SocketConnectState;
 import api.dn.protos.http1.handlers.servers.webroot_http_handler : WebrootHttpHandler;
 import api.dn.protos.http1.handlers.http_handler : HttpHandler;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.protos.http1.http_common;
 import api.dn.protos.http1.static_http_req_decoder : StaticHttpReqDecoder, DecoderState;
@@ -32,12 +32,12 @@ class WebrootHttpsHandler : WebrootHttpHandler
         this.logging = logging;
     }
 
-    override void onWriteEnd(ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         sendRead(ctx);
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         char[256] uri;
         size_t uriLen;
@@ -321,7 +321,7 @@ class WebrootHttpsHandler : WebrootHttpHandler
         return buffPtr.fromStringz.idup;
     }
 
-    string sslState(ChannelContext ctx)
+    string sslState(ChanContext ctx)
     {
         auto stateStr = SSL_state_string(ctx.inEvent.chan.sslContext.ssl);
         return stateStr.fromStringz.idup;

@@ -2,7 +2,7 @@ module api.dn.protos.ws.handlers.ws_handler;
 
 import api.dn.protos.http1.handlers.http_handler : HttpHandler;
 import api.core.loggers.logging : Logging;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 import api.dn.protos.http1.http_common;
 import api.dn.protos.http1.static_http_req_decoder : StaticHttpReqDecoder, DecoderState;
 
@@ -27,7 +27,7 @@ class WSHandler : HttpHandler
         sha = new SHA1Digest;
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
 
@@ -97,12 +97,12 @@ class WSHandler : HttpHandler
         ctx.send;
     }
 
-    override void onReadEnd(ChannelContext ctx)
+    override void onReadEnd(ChanContext ctx)
     {
 
     }
 
-    override void onWriteEnd(ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         if (isOpen)
         {

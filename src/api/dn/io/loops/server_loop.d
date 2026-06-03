@@ -18,12 +18,12 @@ import api.core.loggers.logging;
 
 import api.core.components.units.services.loggable_unit : LoggableUnit;
 import api.dn.utils.pools.linear_pool : LinearPool;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.sockets.socket_connect : SocketConnectState;
 
 import api.dn.io.loops.endpointable_event_loop: EndpointableEventLoop;
 
-import api.dn.channels.server_channel : ServerChannel;
+import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
@@ -38,10 +38,10 @@ class ServerLoop : EndpointableEventLoop
 
     private
     {
-        ServerChannel[] serverChans;
+        ServerChan[] serverChans;
     }
 
-    this(Logging logger, ServerChannel[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
         super(logger, router, translator, monitor);
         this.serverChans = serverChans;
@@ -49,8 +49,8 @@ class ServerLoop : EndpointableEventLoop
 
     struct ServerChannelData
     {
-        FdChannel* chan;
-        LinearPool!(FdChannel*) pool;
+        FdChan* chan;
+        LinearPool!(FdChan*) pool;
         ushort port;
         sockaddr_in client_addr;
         socklen_t client_len = (client_addr).sizeof;
@@ -63,7 +63,7 @@ class ServerLoop : EndpointableEventLoop
         foreach (serverChan; serverChans)
         {
             auto serverSocket = newChannel(serverChan.fd);
-            auto pool = new LinearPool!(FdChannel*)(channelsPoolSize);
+            auto pool = new LinearPool!(FdChan*)(channelsPoolSize);
             pool.create;
             foreach (i; 0 .. pool.length)
             {
@@ -80,7 +80,7 @@ class ServerLoop : EndpointableEventLoop
         }
     }
 
-    override FdChannel* getChannel(int serverFd, int activeChannelFd)
+    override FdChan* getChannel(int serverFd, int activeChannelFd)
     {
         auto channelsPool = channelsMap[serverFd].pool;
         assert(channelsPool);

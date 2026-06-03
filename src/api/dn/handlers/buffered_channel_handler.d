@@ -1,9 +1,9 @@
 module api.dn.handlers.buffered_channel_handler;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.core.utils.sync : MutexLock;
 import api.dn.handlers.channel_handler : ChannelHandler;

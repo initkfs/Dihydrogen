@@ -1,10 +1,10 @@
 module api.dn.pipelines.handler_pipeline;
 
 import api.dn.handlers.channel_handler : ChannelHandler;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 /**
  * Authors: initkfs
@@ -75,7 +75,7 @@ class HandlerPipeline
     void onConnect(ChanInEvent event)
     {
         onHandler((h) {
-            h.onConnect(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onConnect(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -83,7 +83,7 @@ class HandlerPipeline
     void onAcceptEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onAcceptEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onAcceptEnd(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -91,7 +91,7 @@ class HandlerPipeline
     void onReadStart(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadStart(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onReadStart(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -99,7 +99,7 @@ class HandlerPipeline
     void onReadEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onReadEnd(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -107,7 +107,7 @@ class HandlerPipeline
     void onReadError(ChanInEvent event)
     {
         onHandler((h) {
-            h.onReadError(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onReadError(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -115,7 +115,7 @@ class HandlerPipeline
     void onWriteEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onWriteEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onWriteEnd(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -123,7 +123,7 @@ class HandlerPipeline
     void onSpliceEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onSpliceEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onSpliceEnd(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }
@@ -131,7 +131,7 @@ class HandlerPipeline
     void onCloseEnd(ChanInEvent event)
     {
         onHandler((h) {
-            h.onCloseEnd(ChannelContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
+            h.onCloseEnd(ChanContext(this, event, ChanOutEvent(event.chan), _onOutEvent));
             return true;
         });
     }

@@ -1,12 +1,12 @@
 module api.dn.protos.dns.handlers.clients.clients_udp_handler;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.core.loggers.logging : Logging;
 
 import api.dn.handlers.channel_handler : ChannelHandler;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.protos.http1.http_common;
 import api.dn.protos.http1.static_http_resp_decoder : StaticHttpRespDecoder, DecoderState;
@@ -25,7 +25,7 @@ class ClientUdpHandler : ChannelHandler
         this.logging = logging;
     }
 
-    override void onConnect(ChannelContext ctx)
+    override void onConnect(ChanContext ctx)
     {
         ctx.outEvent.chan.outb.buff = simpleDNSQuery;
         ctx.outEvent.setWrite;
@@ -61,7 +61,7 @@ class ClientUdpHandler : ChannelHandler
         return packet.dup;
     }
 
-    override void onReadStart(ChannelContext ctx)
+    override void onReadStart(ChanContext ctx)
     {
         ubyte[] chanBuff = ctx.inEvent.chan.readableBytes;
         if (chanBuff.length > 0)
@@ -75,30 +75,30 @@ class ClientUdpHandler : ChannelHandler
 
     }
 
-    override void onReadEnd(ChannelContext ctx)
+    override void onReadEnd(ChanContext ctx)
     {
 
     }
 
-    override void onWriteEnd(ChannelContext ctx)
-    {
-        ctx.outEvent.setRead;
-        ctx.send;
-    }
-
-    void sendRead(ref ChannelContext ctx)
+    override void onWriteEnd(ChanContext ctx)
     {
         ctx.outEvent.setRead;
         ctx.send;
     }
 
-    void sendWrite(ref ChannelContext ctx)
+    void sendRead(ref ChanContext ctx)
+    {
+        ctx.outEvent.setRead;
+        ctx.send;
+    }
+
+    void sendWrite(ref ChanContext ctx)
     {
         ctx.outEvent.setWrite;
         ctx.send;
     }
 
-    void sendClose(ref ChannelContext ctx)
+    void sendClose(ref ChanContext ctx)
     {
         ctx.outEvent.setClose;
         ctx.send;

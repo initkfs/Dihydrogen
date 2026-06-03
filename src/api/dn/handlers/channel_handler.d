@@ -1,9 +1,9 @@
 module api.dn.handlers.channel_handler;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.channel_context : ChannelContext;
+import api.dn.chans.chan_context : ChanContext;
 
 /**
  * Authors: initkfs
@@ -15,7 +15,7 @@ class ChannelHandler
 
     void delegate(ChanOutEvent) onOutEvent;
 
-    void onConnect(ChannelContext ctx)
+    void onConnect(ChanContext ctx)
     {
         if (next)
         {
@@ -23,7 +23,7 @@ class ChannelHandler
         }
     }
 
-    void onAcceptEnd(ChannelContext ctx)
+    void onAcceptEnd(ChanContext ctx)
     {
         if (next)
         {
@@ -31,7 +31,7 @@ class ChannelHandler
         }
     }
 
-    void onReadStart(ChannelContext ctx)
+    void onReadStart(ChanContext ctx)
     {
         if (next)
         {
@@ -39,7 +39,7 @@ class ChannelHandler
         }
     }
 
-    void onReadEnd(ChannelContext ctx)
+    void onReadEnd(ChanContext ctx)
     {
         if (next)
         {
@@ -47,7 +47,7 @@ class ChannelHandler
         }
     }
 
-    void onReadError(ChannelContext ctx)
+    void onReadError(ChanContext ctx)
     {
         if (next)
         {
@@ -55,7 +55,7 @@ class ChannelHandler
         }
     }
 
-    void onWriteEnd(ChannelContext ctx)
+    void onWriteEnd(ChanContext ctx)
     {
         if (next)
         {
@@ -63,7 +63,7 @@ class ChannelHandler
         }
     }
 
-    void onSpliceEnd(ChannelContext ctx)
+    void onSpliceEnd(ChanContext ctx)
     {
         if (next)
         {
@@ -71,7 +71,7 @@ class ChannelHandler
         }
     }
 
-    void onCloseEnd(ChannelContext ctx)
+    void onCloseEnd(ChanContext ctx)
     {
         if (next)
         {

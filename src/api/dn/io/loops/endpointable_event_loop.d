@@ -2,7 +2,7 @@ module api.dn.io.loops.endpointable_event_loop;
 
 import api.dn.io.loops.eventable_event_loop : EventableEventLoop;
 import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;

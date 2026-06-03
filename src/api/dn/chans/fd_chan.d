@@ -1,13 +1,13 @@
-module api.dn.channels.fd_channel;
+module api.dn.chans.fd_chan;
 
 import api.dn.sockets.socket_connect : SocketConnectState;
-import api.dn.channels.fd_channel_buffers : InBuffer, OutBuffer;
-import api.dn.channels.channel_ssl_context: ChannelSSLContext;
+import api.dn.chans.chan_buffers : InBuffer, OutBuffer;
+import api.dn.chans.chan_ssl_context: ChanSSLContext;
 
 /**
  * Authors: initkfs
  */
-enum FdChannelType
+enum FdChanType
 {
     none,
     socket,
@@ -15,10 +15,10 @@ enum FdChannelType
     file
 }
 
-struct FdChannel
+struct FdChan
 {
     int fd;
-    FdChannelType type;
+    FdChanType type;
     int state;
     int stateNext;
 
@@ -26,27 +26,27 @@ struct FdChannel
     OutBuffer outb;
     bool isChain;
 
-    ChannelSSLContext sslContext;
+    ChanSSLContext sslContext;
 
     void* data;
 
     void clear(){
         fd = -1;
-        type = FdChannelType.none;
+        type = FdChanType.none;
         state = -1;
         stateNext = -1;
 
         outb.reset;
         inb.reset;
 
-        sslContext = ChannelSSLContext();
+        sslContext = ChanSSLContext();
         resetPart;
     }
 
     void resetFull()
     {
         fd = -1;
-        type = FdChannelType.none;
+        type = FdChanType.none;
         state = -1;
         stateNext = -1;
 

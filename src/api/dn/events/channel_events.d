@@ -1,6 +1,6 @@
 module api.dn.events.channel_events;
 
-import api.dn.channels.fd_channel : FdChannel, FdChannelType;
+import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 /**
  * Authors: initkfs
@@ -20,7 +20,7 @@ struct ChanInEvent
         closed,
     }
 
-    FdChannel* chan;
+    FdChan* chan;
     ChanInEventState state;
 }
 
@@ -36,7 +36,7 @@ struct ChanOutEvent
         close
     }
 
-    FdChannel* chan;
+    FdChan* chan;
     ChanOutEventState state;
     bool isConsumed;
 
