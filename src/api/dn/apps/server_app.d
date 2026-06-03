@@ -1,22 +1,19 @@
 module api.dn.apps.server_app;
 
-import api.core.apps.cli_app : CliApp;
+import api.core.loggers.logging: Logging;
+import api.dn.apps.base_server_app : BaseServerApp;
+import api.dn.handlers.channel_handler : ChannelHandler;
 
 /**
  * Authors: initkfs
  */
-class ServerApp : CliApp
+class ServerApp : BaseServerApp
 {
-
-    override void run()
+    override ChannelHandler newAppHandler(Logging logging)
     {
-        super.run;
+        import api.dn.protos.ws.handlers.ws_handler : WSHandler;
 
-        import api.dn.main_controller : MainController;
-
-        auto mainController = new MainController;
-        uservices.build(mainController);
-        initCreateRun(mainController);
+        return new WSHandler(logging);
     }
 
 }
