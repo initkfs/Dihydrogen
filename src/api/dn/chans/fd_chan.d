@@ -2,7 +2,7 @@ module api.dn.chans.fd_chan;
 
 import api.dn.sockets.socket_connect : SocketConnectState;
 import api.dn.chans.chan_buffers : InBuffer, OutBuffer;
-import api.dn.chans.chan_ssl_context: ChanSSLContext;
+import api.dn.chans.chan_ssl_context : ChanSSLContext;
 
 /**
  * Authors: initkfs
@@ -30,7 +30,8 @@ struct FdChan
 
     void* data;
 
-    void clear(){
+    void clear()
+    {
         fd = -1;
         type = FdChanType.none;
         state = -1;
@@ -97,5 +98,25 @@ struct FdChan
         import std.format : format;
 
         return format("[%s:%s]", typeof(this).stringof, fd);
+    }
+
+    static FdChan* newChanClear()
+    {
+        import core.stdc.stdlib : malloc;
+
+        FdChan* chan = cast(FdChan*) malloc(FdChan.sizeof);
+        if (!chan)
+        {
+            throw new Error("Chan not allocated");
+        }
+        chan.clear;
+        return chan;
+    }
+
+    static freeChan(FdChan* chan)
+    {
+        import core.stdc.stdlib : free;
+
+        free(chan);
     }
 }

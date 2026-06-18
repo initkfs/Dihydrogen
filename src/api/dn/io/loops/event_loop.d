@@ -44,6 +44,9 @@ class EventLoop : LoggableUnit
 
     io_uring ring;
 
+    size_t watchdogTimerSec = 0;
+    FdChan* watchDogTimer;
+
     this(Logging logging)
     {
         super(logging);
@@ -94,11 +97,17 @@ class EventLoop : LoggableUnit
 
         if (!(params.features & ringFeatFastPollFlag))
         {
-            logger.error("io_urint fast poll not available in the kernel, quiting...\n");
+            logger.error("io_uring fast poll not available in the kernel, quiting...\n");
             return;
         }
 
         //addTimer(&ring, 5);
+        if (watchdogTimerSec != 0)
+        {
+            watchDogTimer = FdChan.newChanClear;
+            addWatchdogTimer;
+            logger.tracef("Add watchdog timer, sec: %d", watchdogTimerSec);
+        }
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -151,19 +160,24 @@ class EventLoop : LoggableUnit
             return true;
         }
 
-        if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqeСount]))
+        if (cqeСount == 0)
         {
-            auto connection = cast(FdChan*) io_uring_cqe_get_data(cqe);
-
-            if (connection.type == FdChanType.socket && connection.state == SocketConnectState
-                .accept)
-            {
-                addServerAccept(connection.fd);
-            }
-
-            io_uring_cq_advance(&ring, cqeСount);
             return true;
         }
+
+        // if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqeСount]))
+        // {
+        //     auto connection = cast(FdChan*) io_uring_cqe_get_data(cqe);
+
+        //     if (connection.type == FdChanType.socket && connection.state == SocketConnectState
+        //         .accept)
+        //     {
+        //         addServerAccept(connection.fd);
+        //     }
+
+        //     io_uring_cq_advance(&ring, cqeСount);
+        //     return true;
+        // }
 
         for (int i = 0; i < cqeСount; ++i)
         {
@@ -350,6 +364,17 @@ class EventLoop : LoggableUnit
             {
                 case -ETIME:
                     logger.trace("Timer end");
+
+                    if (chan == watchDogTimer)
+                    {
+                        logger.trace("Watchdog timer end");
+                        if (watchDogTimer)
+                        {
+                            addWatchdogTimer;
+                        }
+                        break;
+                    }
+
                     import core.stdc.stdlib : free;
 
                     free(chan);
@@ -628,7 +653,13 @@ class EventLoop : LoggableUnit
         //io_uring_sqe_set_data(sqe, conn);
     }
 
-    void addTimer(io_uring* ring, ulong sec, uint count = 0, uint flags = 0)
+    void addWatchdogTimer(uint count = 0, uint flags = 0, bool isSubmit = true)
+    {
+        assert(watchDogTimer);
+        addTimer(watchDogTimer, &ring, watchdogTimerSec, count, flags, isSubmit);
+    }
+
+    void addTimer(io_uring* ring, ulong sec, uint count = 0, uint flags = 0, bool isSubmit = true)
     {
         io_uring_sqe* sqe;
         if (!getSqe(ring, sqe))
@@ -636,14 +667,19 @@ class EventLoop : LoggableUnit
             return;
         }
 
-        //TODO allocator
-        import core.stdc.stdlib : malloc;
+        FdChan* chan = FdChan.newChanClear;
+        addTimer(chan, ring, sec, count, flags, isSubmit);
+    }
 
-        FdChan* chan = cast(FdChan*) malloc(FdChan.sizeof);
-        assert(chan);
+    void addTimer(FdChan* chan, io_uring* ring, ulong sec, uint count = 0, uint flags = 0, bool isSubmit = true)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, sqe))
+        {
+            return;
+        }
 
         chan.clear;
-
         chan.type = FdChanType.timer;
 
         import time_libs;
@@ -654,6 +690,10 @@ class EventLoop : LoggableUnit
 
         io_uring_prep_timeout(sqe, &timeout, count, flags);
         io_uring_sqe_set_data(sqe, chan);
+        if (isSubmit)
+        {
+            io_uring_submit(ring);
+        }
     }
 
     void removeTimer(io_uring* ring, ulong userData, uint flags = 0)
