@@ -24,7 +24,7 @@ import api.dn.sockets.socket_connect : SocketConnectState;
 import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
 import api.dn.chans.server_chan : ServerChan;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
@@ -35,7 +35,7 @@ import api.dn.events.monitors.event_monitor : EventMonitor;
 class ClientLoop : EndpointableEventLoop
 {
 
-    ClientChannelData channelData;
+    ClientChanData channelData;
 
     protected
     {
@@ -58,7 +58,7 @@ class ClientLoop : EndpointableEventLoop
         };
     }
 
-    struct ClientChannelData
+    struct ClientChanData
     {
         FdChan* chan;
         ushort port;
@@ -69,7 +69,7 @@ class ClientLoop : EndpointableEventLoop
         super.create;
 
         auto clientSocket = newChannel(clientChannel.fd);
-        channelData = ClientChannelData(clientSocket, clientChannel.port);
+        channelData = ClientChanData(clientSocket, clientChannel.port);
     }
 
     override FdChan* getChannel(int serverFd, int activeChannelFd)

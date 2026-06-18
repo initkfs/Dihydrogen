@@ -9,7 +9,7 @@ import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.server_loop : ServerLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
@@ -36,7 +36,7 @@ abstract class BaseHTTPServer : UniComposite!UniComponent
     }
 
     abstract {
-        ChannelHandler newHandler(Logging logging);
+        ChanHandler newHandler(Logging logging);
     }
 
     HandlerPipeline createPipeline()

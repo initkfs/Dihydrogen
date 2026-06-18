@@ -5,5 +5,5 @@ module api.dn.codecs.codec;
  */
 class Codec
 {
-
+    //TODO common methods
 }

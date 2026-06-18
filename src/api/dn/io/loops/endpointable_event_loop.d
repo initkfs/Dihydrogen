@@ -1,13 +1,13 @@
 module api.dn.io.loops.endpointable_event_loop;
 
 import api.dn.io.loops.eventable_event_loop : EventableEventLoop;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 import api.core.loggers.logging : Logging;
 

@@ -9,7 +9,7 @@ import api.dn.protos.http1.handlers.clients.clients_http_handler : ClientHttpHan
 import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.client_loop : ClientLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
@@ -39,7 +39,7 @@ class HTTPClient : BaseHandlerClient
         
     }
 
-    override ChannelHandler newHandler(Logging logging)
+    override ChanHandler newHandler(Logging logging)
     {
         return new ClientHttpHandler(logging);
     }

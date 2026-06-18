@@ -2,7 +2,7 @@ module api.dn.events.routes.pipeline_router;
 
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 /**
  * Authors: initkfs

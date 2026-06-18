@@ -9,7 +9,7 @@ import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.server_loop : ServerLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
@@ -39,7 +39,7 @@ class HTTPServer : UniComposite!UniComponent
         static ServerLoop loop;
     }
 
-    ChannelHandler newHandler(string webroot, Logging logging)
+    ChanHandler newHandler(string webroot, Logging logging)
     {
         import api.dn.protos.http1.handlers.servers.webroot_http_handler : WebrootHttpHandler;
 
@@ -52,7 +52,7 @@ class HTTPServer : UniComposite!UniComponent
 
         auto pipe = new HandlerPipeline;
         pipe.add(newHandler(webroot, logging));
-        //pipe.add(new ChannelHandler);
+        //pipe.add(new ChanHandler);
         return pipe;
     }
 

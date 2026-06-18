@@ -1,4 +1,4 @@
-module api.dn.events.channel_events;
+module api.dn.events.chan_events;
 
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 

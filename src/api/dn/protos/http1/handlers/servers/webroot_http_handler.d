@@ -6,8 +6,8 @@ import api.core.loggers.logging : Logging;
 
 import api.dn.protos.http1.handlers.http_handler : HttpHandler;
 
-import api.dn.handlers.channel_handler : ChannelHandler;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.handlers.chan_handler : ChanHandler;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
 
 import api.dn.protos.http1.http_common;

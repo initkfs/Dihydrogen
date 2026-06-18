@@ -1,7 +1,7 @@
 module api.dn.io.loops.eventable_event_loop;
 
 import api.dn.io.loops.event_loop : EventLoop;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
 import api.core.loggers.logging : Logging;

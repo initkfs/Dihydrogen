@@ -10,7 +10,7 @@ import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.server_loop : ServerLoop;
 import api.dn.io.loops.ssl_server_loop : SSLServerLoop;
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
@@ -41,7 +41,7 @@ class HTTPSServer : HTTPServer
         isStartOnRun = false;
     }
 
-    override ChannelHandler newHandler(string webroot, Logging logging)
+    override ChanHandler newHandler(string webroot, Logging logging)
     {
         import api.dn.protos.http1.handlers.servers.webroot_https_handler : WebrootHttpsHandler;
 

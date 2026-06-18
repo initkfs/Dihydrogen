@@ -1,17 +1,17 @@
-module api.dn.handlers.channel_handler;
+module api.dn.handlers.chan_handler;
 
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
 
 /**
  * Authors: initkfs
  */
-class ChannelHandler
+class ChanHandler
 {
-    ChannelHandler prev;
-    ChannelHandler next;
+    ChanHandler prev;
+    ChanHandler next;
 
     void delegate(ChanOutEvent) onOutEvent;
 

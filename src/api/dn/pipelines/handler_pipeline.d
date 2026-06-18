@@ -1,9 +1,9 @@
 module api.dn.pipelines.handler_pipeline;
 
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
 
 /**
@@ -11,7 +11,7 @@ import api.dn.chans.chan_context : ChanContext;
  */
 class HandlerPipeline
 {
-    ChannelHandler first;
+    ChanHandler first;
 
     protected
     {
@@ -56,11 +56,11 @@ class HandlerPipeline
         _onOutEvent(event);
     }
 
-    protected void onHandler(scope bool delegate(ChannelHandler) onHandlerIsContinue)
+    protected void onHandler(scope bool delegate(ChanHandler) onHandlerIsContinue)
     {
         assert(_onOutEvent);
 
-        ChannelHandler curr = first;
+        ChanHandler curr = first;
         while (curr)
         {
             if (!onHandlerIsContinue(curr))
@@ -136,7 +136,7 @@ class HandlerPipeline
         });
     }
 
-    bool add(ChannelHandler handler)
+    bool add(ChanHandler handler)
     {
         if (_onOutEvent)
         {

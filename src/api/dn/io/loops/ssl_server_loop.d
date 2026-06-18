@@ -28,7 +28,7 @@ import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 import std.string : fromStringz;
 

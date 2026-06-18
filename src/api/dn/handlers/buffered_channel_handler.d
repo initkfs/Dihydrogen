@@ -2,11 +2,11 @@ module api.dn.handlers.buffered_channel_handler;
 
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
 
 import api.core.utils.sync : MutexLock;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.utils.pools.linear_pool : LinearPool;
 
 import core.sync.mutex : Mutex;
@@ -14,7 +14,7 @@ import core.sync.mutex : Mutex;
 /**
  * Authors: initkfs
  */
-class BufferedChannelHandler(T) : ChannelHandler
+class BufferedChannelHandler(T) : ChanHandler
 {
     protected
     {

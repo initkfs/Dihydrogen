@@ -1,7 +1,7 @@
 module api.dn.events.monitors.log_event_monitor;
 
 import api.dn.events.monitors.event_monitor : EventMonitor;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 import api.core.loggers.logging : Logging;
 

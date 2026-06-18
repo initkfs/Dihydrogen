@@ -1,6 +1,6 @@
 module api.dn.events.converters.event_converter;
 
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 /**
  * Authors: initkfs

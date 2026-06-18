@@ -1,6 +1,6 @@
 module api.dn.chans.chan_context;
 
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.pipelines.handler_pipeline: HandlerPipeline;
 
 /**

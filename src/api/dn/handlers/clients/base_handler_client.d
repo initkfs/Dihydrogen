@@ -2,7 +2,7 @@ module api.dn.handlers.clients.base_handler_client;
 
 import api.core.components.uni_composite: UniComposite;
 import api.core.components.uni_component : UniComponent;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
@@ -25,7 +25,7 @@ abstract class BaseHandlerClient : UniComposite!UniComponent
 
     abstract
     {
-        ChannelHandler newHandler(Logging logging);
+        ChanHandler newHandler(Logging logging);
     }
 
     HandlerPipeline createPipeline()

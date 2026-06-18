@@ -2,7 +2,7 @@ module api.dn.events.monitors.event_monitor;
 
 import api.core.loggers.logging : Logging;
 import api.core.components.units.services.loggable_unit : LoggableUnit;
-import api.dn.events.channel_events : ChanInEvent, ChanOutEvent;
+import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 
 /**
  * Authors: initkfs

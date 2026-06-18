@@ -9,7 +9,7 @@ import api.dn.protos.dns.handlers.clients.clients_udp_handler : ClientUdpHandler
 import api.dn.io.loops.event_loop : EventLoop;
 
 import api.dn.pipelines.handler_pipeline : HandlerPipeline;
-import api.dn.handlers.channel_handler : ChannelHandler;
+import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.routes.pipeline_router : PipelineRouter;
@@ -38,7 +38,7 @@ class UDPClient : BaseHandlerClient
         static SocketUdpClient clientSocket;
     }
 
-    override ChannelHandler newHandler(Logging logging) => new ClientUdpHandler(logging);
+    override ChanHandler newHandler(Logging logging) => new ClientUdpHandler(logging);
 
     override void run()
     {
