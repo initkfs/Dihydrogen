@@ -363,17 +363,21 @@ class EventLoop : LoggableUnit
             switch (ret)
             {
                 case -ETIME:
-                    logger.trace("Timer end");
-
+                    
                     if (chan == watchDogTimer)
                     {
                         logger.trace("Watchdog timer end");
                         if (watchDogTimer)
                         {
-                            addWatchdogTimer;
+                            if(onWatchdogIsContinue){
+                                addWatchdogTimer;
+                            }
+                            
                         }
                         break;
                     }
+
+                    logger.trace("Timer end");
 
                     import core.stdc.stdlib : free;
 
@@ -706,6 +710,8 @@ class EventLoop : LoggableUnit
 
         io_uring_prep_timeout_remove(sqe, userData, flags);
     }
+
+    bool onWatchdogIsContinue() => true;
 
     override void stop()
     {

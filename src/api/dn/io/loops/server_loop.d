@@ -21,7 +21,7 @@ import api.dn.utils.pools.linear_pool : LinearPool;
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.sockets.socket_connect : SocketConnectState;
 
-import api.dn.io.loops.endpointable_event_loop: EndpointableEventLoop;
+import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
 import api.dn.chans.server_chan : ServerChan;
 import api.dn.events.routes.event_router : EventRouter;
@@ -35,6 +35,8 @@ class ServerLoop : EndpointableEventLoop
 {
 
     ServerChannelData[int] channelsMap;
+
+    bool isSystemd;
 
     private
     {
@@ -118,5 +120,19 @@ class ServerLoop : EndpointableEventLoop
         assert(chanData.chan);
         addSocketAccept(&ring, chanData.chan, cast(sockaddr*)&(chanData.client_addr), &(
                 chanData.client_len));
+    }
+
+    override bool onWatchdogIsContinue()
+    {
+        if (isSystemd)
+        {
+            import api.dn.libs.systemd.binddynamic : sd_notify;
+
+            assert(sd_notify);
+            sd_notify(0, "WATCHDOG=1");
+            logger.trace("Send notify to systemd");
+        }
+
+        return true;
     }
 }

@@ -5,6 +5,8 @@ module api.dn.protos.http1.servers.base_http_server;
 import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
 
+import api.dn.controllers.base_server_controller: BaseServerController;
+
 import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
 import api.dn.io.loops.server_loop : ServerLoop;
@@ -25,7 +27,7 @@ debug import std.stdio : writeln, writefln;
 import signal_libs;
 import api.dn.sys.locale;
 
-abstract class BaseHTTPServer : UniComposite!UniComponent
+abstract class BaseHTTPServer : BaseServerController
 {
     bool isStartOnRun = true;
 
@@ -67,6 +69,8 @@ abstract class BaseHTTPServer : UniComposite!UniComponent
             ServerChan(serverSocket1.fd, serverSocket1.port.to!ushort),
         ], eventRouter, translator:
         null, monitor);
+
+        loop.isSystemd = isSystemd;
 
         loop.initialize;
         loop.create;
