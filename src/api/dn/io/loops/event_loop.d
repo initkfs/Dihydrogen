@@ -87,6 +87,13 @@ class EventLoop : LoggableUnit
         io_uring_params params;
         //memset(&params, 0, params.sizeof);
 
+        //TODO restrictions
+        //io_uring_restriction[2] restrictions = {
+        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_ACCEPT },
+        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_READ },
+        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_WRITE },};
+        //io_uring_register_restrictions(&ring, restrictions, 3);
+
         assert(ringEntries > 0);
         auto initRet = io_uring_queue_init_params(ringEntries, &ring, &params);
         if (initRet < 0)
