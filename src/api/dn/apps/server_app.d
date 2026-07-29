@@ -44,29 +44,27 @@ class ServerApp : BaseServerApp
 
         addRule("io_uring_enter", ctx);
         addRule("io_uring_setup", ctx);
+        
         addRule("exit_group", ctx);
         addRule("rt_sigreturn", ctx);
+        addRule("rt_sigaction", ctx);
+        addRule("prlimit64", ctx);
         addRule("brk", ctx);
         addRule("mmap", ctx);
+        addRule("munmap", ctx);
+        addRule("mprotect", ctx);
         addRule("write", ctx);
         addRule("openat", ctx);
         addRule("newfstatat", ctx);
         addRule("read", ctx);
         addRule("close", ctx);
         addRule("getcwd", ctx);
-        addRule("mprotect", ctx);
         addRule("prctl", ctx);
-        addRule("munmap", ctx);
-        addRule("rt_sigaction", ctx);
         addRule("socket", ctx);
         addRule("setsockopt", ctx);
         addRule("bind", ctx);
         addRule("listen", ctx);
-        addRule("getuid", ctx);
-        addRule("geteuid", ctx);
-        addRule("getgid", ctx);
-        addRule("getegid", ctx);
-        addRule("prlimit64", ctx);
+       
 
         if (seccomp_load(ctx) != 0)
         {

@@ -111,12 +111,6 @@ class HTTPServer : UniComposite!UniComponent
         loop.initialize;
         loop.create;
 
-        import Procs = api.dn.sys.proc;
-        import std.format : format;
-
-        logger.infof("Process urid:%s, ueid:%s, grid:%s, geid:%s", Procs.getRealUserId, Procs.getEffectiveUserId, Procs
-                .getRealGroupId, Procs.getEffectifeGroupId);
-
         import Locale = api.dn.sys.locale;
         import Time = api.dn.sys.time;
 
