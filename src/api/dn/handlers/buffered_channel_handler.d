@@ -5,7 +5,6 @@ import api.dn.chans.fd_chan : FdChan, FdChanType;
 import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
 
-import api.core.utils.sync : MutexLock;
 import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.utils.pools.linear_pool : LinearPool;
 

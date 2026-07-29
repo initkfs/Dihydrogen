@@ -15,10 +15,6 @@ import api.core.validations.validation : Validation;
 import api.core.validations.validators.validator : Validator;
 import api.core.contexts.apps.app_context : AppContext;
 import api.core.contexts.locators.locator_context : LocatorContext;
-import api.core.mems.memory : Memory;
-import api.core.mems.allocs.allocator : Allocator;
-import api.core.mems.allocs.mallocator : Mallocator;
-import api.core.mems.allocs.arena_allocator : ArenaAllocator;
 import api.core.validations.errors.err_status : ErrStatus;
 
 import CoreEnvKeys = api.core.core_env_keys;
@@ -35,8 +31,6 @@ class CliApp : SimpleUnit
     string appver = "0.1";
     string appid = "app.app";
 
-    bool isStopMainController = true;
-
     string defaultDataDir = "data";
     string defaultConfigsDir = "configs";
     string defaultUserDataDir = "userdata";
@@ -49,12 +43,17 @@ class CliApp : SimpleUnit
     {
         UniComponent _uniServices;
 
-        bool isSilentMode;
-        bool isDebugMode;
         string cliDataDir;
         string cliConfigDir;
         size_t cliStartupDelayMs;
+
+        bool isSilentMode;
+        bool isDebugMode;
     }
+
+    bool isStopMainController = true;
+    bool isNoEnvConfig;
+    bool isNoFileConfig;
 
     bool initialize(string[] args)
     {
@@ -98,25 +97,7 @@ class CliApp : SimpleUnit
                 cli.printer.printIfNotSilent("Debug mode active");
             }
 
-            uservices.context = createContext;
-            assert(uservices.hasContext);
-
-            uservices.configs = createConfiguration(uservices.context);
-            assert(uservices.hasConfigs);
-
-            uservices.logging = createLogging;
-            assert(uservices.hasLogging);
-
-            assert(uservices.logging.logger);
-            uservices.validation = createValidation(uservices.logging, uservices.config, uservices
-                    .context);
-            assert(uservices.hasValidation);
-
-            uservices.memory = createMemory(uservices.logging, uservices.config, uservices
-                    .context);
-            assert(uservices.hasMemory);
-
-            uservices.isBuilt = true;
+            buildCreateServices;
         }
         catch (Exception e)
         {
@@ -126,10 +107,31 @@ class CliApp : SimpleUnit
         return true;
     }
 
-    Validator[] createValidators()
+    void buildCreateServices()
     {
-        return null;
+        buildCreateServices(uservices);
     }
+
+    void buildCreateServices(UniComponent services)
+    {
+        services.context = createContext;
+        assert(services.hasContext);
+
+        services.configs = createConfiguration(services.context);
+        assert(services.hasConfigs);
+
+        services.logging = createLogging;
+        assert(services.hasLogging);
+
+        assert(services.logging.logger);
+        services.validation = createValidation(services.logging, services.config, services
+                .context);
+        assert(services.hasValidation);
+
+        services.isBuilt = true;
+    }
+
+    Validator[] createValidators() => null;
 
     Validator createConfigValidator(Config config, string[] configKeys)
     {
@@ -160,7 +162,7 @@ class CliApp : SimpleUnit
         if (!validation.isValid)
         {
             enum failMessage = "VALIDATION FAIL";
-            string message = validation.allMessages;
+            string message = validation.messages;
             if (uservices.hasLogging && uservices.logging.logger)
             {
                 uservices.logging.logger.error(failMessage);
@@ -367,7 +369,42 @@ class CliApp : SimpleUnit
         return new ConfigAggregator(forConfigs);
     }
 
-    Config newAAConstConfig()
+    protected Config createConfig(Context context)
+    {
+        Config[] configs;
+
+        if (!isNoEnvConfig)
+        {
+            auto envConfig = createEnvConfig;
+            uservices.cli.printer.printIfNotSilent("Create config from environment");
+            configs ~= envConfig;
+        }
+
+        if (!isNoFileConfig)
+        {
+            auto fileConfig = createFileConfigs(context);
+            configs ~= fileConfig;
+        }
+
+        auto config = newConfigAggregator(configs);
+        immutable bool isLoad = config.load;
+
+        if (isLoad)
+        {
+            import std.format : format;
+
+            uservices.cli.printer.printIfNotSilent(format("Load %s configs", configs
+                    .length));
+        }
+        else
+        {
+            uservices.cli.printer.printIfNotSilent("Configs were not loaded");
+        }
+
+        return config;
+    }
+
+    Config createEnvConfig()
     {
         import api.core.configs.keyvalues.aa_const_config : AAConstConfig;
         import std.process : environment;
@@ -380,14 +417,13 @@ class CliApp : SimpleUnit
         catch (Exception e)
         {
             uservices.logger.error(e.toString);
-            return new AAConstConfig(new string[string]);
+            return new AAConstConfig(null);
         }
     }
 
-    protected Config createConfig(Context context)
+    protected Config[] createFileConfigs(Context context)
     {
-        assert(uservices.cli);
-        assert(context);
+        Config[] configs;
 
         import std.path : buildPath, isAbsolute;
         import std.file : isDir, exists;
@@ -426,17 +462,11 @@ class CliApp : SimpleUnit
                 uservices.cli.printer.printIfNotSilent(
                     "Default config path cannot be built: data directory not found");
             }
-
         }
-
-        auto envConfig = newAAConstConfig;
-        uservices.cli.printer.printIfNotSilent("Create config from environment");
-
-        Config[] configs = [envConfig]; //TODO is hidden
 
         if (configDir.length != 0)
         {
-            configs ~= createConfigsFromDir(configDir);
+            configs ~= configsFromDir(configDir);
         }
         else
         {
@@ -447,30 +477,18 @@ class CliApp : SimpleUnit
         auto userConfigDir = buildPath(context.app.userDir, defaultConfigsDir);
         if (userConfigDir.exists && userConfigDir.isDir)
         {
-            configs ~= createConfigsFromDir(userConfigDir);
-        }else {
-            uservices.cli.printer.printIfNotSilent(
-                    "Check user config, not found: userConfigDir");
-        }
-
-        auto config = newConfigAggregator(configs);
-        immutable bool isLoad = config.load;
-        import std.format : format;
-
-        if (isLoad)
-        {
-            uservices.cli.printer.printIfNotSilent(format("Load %s configs", configs
-                    .length));
+            configs ~= configsFromDir(userConfigDir);
         }
         else
         {
-            uservices.cli.printer.printIfNotSilent("Configs were not loaded");
+            uservices.cli.printer.printIfNotSilent(
+                "Check user config, not found: userConfigDir");
         }
 
-        return config;
+        return configs;
     }
 
-    protected Config[] createConfigsFromDir(string configDir)
+    protected Config[] configsFromDir(string configDir)
     {
         import std.file : isDir, exists;
 
@@ -507,10 +525,7 @@ class CliApp : SimpleUnit
         return newConfiguration(config);
     }
 
-    protected Configuration newConfiguration(Config config)
-    {
-        return new Configuration(config);
-    }
+    protected Configuration newConfiguration(Config config) => new Configuration(config);
 
     protected Logger createLogger()
     {
@@ -558,10 +573,7 @@ class CliApp : SimpleUnit
         return newLogging(logger);
     }
 
-    protected Logging newLogging(Logger logger)
-    {
-        return new Logging(logger);
-    }
+    protected Logging newLogging(Logger logger) => new Logging(logger);
 
     protected Validation createValidation(Logging logging, Config config, Context context)
     {
@@ -578,40 +590,6 @@ class CliApp : SimpleUnit
         return validation;
     }
 
-    Mallocator* newMallocator() => new Mallocator(Allocator.init);
-
-    Allocator* createAllocator(Logging logging, Config config, Context context)
-    {
-        return cast(Allocator*) newMallocator;
-    }
-
-    ArenaAllocator* newArenaAllocator()
-    {
-        import api.core.mems.allocs.mallocator : initMallocator;
-
-        Allocator alloc;
-        initMallocator(&alloc);
-
-        return new ArenaAllocator(alloc);
-    }
-
-    ArenaAllocator* createArenaAllocator(Logging logging, Config config, Context context)
-    {
-        return newArenaAllocator;
-    }
-
-    Memory newMemory(Allocator* allocator, ArenaAllocator* arena)
-    {
-        return new Memory(allocator, arena);
-    }
-
-    Memory createMemory(Logging logging, Config config, Context context)
-    {
-        auto alloc = createAllocator(logging, config, context);
-        auto arena = createArenaAllocator(logging, config, context);
-        return newMemory(alloc, arena);
-    }
-
     protected Cli createCli(string[] args)
     {
         auto printer = newCliPrinter;
@@ -620,20 +598,11 @@ class CliApp : SimpleUnit
         return cli;
     }
 
-    CliPrinter newCliPrinter()
-    {
-        return new CliPrinter;
-    }
+    CliPrinter newCliPrinter() => new CliPrinter;
 
-    CliParser newCliParser(string[] args)
-    {
-        return new CliParser(args);
-    }
+    CliParser newCliParser(string[] args) => new CliParser(args);
 
-    Cli newCli(CliParser parser, CliPrinter printer)
-    {
-        return new Cli(parser, printer);
-    }
+    Cli newCli(CliParser parser, CliPrinter printer) => new Cli(parser, printer);
 
     bool isWriteCrashFile()
     {
@@ -641,7 +610,7 @@ class CliApp : SimpleUnit
         import std.conv : to;
 
         immutable mustBeIsDisableCrash = environment.get(
-            CoreEnvKeys.appCrashFileDisable);
+            CoreEnvKeys.appCrashNoFile);
         if (!mustBeIsDisableCrash)
         {
             return true;

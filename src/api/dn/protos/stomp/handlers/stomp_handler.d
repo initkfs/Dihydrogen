@@ -10,8 +10,6 @@ import api.dn.chans.chan_context : ChanContext;
 import api.dn.utils.pools.linear_pool : LinearPool;
 import api.core.utils.buffers.dense_buffer: DenseBuffer;
 
-import api.core.utils.sync : MutexLock;
-
 import api.dn.protos.stomp.stomp_common;
 import api.dn.protos.stomp.static_stomp_decoder : StaticStompDecoder, DecoderState;
 import api.dn.protos.stomp.static_stomp_encoder : StaticStompEncoder;

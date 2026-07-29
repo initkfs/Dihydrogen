@@ -43,6 +43,8 @@ struct RingBuffer(BufferType, size_t RequestBufferSize, bool isStaticArray = fal
 
     void initialize()
     {
+        import Math = api.math;
+
         static if (isLockFree)
         {
             _readIndex.atomicStore(0);
@@ -209,6 +211,8 @@ unittest
 {
     import std.stdio;
     import core.atomic : MemoryOrder;
+
+    import Math = api.math;
 
     alias Buffer4 = RingBuffer!(ubyte, 3, false);
     alias Buffer8 = RingBuffer!(ubyte, 5, false);
