@@ -5,7 +5,7 @@ module api.dn.protos.http1.servers.base_http_server;
 import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
 
-import api.dn.controllers.base_server_controller: BaseServerController;
+import api.dn.servers.base_server: BaseServer;
 
 import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
@@ -27,7 +27,7 @@ debug import std.stdio : writeln, writefln;
 import signal_libs;
 import api.dn.sys.locale;
 
-abstract class BaseHTTPServer : BaseServerController
+abstract class BaseHTTPServer : BaseServer
 {
     bool isStartOnRun = true;
 

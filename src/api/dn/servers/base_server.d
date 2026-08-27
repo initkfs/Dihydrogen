@@ -1,4 +1,4 @@
-module api.dn.controllers.base_server_controller;
+module api.dn.servers.base_server;
 
 import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
@@ -7,7 +7,8 @@ import api.core.components.uni_component : UniComponent;
  * Authors: initkfs
  */
 
-class BaseServerController : UniComposite!UniComponent
+class BaseServer : UniComposite!UniComponent
 {
     bool isSystemd;
+    bool isSandbox;
 }

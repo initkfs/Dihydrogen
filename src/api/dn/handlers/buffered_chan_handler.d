@@ -1,4 +1,4 @@
-module api.dn.handlers.buffered_channel_handler;
+module api.dn.handlers.buffered_chan_handler;
 
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
@@ -13,7 +13,7 @@ import core.sync.mutex : Mutex;
 /**
  * Authors: initkfs
  */
-class BufferedChannelHandler(T) : ChanHandler
+class BufferedChanHandler(T) : ChanHandler
 {
     protected
     {

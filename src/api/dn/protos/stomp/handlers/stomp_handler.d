@@ -2,7 +2,7 @@ module api.dn.protos.stomp.handlers.stomp_handler;
 
 import api.dn.chans.fd_chan : FdChan, FdChanType;
 
-import api.dn.handlers.buffered_channel_handler : BufferedChannelHandler;
+import api.dn.handlers.buffered_chan_handler : BufferedChanHandler;
 import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.events.chan_events : ChanInEvent, ChanOutEvent;
 import api.dn.chans.chan_context : ChanContext;
@@ -67,7 +67,7 @@ struct OutBufferData
 /**
  * Authors: initkfs
  */
-class StompHandler : BufferedChannelHandler!(OutBufferData*)
+class StompHandler : BufferedChanHandler!(OutBufferData*)
 {
     Thread timer;
 

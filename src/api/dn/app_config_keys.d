@@ -7,3 +7,4 @@ module api.dn.app_config_keys;
 immutable:
 
 string systemdIsSupport="systemdIsSupport";
+string seccompIsSupport="seccompIsSupport";

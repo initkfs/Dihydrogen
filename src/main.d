@@ -21,8 +21,9 @@ int main(string[] args)
     }
 
     import api.dn.apps.server_app : ServerApp;
+    import api.dn.protos.http1.servers.http_server: HTTPServer;
 
-    auto app = new ServerApp;
+    auto app = new ServerApp(() => new HTTPServer);
     if (!app.initialize(args))
     {
         import std.stdio : stderr;

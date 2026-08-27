@@ -2,8 +2,7 @@ module api.dn.protos.http1.servers.http_server;
 /**
  * Authors: initkfs
  */
-import api.core.components.uni_composite : UniComposite;
-import api.core.components.uni_component : UniComponent;
+import api.dn.servers.base_server: BaseServer;
 
 import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
@@ -27,7 +26,7 @@ import api.dn.sys.locale;
 
 immutable string webrootConfigKey = "webroot";
 
-class HTTPServer : UniComposite!UniComponent
+class HTTPServer : BaseServer
 {
     string webroot;
     bool isStartOnRun = true;
