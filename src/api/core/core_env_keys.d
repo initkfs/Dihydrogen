@@ -8,3 +8,6 @@ immutable:
 
 string appCrashDir = "EnvAppCrashDir";
 string appCrashNoFile = "EnvAppNoCrashFile";
+string appNoCrashSyslog = "EnvAppNoCrashSyslog";
+string appLogValidate = "EnvAppLogValidate";
+string appControlInvalidState = "EnvAppControlInvalidState";

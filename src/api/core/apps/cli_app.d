@@ -13,6 +13,7 @@ import api.core.contexts.platforms.platform_context : PlatformContext;
 import api.core.contexts.context : Context;
 import api.core.validations.validation : Validation;
 import api.core.validations.validators.validator : Validator;
+import api.core.validations.validators.validator_async : ValidatorAsync, ValidationMessage;
 import api.core.contexts.apps.app_context : AppContext;
 import api.core.contexts.locators.locator_context : LocatorContext;
 import api.core.validations.errors.err_status : ErrStatus;
@@ -36,6 +37,7 @@ class CliApp : SimpleUnit
     string defaultUserDataDir = "userdata";
 
     CrashHandler[] crashHandlers;
+    ValidatorAsync[] asyncValidators;
 
     int exitCode;
 
@@ -52,8 +54,10 @@ class CliApp : SimpleUnit
     }
 
     bool isStopMainController = true;
+    bool isControlInvalidState = true;
     bool isNoEnvConfig;
     bool isNoFileConfig;
+    
 
     bool initialize(string[] args)
     {
@@ -61,6 +65,15 @@ class CliApp : SimpleUnit
 
         try
         {
+            import std.process : environment;
+            import std.conv : to;
+
+            if (auto mustThrowOnState = environment.get(
+                    CoreEnvKeys.appControlInvalidState))
+            {
+                isControlInvalidState = mustThrowOnState.to!bool;
+            }
+
             createCrashHandlers(args);
 
             _uniServices = newUniServices;
@@ -98,10 +111,13 @@ class CliApp : SimpleUnit
             }
 
             buildCreateServices;
+
+            asyncValidators = createAsyncValidators;
         }
         catch (Exception e)
         {
-            consumeThrowable(e, true);
+            consumeThrowable(e, false);
+            return false;
         }
 
         return true;
@@ -120,7 +136,7 @@ class CliApp : SimpleUnit
         services.configs = createConfiguration(services.context);
         assert(services.hasConfigs);
 
-        services.logging = createLogging;
+        services.logging = createLogging(services.context, services.config);
         assert(services.hasLogging);
 
         assert(services.logging.logger);
@@ -132,6 +148,47 @@ class CliApp : SimpleUnit
     }
 
     Validator[] createValidators() => null;
+
+    ValidatorAsync[] createAsyncValidators()
+    {
+        import std.process : environment;
+
+        ValidatorAsync[] validators;
+
+        auto isValidLog = environment.get(CoreEnvKeys.appLogValidate);
+        if (isValidLog)
+        {
+            import std.conv : to;
+
+            if (isValidLog.to!bool)
+            {
+                if (!uservices.hasLogging)
+                {
+                    throw new Exception("Logging is null for validation");
+                }
+
+                uservices.logging.logger.onHandler((handler) {
+                    import api.core.loggers.builtins.handlers.file_handler : FileHandler;
+                    import api.core.validations.validators.validator_async : ValidatorAsync;
+                    import api.core.validations.errors.logs.log_file_validator : LogFileValidator;
+
+                    if (auto fileHandler = cast(FileHandler) handler)
+                    {
+                        import std.file : exists, isFile;
+
+                        auto path = fileHandler.path;
+                        if (path.exists && path.isFile)
+                        {
+                            validators ~= new ValidatorAsync(new LogFileValidator(path));
+                        }
+                    }
+                    return true;
+                });
+            }
+        }
+
+        return validators;
+    }
 
     Validator createConfigValidator(Config config, string[] configKeys)
     {
@@ -182,6 +239,38 @@ class CliApp : SimpleUnit
                 }
             }
 
+        }
+    }
+
+    void validateAsync()
+    {
+        foreach (v; asyncValidators)
+        {
+            v.start;
+        }
+    }
+
+    void checkAsyncValidators(void delegate(ValidationMessage) onMessage)
+    {
+        if (asyncValidators.length == 0)
+        {
+            return;
+        }
+
+        size_t doneCount;
+        foreach (v; asyncValidators)
+        {
+            v.checkResult;
+            if (v.isDone)
+            {
+                onMessage(v.resultMessage);
+                doneCount++;
+            }
+        }
+
+        if (doneCount == asyncValidators.length)
+        {
+            asyncValidators = null;
         }
     }
 
@@ -406,18 +495,18 @@ class CliApp : SimpleUnit
 
     Config createEnvConfig()
     {
-        import api.core.configs.keyvalues.aa_const_config : AAConstConfig;
+        import api.core.configs.keyvalues.aa_str_config : AAStrConfig;
         import std.process : environment;
 
         try
         {
             auto envAA = environment.toAA;
-            return new AAConstConfig(envAA);
+            return new AAStrConfig(envAA);
         }
         catch (Exception e)
         {
             uservices.logger.error(e.toString);
-            return new AAConstConfig(null);
+            return new AAStrConfig(null);
         }
     }
 
@@ -527,11 +616,13 @@ class CliApp : SimpleUnit
 
     protected Configuration newConfiguration(Config config) => new Configuration(config);
 
-    protected Logger createLogger()
+    protected Logger createLogger(Context context, Config config)
     {
         import api.core.loggers.builtins.base_logger : LogLevel;
         import api.core.loggers.builtins.logger : Logger;
         import api.core.loggers.builtins.handlers.console_handler : ConsoleHandler;
+        import api.core.loggers.builtins.handlers.file_handler : FileHandler;
+        import api.core.loggers.builtins.handlers.base_log_handler : BaseLogHandler;
 
         //TODO from config
         auto multiLogger = new Logger;
@@ -543,22 +634,38 @@ class CliApp : SimpleUnit
 
         multiLogger.add(consoleLogger);
 
-        // auto errLogger = new class Logger
+        // if (context.app.hasDataDir)
         // {
-        //     this()
-        //     {
-        //         super(LogLevel.warning);
-        //     }
+        //     import std.path : buildPath;
+        //     import std.file : exists, mkdir;
 
-        //     override void writeLogMsg(ref LogEntry payload) @trusted
+        //     auto logDir = buildPath(context.app.dataDir, "logs");
+        //     if (!logDir.exists)
         //     {
-        //         auto logLevel = payload.logLevel;
-        //         auto dt = payload.timestamp;
-        //         string message = format("%02d:%02d %s %s(%d): %s", dt.hour(), dt.minute(),
-        //             payload.logLevel, payload.moduleName, payload.line, payload.msg);
-        //         support.errStatus.error(message);
+        //         logDir.mkdir;
         //     }
-        // };
+        //     auto logFile = buildPath(logDir, "log.txt");
+        //     auto fileHandler = new FileHandler(logFile);
+        //     fileHandler.level = consoleLoggerLevel;
+        //     multiLogger.add(fileHandler);
+        // }
+
+        auto errHandler = new class BaseLogHandler
+        {
+            override void output(LogLevel level, const(char)[] message)
+            {
+                if (level != LogLevel.error)
+                {
+                    return;
+                }
+                if (uservices.hasValidation)
+                {
+                    uservices.validation.errStatus.error(message);
+                }
+            }
+        };
+
+        multiLogger.add(errHandler);
 
         multiLogger.tracef(
             "Create stdout logging, level '%s'", consoleLoggerLevel);
@@ -566,9 +673,9 @@ class CliApp : SimpleUnit
         return multiLogger;
     }
 
-    protected Logging createLogging()
+    protected Logging createLogging(Context context, Config config)
     {
-        auto logger = createLogger;
+        auto logger = createLogger(context, config);
         assert(logger);
         return newLogging(logger);
     }
@@ -623,9 +730,29 @@ class CliApp : SimpleUnit
     protected void createCrashHandlers(
         string[] args)
     {
+        import std.process : environment;
+        import std.conv : to;
+
+        bool isCreateSyslog = true;
+        immutable envValue = environment.get(CoreEnvKeys.appNoCrashSyslog);
+        if (envValue !is null && envValue.to!bool)
+        {
+            isCreateSyslog = false;
+        }
+
+        version (linux)
+        {
+            if (isCreateSyslog)
+            {
+                import api.core.apps.crashes.syslog_crash_handler : SyslogCrashHandler;
+
+                auto syslogHandler = new SyslogCrashHandler(appname);
+                crashHandlers ~= syslogHandler;
+            }
+        }
+
         import std.path : dirName, buildPath, isAbsolute;
         import std.file : exists, isDir, isFile, getcwd;
-        import std.process : environment;
         import std.format : format;
 
         if (!isWriteCrashFile)
