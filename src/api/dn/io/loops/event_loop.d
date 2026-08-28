@@ -51,6 +51,11 @@ class EventLoop : LoggableUnit
     FdChan controlChan;
     private ubyte[8] controlBuffer;
 
+    protected
+    {
+        size_t _queueCount;
+    }
+
     this(Logging logging, int controlFd)
     {
         super(logging);
@@ -167,8 +172,9 @@ class EventLoop : LoggableUnit
         return connection;
     }
 
-    bool runStepIsContinue(bool isWait = true)
+    bool runStepIsContinue(bool isWait = true, bool isLoopOnEmpty = true)
     {
+        //TODO io_uring_cq_has_overflow
         io_uring_cqe* cqe;
 
         //const submitRet = io_uring_submit(&ring);
@@ -191,8 +197,10 @@ class EventLoop : LoggableUnit
 
         if (cqeСount == 0)
         {
-            return true;
+            return isLoopOnEmpty;
         }
+
+        bool isRequestStop;
 
         for (int i = 0; i < cqeСount; ++i)
         {
@@ -201,11 +209,6 @@ class EventLoop : LoggableUnit
             auto connectionPtr = io_uring_cqe_get_data(cqe);
             if (!connectionPtr)
             {
-                if (isStop)
-                {
-                    continue;
-                }
-
                 logger.errorf("Connection not found: %d", cqe.res);
                 continue;
             }
@@ -221,6 +224,10 @@ class EventLoop : LoggableUnit
                     }
 
                     isStop = applyControlStop(connection, cqe);
+                    if (isStop)
+                    {
+                        isRequestStop = true;
+                    }
                     break;
                 case socket:
                     applySocketChannel(connection, cqe);
@@ -240,9 +247,14 @@ class EventLoop : LoggableUnit
         if (cqeСount > 0)
         {
             io_uring_cq_advance(&ring, cqeСount);
+
+            if (cqeСount >= _queueCount)
+            {
+                _queueCount -= cqeСount;
+            }
         }
 
-        if (isStop)
+        if (isRequestStop)
         {
             logger.trace("Request stop received for loop");
             return false;
@@ -562,6 +574,8 @@ class EventLoop : LoggableUnit
         }
 
         sqe = sqePtr;
+        queueInc;
+
         return true;
     }
 
@@ -576,6 +590,7 @@ class EventLoop : LoggableUnit
         }
 
         sqe = sqePtr;
+        queueInc;
         return true;
     }
 
@@ -593,6 +608,7 @@ class EventLoop : LoggableUnit
         io_uring_sqe* sqe;
         if (!getSqe(ring, conn, sqe))
         {
+            //TODO bool or throw
             return;
         }
 
@@ -781,6 +797,23 @@ class EventLoop : LoggableUnit
         }
     }
 
+    io_uring_sqe* addPrepTimer(io_uring* ring, ulong sec, uint count = 0, uint flags = 0)
+    {
+        io_uring_sqe* sqe;
+        if (!getSqe(ring, sqe))
+        {
+            return null;
+        }
+
+        import time_libs;
+
+        __kernel_timespec timeout;
+        timeout.tv_sec = sec;
+        timeout.tv_nsec = 0;
+        io_uring_prep_timeout(sqe, &timeout, count, flags);
+        return sqe;
+    }
+
     void removeTimer(io_uring* ring, ulong userData, uint flags = 0)
     {
         io_uring_sqe* sqe;
@@ -792,14 +825,24 @@ class EventLoop : LoggableUnit
         io_uring_prep_timeout_remove(sqe, userData, flags);
     }
 
-    uint inFlightCount(io_uring* ring)
+    bool onWatchdogIsContinue() => true;
+
+    void queueInc()
     {
-        uint sq_tail = *ring.sq.ktail;
-        uint cq_head = *ring.cq.khead;
-        return sq_tail - cq_head;
+        _queueCount++;
     }
 
-    bool onWatchdogIsContinue() => true;
+    void queueDec()
+    {
+        if (_queueCount == 0)
+        {
+            return;
+        }
+
+        _queueCount--;
+    }
+
+    size_t queueCount() => _queueCount;
 
     override void stop()
     {

@@ -70,6 +70,14 @@ struct io_uring
     unsigned pad2;
 }
 
+enum
+{
+    IORING_ASYNC_CANCEL_ALL = (1U << 0),
+    IORING_ASYNC_CANCEL_FD = (1U << 1),
+    IORING_ASYNC_CANCEL_ANY = (1U << 2),
+    IORING_ASYNC_CANCEL_FD_FIXED = (1U << 3),
+}
+
 // enum
 // {
 //     IOSQE_FIXED_FILE_BIT,

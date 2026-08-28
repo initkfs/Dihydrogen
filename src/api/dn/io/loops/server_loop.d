@@ -41,6 +41,7 @@ class ServerLoop : EndpointableEventLoop
     ServerChannelData[int] channelsMap;
 
     bool isSystemd;
+    size_t shutdownMaxSec = 1;
 
     private
     {
@@ -72,19 +73,15 @@ class ServerLoop : EndpointableEventLoop
         //TODO IORING_OP_ACCEPT, MULTISHOT_ACCEPT, IORING_OP_ASYNC_CANCEL
         foreach (ServerChan serverChan; serverChans)
         {
-            io_uring_sqe* sqe;
-            if (!getSqe(&ring, sqe))
-            {
-                close(serverChan.fd);
-            }
-            else
-            {
-                io_uring_prep_close(sqe, serverChan.fd);
-            }
+            import Mem = api.core.utils.mem;
 
+            FdChan* schan = new FdChan(serverChan.fd, FdChanType.socket);
+            Mem.addRootSafe(schan);
+            addSocketClose(&ring, schan);
             logger.tracef("Close server chan: %d", serverChan.fd);
         }
 
+        size_t clientCount;
         foreach (int fd, ref chanData; channelsMap)
         {
             //TODO max chan
@@ -94,17 +91,29 @@ class ServerLoop : EndpointableEventLoop
                 if (chan.type == FdChanType.socket && chan.state == SocketConnectState.write)
                 {
                     addSocketShutdown(&ring, chan, SHUT_WR);
+                    clientCount++;
                 }
             }
         }
 
+        if (clientCount > 0)
+        {
+            logger.tracef("Shutdown clients: %d", clientCount);
+        }
+
         logger.trace("Start drain loop");
-        //TODO limiter
-        while (inFlightCount(&ring) > 0)
+
+        import std.datetime.stopwatch : StopWatch, AutoStart;
+        import std.datetime : Duration, seconds;
+
+        immutable Duration maxWaitTime = shutdownMaxSec.seconds;
+        auto sw = StopWatch(AutoStart.yes);
+
+        while (queueCount > 0 && sw.peek < maxWaitTime)
         {
             if (!runStepIsContinue(false))
             {
-                logger.error("Drain loop break");
+                logger.trace("Break drain loop");
                 break;
             }
         }
