@@ -24,9 +24,13 @@ import api.dn.sockets.socket_connect : SocketConnectState;
 import api.dn.io.loops.endpointable_event_loop : EndpointableEventLoop;
 
 import api.dn.chans.server_chan : ServerChan;
+import api.dn.sockets.socket_connect : SocketConnectState;
+import api.dn.chans.fd_chan : FdChanType;
 import api.dn.events.routes.event_router : EventRouter;
 import api.dn.events.converters.event_converter : EventConverter;
 import api.dn.events.monitors.event_monitor : EventMonitor;
+
+import socket_libs;
 
 /**
  * Authors: initkfs
@@ -43,9 +47,9 @@ class ServerLoop : EndpointableEventLoop
         ServerChan[] serverChans;
     }
 
-    this(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, int controlFd, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        super(logger, router, translator, monitor);
+        super(logger, controlFd, router, translator, monitor);
         this.serverChans = serverChans;
     }
 
@@ -56,6 +60,56 @@ class ServerLoop : EndpointableEventLoop
         ushort port;
         sockaddr_in client_addr;
         socklen_t client_len = (client_addr).sizeof;
+    }
+
+    override void run()
+    {
+        super.run;
+
+        import socket_libs : close;
+        import io_uring_libs;
+
+        //TODO IORING_OP_ACCEPT, MULTISHOT_ACCEPT, IORING_OP_ASYNC_CANCEL
+        foreach (ServerChan serverChan; serverChans)
+        {
+            io_uring_sqe* sqe;
+            if (!getSqe(&ring, sqe))
+            {
+                close(serverChan.fd);
+            }
+            else
+            {
+                io_uring_prep_close(sqe, serverChan.fd);
+            }
+
+            logger.tracef("Close server chan: %d", serverChan.fd);
+        }
+
+        foreach (int fd, ref chanData; channelsMap)
+        {
+            //TODO max chan
+            foreach (FdChan* chan; chanData.pool.slice)
+            {
+                //send FIN
+                if (chan.type == FdChanType.socket && chan.state == SocketConnectState.write)
+                {
+                    addSocketShutdown(&ring, chan, SHUT_WR);
+                }
+            }
+        }
+
+        logger.trace("Start drain loop");
+        //TODO limiter
+        while (inFlightCount(&ring) > 0)
+        {
+            if (!runStepIsContinue(false))
+            {
+                logger.error("Drain loop break");
+                break;
+            }
+        }
+
+        logger.trace("End drain loop");
     }
 
     override void create()

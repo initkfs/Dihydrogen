@@ -126,9 +126,9 @@ class HTTPSServer : HTTPServer
         loop.run;
     }
 
-    override ServerLoop newServerLoop(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    override ServerLoop newServerLoop(Logging logger, int controlFd, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        return new SSLServerLoop(logger, ctx, serverChans, router, translator, monitor);
+        return new SSLServerLoop(logger, controlFd, ctx, serverChans, router, translator, monitor);
     }
 
     string lastSSLError()

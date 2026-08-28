@@ -42,9 +42,9 @@ class ClientLoop : EndpointableEventLoop
         ServerChan clientChannel;
     }
 
-    this(Logging logger, ServerChan clientChannel, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, int controlFd, ServerChan clientChannel, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        super(logger, router, translator, monitor);
+        super(logger, controlFd, router, translator, monitor);
         this.clientChannel = clientChannel;
 
         isClient = true;

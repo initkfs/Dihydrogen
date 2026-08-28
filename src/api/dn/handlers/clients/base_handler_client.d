@@ -1,6 +1,6 @@
 module api.dn.handlers.clients.base_handler_client;
 
-import api.core.components.uni_composite: UniComposite;
+import api.core.components.uni_composite : UniComposite;
 import api.core.components.uni_component : UniComponent;
 import api.dn.handlers.chan_handler : ChanHandler;
 import api.dn.chans.server_chan : ServerChan;
@@ -12,6 +12,8 @@ import api.dn.io.loops.client_loop : ClientLoop;
 
 import api.core.loggers.logging : Logging;
 
+import core.atomic : atomicLoad, atomicStore;
+
 /**
  * Authors: initkfs
  */
@@ -21,11 +23,21 @@ abstract class BaseHandlerClient : UniComposite!UniComponent
     string port;
     string path;
 
+    static shared int controlFd;
+
     ClientLoop loop;
 
     abstract
     {
         ChanHandler newHandler(Logging logging);
+    }
+
+    override void create()
+    {
+        import core.sys.linux.sys.eventfd;
+
+        int evfd = eventfd(0, EFD_NONBLOCK);
+        atomicStore(controlFd, evfd);
     }
 
     HandlerPipeline createPipeline()
@@ -35,9 +47,9 @@ abstract class BaseHandlerClient : UniComposite!UniComponent
         return pipe;
     }
 
-     ClientLoop newClientLoop(Logging logger, ServerChan serverChan, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    ClientLoop newClientLoop(Logging logger, int controlFd, ServerChan serverChan, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        return new ClientLoop(logger, serverChan, router, translator, monitor);
+        return new ClientLoop(logger, controlFd, serverChan, router, translator, monitor);
     }
 
 }

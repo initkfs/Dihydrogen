@@ -47,9 +47,15 @@ class EventLoop : LoggableUnit
     size_t watchdogTimerSec = 0;
     FdChan* watchDogTimer;
 
-    this(Logging logging)
+    int controlFd;
+    FdChan controlChan;
+    private ubyte[8] controlBuffer;
+
+    this(Logging logging, int controlFd)
     {
         super(logging);
+
+        this.controlFd = controlFd;
     }
 
     void delegate() onStartLoop;
@@ -65,6 +71,8 @@ class EventLoop : LoggableUnit
 
     void delegate() onBatchQueueEnd;
     bool delegate(io_uring_cqe*[]) onBatchIsContinue;
+
+    bool isStop;
 
     void addServerAccept(int fd)
     {
@@ -115,6 +123,19 @@ class EventLoop : LoggableUnit
             addWatchdogTimer;
             logger.tracef("Add watchdog timer, sec: %d", watchdogTimerSec);
         }
+
+        controlChan = FdChan(controlFd, FdChanType.control);
+        controlChan.inb.buff = controlBuffer[0 .. controlBuffer.length];
+
+        io_uring_sqe* controlSqe;
+        if (!getSqe(&ring, controlSqe))
+        {
+            throw new Exception("Control sqe error");
+        }
+
+        io_uring_sqe_set_data(controlSqe, &controlChan);
+        io_uring_prep_read(controlSqe, controlChan.fd, controlChan.inb.buff.ptr, cast(uint) controlChan
+                .inb.buff.length, 0);
     }
 
     int getEventsWait(io_uring* ring, io_uring_cqe** cqes)
@@ -146,11 +167,12 @@ class EventLoop : LoggableUnit
         return connection;
     }
 
-    bool runStepIsContinue()
+    bool runStepIsContinue(bool isWait = true)
     {
         io_uring_cqe* cqe;
 
-        const submitRet = io_uring_submit(&ring);
+        //const submitRet = io_uring_submit(&ring);
+        const submitRet = isWait ? io_uring_submit_and_wait(&ring, 1) : io_uring_submit(&ring);
         if (submitRet < 0)
         {
             logger.errorf("Error events submitting: %d", submitRet);
@@ -172,20 +194,6 @@ class EventLoop : LoggableUnit
             return true;
         }
 
-        // if (onBatchIsContinue && !onBatchIsContinue(cqes[0 .. cqeСount]))
-        // {
-        //     auto connection = cast(FdChan*) io_uring_cqe_get_data(cqe);
-
-        //     if (connection.type == FdChanType.socket && connection.state == SocketConnectState
-        //         .accept)
-        //     {
-        //         addServerAccept(connection.fd);
-        //     }
-
-        //     io_uring_cq_advance(&ring, cqeСount);
-        //     return true;
-        // }
-
         for (int i = 0; i < cqeСount; ++i)
         {
             cqe = cqes[i];
@@ -193,6 +201,11 @@ class EventLoop : LoggableUnit
             auto connectionPtr = io_uring_cqe_get_data(cqe);
             if (!connectionPtr)
             {
+                if (isStop)
+                {
+                    continue;
+                }
+
                 logger.errorf("Connection not found: %d", cqe.res);
                 continue;
             }
@@ -201,6 +214,14 @@ class EventLoop : LoggableUnit
 
             final switch (connection.type) with (FdChanType)
             {
+                case control:
+                    if (isStop)
+                    {
+                        continue;
+                    }
+
+                    isStop = applyControlStop(connection, cqe);
+                    break;
                 case socket:
                     applySocketChannel(connection, cqe);
                     break;
@@ -221,7 +242,47 @@ class EventLoop : LoggableUnit
             io_uring_cq_advance(&ring, cqeСount);
         }
 
+        if (isStop)
+        {
+            logger.trace("Request stop received for loop");
+            return false;
+        }
+
         return true;
+    }
+
+    bool applyControlStop(FdChan* connection, io_uring_cqe* cqe)
+    {
+        int ret = cqe.res;
+
+        enum stopRet = true;
+
+        if (ret < 0)
+        {
+            logger.tracef("Connection error fd %s, state '%s': %s", connection.fd, connection.state, strerror(
+                    -ret).fromStringz.idup);
+            return stopRet;
+        }
+
+        int readBytes = cqe.res;
+        if (readBytes > connection.inb.buff.length)
+        {
+            logger.tracef("Control buffer overflow, buff size %d, received %d", connection.inb.buff, readBytes);
+            return stopRet;
+        }
+
+        //TODO unsafe cast
+        long controlCode = *(connection.inb.buff[0 .. readBytes].ptr);
+        logger.tracef("Received chan control code: %d", controlCode);
+
+        import api.dn.chans.chan_controls : ChanControlCode;
+
+        if (controlCode == ChanControlCode.exit)
+        {
+            return stopRet;
+        }
+
+        return !stopRet;
     }
 
     void applySocketChannel(FdChan* connection, io_uring_cqe* cqe)
@@ -311,7 +372,11 @@ class EventLoop : LoggableUnit
                     onAcceptEnd(newConnect);
                 }
 
-                addServerAccept(connection.fd);
+                if (!isStop)
+                {
+                    addServerAccept(connection.fd);
+                }
+
                 break;
             case read:
                 int bytesRead = cqe.res;
@@ -341,6 +406,9 @@ class EventLoop : LoggableUnit
                 }
                 break;
             case write:
+
+                connection.state = SocketConnectState.wrote;
+
                 onWriteEnd(connection);
                 break;
             case splice:
@@ -370,16 +438,17 @@ class EventLoop : LoggableUnit
             switch (ret)
             {
                 case -ETIME:
-                    
+
                     if (chan == watchDogTimer)
                     {
                         logger.trace("Watchdog timer end");
                         if (watchDogTimer)
                         {
-                            if(onWatchdogIsContinue){
+                            if (onWatchdogIsContinue)
+                            {
                                 addWatchdogTimer;
                             }
-                            
+
                         }
                         break;
                     }
@@ -427,7 +496,7 @@ class EventLoop : LoggableUnit
             onEndLoop();
         }
 
-        logger.info("Exit");
+        logger.info("Break server loop");
     }
 
     FdChan* newChannel(int fd = -1, SocketConnectState state = SocketConnectState
@@ -442,6 +511,11 @@ class EventLoop : LoggableUnit
         }
 
         auto newChan = cast(FdChan*) mustBeChanPtr;
+
+        import api.dn.chans.chan_buffers : InBuffer, OutBuffer;
+
+        newChan.outb = OutBuffer.init;
+        newChan.inb = InBuffer.init;
 
         newChan.clear;
 
@@ -716,6 +790,13 @@ class EventLoop : LoggableUnit
         }
 
         io_uring_prep_timeout_remove(sqe, userData, flags);
+    }
+
+    uint inFlightCount(io_uring* ring)
+    {
+        uint sq_tail = *ring.sq.ktail;
+        uint cq_head = *ring.cq.khead;
+        return sq_tail - cq_head;
     }
 
     bool onWatchdogIsContinue() => true;

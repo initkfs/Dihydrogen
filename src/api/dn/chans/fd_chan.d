@@ -12,7 +12,8 @@ enum FdChanType
     none,
     socket,
     timer,
-    file
+    file,
+    control,
 }
 
 struct FdChan

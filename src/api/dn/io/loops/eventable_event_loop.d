@@ -14,9 +14,9 @@ class EventableEventLoop : EventLoop
     bool delegate(ChanInEvent) onInEvent;
     bool delegate(ChanOutEvent) onOutEvent;
 
-    this(Logging logger)
+    this(Logging logger, int controlFd)
     {
-        super(logger);
+        super(logger, controlFd);
     }
 
     override void create()

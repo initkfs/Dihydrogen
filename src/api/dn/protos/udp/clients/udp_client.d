@@ -53,7 +53,7 @@ class UDPClient : BaseHandlerClient
 
         auto monitor = new LogEventMonitor(logging);
 
-        loop = newClientLoop(logging, ServerChan(clientSocket.fd), eventRouter, translator:
+        loop = newClientLoop(logging, controlFd, ServerChan(clientSocket.fd), eventRouter, translator:
             null, monitor);
 
         loop.initialize;

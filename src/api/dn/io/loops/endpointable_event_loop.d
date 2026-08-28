@@ -20,9 +20,9 @@ class EndpointableEventLoop : EventableEventLoop
     EventConverter eventConverter;
     EventMonitor eventMonitor;
 
-    this(Logging logger, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, int controlFd, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        super(logger);
+        super(logger, controlFd);
 
         assert(router);
         eventRouter = router;

@@ -27,6 +27,7 @@ int io_uring_minor_version();
 void io_uring_queue_exit(io_uring* ring);
 void io_uring_queue_exit(io_uring* ring);
 int io_uring_submit(io_uring* ring);
+int io_uring_submit_and_wait(io_uring* ring, unsigned wait_nr);
 int io_uring_queue_init_params(unsigned entries, io_uring* ring, io_uring_params* p);
 io_uring_sqe* io_uring_get_sqe(io_uring* ring);
 void io_uring_prep_write(io_uring_sqe* sqe, int fd,
@@ -49,12 +50,13 @@ void io_uring_prep_recv(io_uring_sqe* sqe, int sockfd,
 void io_uring_prep_send(io_uring_sqe* sqe, int sockfd,
     const void* buf, size_t len, int flags);
 void io_uring_prep_send_zc(io_uring_sqe* sqe, int sockfd,
-    const void* buf, size_t len, int flags,  uint zcflags);
+    const void* buf, size_t len, int flags, uint zcflags);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, void* data);
 void io_uring_sqe_set_data(io_uring_sqe* sqe, __u64 data);
 void io_uring_prep_cancel(io_uring_sqe* sqe, void* user_data, int flags);
-void io_uring_prep_splice(io_uring_sqe *sqe, int fd_in,int64_t off_in, int fd_out, int64_t off_out, uint nbytes, uint splice_flags);
-void io_uring_prep_shutdown(io_uring_sqe *sqe, int sockfd, int how);
+void io_uring_prep_splice(io_uring_sqe* sqe, int fd_in, int64_t off_in, int fd_out, int64_t off_out, uint nbytes, uint splice_flags);
+void io_uring_prep_shutdown(io_uring_sqe* sqe, int sockfd, int how);
+void io_uring_prep_read(io_uring_sqe* sqe, int fd, void* buf, uint nbytes, __u64 offset);
 
 import time_libs;
 
@@ -63,7 +65,7 @@ void io_uring_prep_timeout(io_uring_sqe* sqe,
     uint count,
     uint flags);
 
-void io_uring_prep_timeout_remove(io_uring_sqe * sqe, __u64 user_data, uint flags);
+void io_uring_prep_timeout_remove(io_uring_sqe* sqe, __u64 user_data, uint flags);
 
 enum TimeoutFlags : uint
 {

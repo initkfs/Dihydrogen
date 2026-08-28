@@ -14,6 +14,10 @@ import api.dn.handlers.chan_handler : ChanHandler;
 
 import api.dn.io.loops.server_loop : ServerLoop;
 
+import core.atomic : atomicLoad, atomicStore;
+
+import signal_libs;
+
 /**
  * Authors: initkfs
  */
@@ -22,14 +26,16 @@ class BaseServer : UniComposite!UniComponent
 {
     ServerLoop loop;
 
+    static shared int controlFd;
+
     bool isSystemd;
     bool isSandbox;
 
     bool isStartOnRun = true;
 
-    ServerLoop newServerLoop(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    ServerLoop newServerLoop(Logging logger, int controlFd, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        return new ServerLoop(logger, serverChans, router, translator, monitor);
+        return new ServerLoop(logger, controlFd, serverChans, router, translator, monitor);
     }
 
     abstract
@@ -37,19 +43,39 @@ class BaseServer : UniComposite!UniComponent
         ChanHandler newHandler(Logging logging);
     }
 
-    override void run()
+    override void create()
     {
-        super.run;
+        super.create;
+
+        import core.sys.linux.sys.eventfd;
+
+        int evfd = eventfd(0, EFD_NONBLOCK);
+        atomicStore(controlFd, evfd);
+
+        signal(SIGINT, &sigintHandler);
+    }
+
+    override void stop()
+    {
+        super.stop;
+
+        import core.sys.posix.unistd : close;
+
+        auto evfd = controlFd.atomicLoad;
+        close(evfd);
+        evfd = -1;
+
+        logger.trace("Close control chan");
     }
 
     void createLoop(ServerChan[] serverChans)
     {
         auto eventRouter = newPipelineRounter(logging);
         auto monitor = newEventMonitor(logging);
-        
+
         //TODO translator
 
-        loop = newServerLoop(logging, serverChans, eventRouter, translator:
+        loop = newServerLoop(logging, controlFd, serverChans, eventRouter, translator:
             null, monitor);
 
         loop.isSystemd = isSystemd;
@@ -107,36 +133,21 @@ class BaseServer : UniComposite!UniComponent
         logger.infof("Hostname max:%s, page size:%s, max files:%s", Limit.hostNameMax, Limit.pageSize, Limit
                 .openFilesProcMax);
     }
-}
 
-static extern (C) void sigintHandler(int signo)
-{
-    import std.stdio : writefln;
+    static extern (C) void sigintHandler(int signo)
+    {
+        import core.sys.posix.unistd : write;
+        import api.dn.chans.chan_controls : ChanControlCode;
 
-    // writefln("^C pressed. Server socket '%s'", [
-    //     serverSocket1.fd, serverSocket2.fd
-    // ]);
+        auto evfd = controlFd.atomicLoad;
 
-    // if (loop)
-    // {
-    //     loop.stop;
-    //     loop.dispose;
-    //     loop = null;
-    // }
+        ulong val = ChanControlCode.exit;
+        //TODO LE/BE?
+        write(evfd, &val, val.sizeof);
 
-    // if (serverSocket1)
-    // {
-    //     serverSocket1.stop;
-    //     serverSocket1.dispose;
-    //     serverSocket1 = null;
-    // }
+        import core.sys.posix.unistd : write;
 
-    // if (serverSocket2)
-    // {
-    //     serverSocket2.stop;
-    //     serverSocket2.dispose;
-    //     serverSocket2 = null;
-    // }
-
-    //exit(0);
+        enum msg = "Run sigint handler\n";
+        write(1, msg.ptr, msg.length);
+    }
 }

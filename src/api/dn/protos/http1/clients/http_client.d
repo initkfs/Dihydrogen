@@ -57,7 +57,7 @@ class HTTPClient : BaseHandlerClient
 
         auto monitor = new LogEventMonitor(logging);
 
-        loop = newClientLoop(logging, ServerChan(clientSocket.fd), eventRouter, translator:
+        loop = newClientLoop(logging, 0, ServerChan(clientSocket.fd), eventRouter, translator:
             null, monitor);
 
         loop.initialize;

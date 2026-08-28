@@ -41,9 +41,9 @@ class SSLServerLoop : ServerLoop
 {
     SSL_CTX* ctx;
 
-    this(Logging logger, SSL_CTX* ctx, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
+    this(Logging logger, int controlFd, SSL_CTX* ctx, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
     {
-        super(logger, serverChans, router, translator, monitor);
+        super(logger, controlFd, serverChans, router, translator, monitor);
 
         assert(ctx);
         this.ctx = ctx;
