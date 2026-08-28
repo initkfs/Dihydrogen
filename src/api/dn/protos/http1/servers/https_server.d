@@ -41,9 +41,14 @@ class HTTPSServer : HTTPServer
         isStartOnRun = false;
     }
 
-    override ChanHandler newHandler(string webroot, Logging logging)
+    override ChanHandler newHandler(Logging logging)
     {
         import api.dn.protos.http1.handlers.servers.webroot_https_handler : WebrootHttpsHandler;
+
+        if (webroot.length == 0)
+        {
+            throw new Exception("Webroot must not be null");
+        }
 
         return new WebrootHttpsHandler(webroot, logging);
     }

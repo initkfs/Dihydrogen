@@ -2,7 +2,7 @@ module api.dn.protos.http1.servers.http_server;
 /**
  * Authors: initkfs
  */
-import api.dn.servers.base_server: BaseServer;
+import api.dn.protos.http1.servers.base_http_server: BaseHTTPServer;
 
 import api.dn.sockets.servers.socket_tcp_server : SocketTcpServer;
 import api.dn.io.loops.event_loop : EventLoop;
@@ -26,33 +26,16 @@ import api.dn.sys.locale;
 
 immutable string webrootConfigKey = "webroot";
 
-class HTTPServer : BaseServer
+class HTTPServer : BaseHTTPServer
 {
     string webroot;
     bool isStartOnRun = true;
 
-    protected
-    {
-        static SocketTcpServer serverSocket1;
-        static SocketTcpServer serverSocket2;
-        static ServerLoop loop;
-    }
-
-    ChanHandler newHandler(string webroot, Logging logging)
+    override ChanHandler newHandler(Logging logging)
     {
         import api.dn.protos.http1.handlers.servers.webroot_http_handler : WebrootHttpHandler;
 
         return new WebrootHttpHandler(webroot, logging);
-    }
-
-    HandlerPipeline createPipeline(string webroot)
-    {
-        import api.dn.protos.stomp.handlers.stomp_handler : StompHandler;
-
-        auto pipe = new HandlerPipeline;
-        pipe.add(newHandler(webroot, logging));
-        //pipe.add(new ChanHandler);
-        return pipe;
     }
 
     override void run()
@@ -82,93 +65,34 @@ class HTTPServer : BaseServer
 
         logger.tracef("Web webroot (%s): %s", webroot.getAtrrStr, webroot);
 
-        signal(SIGINT, &sigintHandler);
+        //signal(SIGINT, &sigintHandler);
 
-        serverSocket1 = new SocketTcpServer(logging);
+        auto serverSocket1 = new SocketTcpServer(logging);
         serverSocket1.initialize;
         serverSocket1.create;
         serverSocket1.run;
 
-        serverSocket2 = new SocketTcpServer(logging);
+        auto serverSocket2 = new SocketTcpServer(logging);
         serverSocket2.port = "8081";
         serverSocket2.initialize;
         serverSocket2.create;
         serverSocket2.run;
 
-        auto eventRouter = new PipelineRouter(createPipeline(webroot));
+        serverSockets ~= serverSocket1;
+        serverSockets ~= serverSocket2;
 
-        auto monitor = new LogEventMonitor(logging);
+        import std.conv : to;
 
-        import std.conv: to;
-
-        loop = newServerLoop(logging, [
+        createLoop([
             ServerChan(serverSocket1.fd, serverSocket1.port.to!ushort),
             ServerChan(serverSocket2.fd, serverSocket2.port.to!ushort)
-        ], eventRouter, translator:
-        null, monitor);
+        ]);
 
-        loop.initialize;
-        loop.create;
-
-        import Locale = api.dn.sys.locale;
-        import Time = api.dn.sys.time;
-
-        char[64] timeBuff = 0;
-        size_t buffLen;
-        Time.timestampf(timeBuff, buffLen);
-
-        import std.exception : enforce;
-
-        enforce(buffLen <= timeBuff.length, "Time buffer overflow");
-        logger.infof("Server time: %s, %s. LC_ALL:%s, LC_CTYPE:%s, LC_COLLATE:%s", timeBuff[0 .. buffLen], Time.timestamp, Locale
-                .getLocaleInfo, Locale.getLocaleInfoCtype, Locale.getLocaleInfoCollate);
-
-        import Limit = api.dn.sys.limit;
-
-        logger.infof("Hostname max:%s, page size:%s, max files:%s", Limit.hostNameMax, Limit.pageSize, Limit
-                .openFilesProcMax);
+        logServerInfo;
 
         if (isStartOnRun)
         {
             loop.run;
         }
     }
-
-    ServerLoop newServerLoop(Logging logger, ServerChan[] serverChans, EventRouter router, EventConverter translator = null, EventMonitor monitor = null)
-    {
-        return new ServerLoop(logger, serverChans, router, translator, monitor);
-    }
-
-    static extern (C) void sigintHandler(int signo)
-    {
-        import std.stdio : writefln;
-
-        writefln("^C pressed. Server socket '%s'", [
-            serverSocket1.fd, serverSocket2.fd
-        ]);
-
-        if (loop)
-        {
-            loop.stop;
-            loop.dispose;
-            loop = null;
-        }
-
-        if (serverSocket1)
-        {
-            serverSocket1.stop;
-            serverSocket1.dispose;
-            serverSocket1 = null;
-        }
-
-        if (serverSocket2)
-        {
-            serverSocket2.stop;
-            serverSocket2.dispose;
-            serverSocket2 = null;
-        }
-
-        exit(0);
-    }
-
 }
