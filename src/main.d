@@ -36,8 +36,15 @@ int main(string[] args)
 
     app.create;
     assert(app.isCreating);
+
     app.run;
     assert(app.isRunning);
+
+    app.stop;
+    assert(app.isStopping);
+
+    app.dispose;
+    assert(app.isDisposing);
 
     return successCode;
 }

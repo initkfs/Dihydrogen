@@ -14,6 +14,9 @@ struct InBuffer
         size_t _writeIndex;
     }
 
+    void function(void*) closeFunc;
+    bool isMustFree;
+
     bool incRead(size_t offset = 1) @nogc nothrow @safe
     {
         size_t newIndex = _readIndex + offset;
@@ -93,17 +96,40 @@ struct InBuffer
     void reset()
     {
         resetBufferIndices;
+        //TODO free?
         buff = null;
     }
 
     size_t readIndex() const @nogc pure nothrow @safe => _readIndex;
     size_t writeIndex() const @nogc pure nothrow @safe => _writeIndex;
+
+    bool dispose()
+    {
+        if (!isMustFree || buff.length == 0)
+        {
+            return false;
+        }
+
+        if (closeFunc)
+        {
+            closeFunc(buff.ptr);
+        }
+        else
+        {
+            import core.memory : pureFree;
+
+            pureFree(buff.ptr);
+        }
+
+        reset;
+        return true;
+    }
 }
 
 struct OutBuffer
 {
     ubyte[] buff;
-    bool isMustClose;
+    bool isMustFree;
 
     void function(void*) closeFunc;
 
@@ -112,14 +138,14 @@ struct OutBuffer
 
     void resetUnsafe()
     {
-        isMustClose = false;
+        isMustFree = false;
         buff = null;
         closeFunc = null;
     }
 
     void reset()
     {
-        if (isMustClose)
+        if (isMustFree)
         {
             dispose;
             return;
@@ -130,7 +156,7 @@ struct OutBuffer
 
     bool dispose()
     {
-        if (!isMustClose || buff.length == 0)
+        if (!isMustFree || buff.length == 0)
         {
             return false;
         }

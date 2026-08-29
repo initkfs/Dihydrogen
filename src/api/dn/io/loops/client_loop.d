@@ -68,7 +68,7 @@ class ClientLoop : EndpointableEventLoop
     {
         super.create;
 
-        auto clientSocket = newChannel(clientChannel.fd);
+        auto clientSocket = newChan(clientChannel.fd);
         channelData = ClientChanData(clientSocket, clientChannel.port);
     }
 

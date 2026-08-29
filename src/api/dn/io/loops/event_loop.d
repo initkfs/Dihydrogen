@@ -124,7 +124,7 @@ class EventLoop : LoggableUnit
         //addTimer(&ring, 5);
         if (watchdogTimerSec != 0)
         {
-            watchDogTimer = FdChan.newChanClear;
+            watchDogTimer = FdChan.newChan;
             addWatchdogTimer;
             logger.tracef("Add watchdog timer, sec: %d", watchdogTimerSec);
         }
@@ -371,10 +371,10 @@ class EventLoop : LoggableUnit
                     assert(newConnect);
 
                     //TODO or onClose?
-                    newConnect.resetPart;
+                    newConnect.reset;
                     newConnect.start;
 
-                    if (newConnect.outb.isMustClose)
+                    if (newConnect.outb.isMustFree)
                     {
                         newConnect.outb.dispose;
                     }
@@ -511,34 +511,16 @@ class EventLoop : LoggableUnit
         logger.info("Break server loop");
     }
 
-    FdChan* newChannel(int fd = -1, SocketConnectState state = SocketConnectState
+    FdChan* newChan(int fd = -1, SocketConnectState state = SocketConnectState
             .none)
     {
 
-        auto mustBeChanPtr = malloc(FdChan.sizeof);
-        if (!mustBeChanPtr)
-        {
-            logger.error("Allocate channel error");
-            exit(1);
-        }
+        auto chan = FdChan.newChan;
 
-        auto newChan = cast(FdChan*) mustBeChanPtr;
-
-        import api.dn.chans.chan_buffers : InBuffer, OutBuffer;
-
-        newChan.outb = OutBuffer.init;
-        newChan.inb = InBuffer.init;
-
-        newChan.clear;
-
-        newChan.type = FdChanType.socket;
-        newChan.fd = fd;
-        newChan.state = state;
-        newChan.isChain = false;
-
-        newChan.inb.reset;
-
-        newChan.outb.resetUnsafe;
+        chan.type = FdChanType.socket;
+        chan.fd = fd;
+        chan.state = state;
+        chan.isChain = false;
 
         if (maxMessageLen > 0)
         {
@@ -549,14 +531,15 @@ class EventLoop : LoggableUnit
                 exit(1);
             }
 
-            newChan.inb.buff = cast(ubyte[]) mustBeBuffPtr[0 .. maxMessageLen];
+            chan.inb.buff = cast(ubyte[]) mustBeBuffPtr[0 .. maxMessageLen];
+            chan.inb.isMustFree = true;
         }
         else
         {
-            newChan.inb.buff = null;
+            chan.inb.buff = null;
         }
 
-        return newChan;
+        return chan;
     }
 
     FdChan* getChannel(int serverFd, int activeChannelFd)
@@ -768,7 +751,7 @@ class EventLoop : LoggableUnit
             return;
         }
 
-        FdChan* chan = FdChan.newChanClear;
+        FdChan* chan = FdChan.newChan;
         addTimer(chan, ring, sec, count, flags, isSubmit);
     }
 

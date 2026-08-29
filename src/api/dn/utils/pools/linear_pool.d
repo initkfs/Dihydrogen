@@ -134,9 +134,10 @@ class LinearPool(V)
 
     bool destroy()
     {
-        if (pool)
+        if (pool.length > 0)
         {
             free(cast(void*) pool.ptr);
+            pool = null;
             return true;
         }
         return false;

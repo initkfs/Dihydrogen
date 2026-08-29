@@ -52,7 +52,8 @@ abstract class BaseServerApp : CliApp
     {
         super.create;
 
-        if(isSandbox){
+        if (isSandbox)
+        {
             loadSeccomp;
         }
 
@@ -182,7 +183,15 @@ abstract class BaseServerApp : CliApp
 
     override void dispose()
     {
-        super.dispose;
+        if (server)
+        {
+            if (server.isRunning)
+            {
+                server.stop;
+            }
+
+            server.dispose;
+        }
 
         if (systemdLib)
         {
@@ -195,5 +204,9 @@ abstract class BaseServerApp : CliApp
             seccomp.unload;
             seccomp = null;
         }
+
+        uservices.logger.trace("Dispose server app");
+
+        super.dispose; //exit
     }
 }

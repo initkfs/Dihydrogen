@@ -127,12 +127,12 @@ class ServerLoop : EndpointableEventLoop
 
         foreach (serverChan; serverChans)
         {
-            auto serverSocket = newChannel(serverChan.fd);
+            auto serverSocket = newChan(serverChan.fd);
             auto pool = new LinearPool!(FdChan*)(channelsPoolSize);
             pool.create;
             foreach (i; 0 .. pool.length)
             {
-                pool.set(i, newChannel);
+                pool.set(i, newChan);
             }
 
             auto chanData = ServerChannelData(serverSocket, pool, serverChan.port);
@@ -162,7 +162,7 @@ class ServerLoop : EndpointableEventLoop
         auto conn = channelsPool.get(activeChannelFd);
         if (!conn)
         {
-            auto newConnect = newChannel(activeChannelFd);
+            auto newConnect = newChan(activeChannelFd);
             channelsPool.set(activeChannelFd, newConnect);
             conn = newConnect;
         }
@@ -170,7 +170,7 @@ class ServerLoop : EndpointableEventLoop
         {
             conn.fd = activeChannelFd;
             conn.state = SocketConnectState.none;
-            conn.resetPart;
+            conn.reset;
         }
 
         assert(conn);
@@ -197,5 +197,39 @@ class ServerLoop : EndpointableEventLoop
         }
 
         return true;
+    }
+
+    override void dispose()
+    {
+        super.dispose;
+
+        // foreach (ServerChan schan; serverChans)
+        // {
+        //     if (schan.chan)
+        //     {
+        //         FdChan.freeChan(schan.chan);
+        //     }
+        // }
+
+        serverChans = null;
+
+        foreach (ServerChannelData chandata; channelsMap)
+        {
+            if (chandata.chan)
+            {
+                FdChan.freeChan(chandata.chan);
+                chandata.chan = null;
+            }
+
+            foreach (chan; chandata.pool.slice)
+            {
+                chan.inb.reset;
+                chan.outb.reset;
+            }
+
+            chandata.pool.destroy;
+        }
+
+        logger.trace("Dispose server loop");
     }
 }

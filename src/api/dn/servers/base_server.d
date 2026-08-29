@@ -150,4 +150,18 @@ class BaseServer : UniComposite!UniComponent
         enum msg = "Run sigint handler\n";
         write(1, msg.ptr, msg.length);
     }
+
+    override void dispose()
+    {
+        super.dispose;
+
+        if (loop)
+        {
+            if (loop.isRunning)
+            {
+                loop.stop;
+            }
+            loop.dispose;
+        }
+    }
 }

@@ -18,10 +18,12 @@ enum FdChanType
 
 struct FdChan
 {
-    int fd;
+    enum invalidValue = -1;
+
+    int fd = invalidValue;
     FdChanType type;
-    int state;
-    int stateNext;
+    int state = invalidValue;
+    int stateNext = invalidValue;
 
     InBuffer inb;
     OutBuffer outb;
@@ -33,30 +35,7 @@ struct FdChan
 
     void clear()
     {
-        fd = -1;
-        type = FdChanType.none;
-        state = -1;
-        stateNext = -1;
-
-        outb.reset;
-        inb.reset;
-
-        sslContext = ChanSSLContext();
-        resetPart;
-    }
-
-    void resetFull()
-    {
-        fd = -1;
-        type = FdChanType.none;
-        state = -1;
-        stateNext = -1;
-
-        outb.reset;
-        inb.reset;
-
-        sslContext.reset;
-        resetPart;
+        this = FdChan.init;
     }
 
     void start()
@@ -64,11 +43,11 @@ struct FdChan
         sslContext.isOpen = true;
     }
 
-    void resetPart()
+    void reset()
     {
         inb.resetBufferIndices;
-        state = -1;
-        stateNext = -1;
+        state = invalidValue;
+        stateNext = invalidValue;
         data = null;
         isChain = false;
         sslContext.isInitSSL = false;
@@ -101,7 +80,7 @@ struct FdChan
         return format("[%s:%s]", typeof(this).stringof, fd);
     }
 
-    static FdChan* newChanClear()
+    static FdChan* newChan()
     {
         import core.stdc.stdlib : malloc;
 
@@ -117,6 +96,9 @@ struct FdChan
     static freeChan(FdChan* chan)
     {
         import core.stdc.stdlib : free;
+
+        chan.inb.dispose;
+        chan.outb.dispose;
 
         free(chan);
     }
