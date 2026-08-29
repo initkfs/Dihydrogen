@@ -45,6 +45,15 @@ abstract class BaseServerApp : CliApp
                 AppKeys.seccompIsSupport);
         }
 
+        import prctl_libs;
+
+        const pret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+        if (pret != 0)
+        {
+            //TODO errno
+            throw new Exception("prctl");
+        }
+
         return true;
     }
 
@@ -132,7 +141,7 @@ abstract class BaseServerApp : CliApp
             addRule("setsockopt", ctx);
             addRule("bind", ctx);
             addRule("listen", ctx);
-            
+
             // addRule("accept4", ctx);
             // addRule("futex", ctx);
             // addRule("madvise", ctx);

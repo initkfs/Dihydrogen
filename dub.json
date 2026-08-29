@@ -12,7 +12,10 @@
             "lflags": [
                 "-Bstatic",
                 "./libs/liburing/lib/liburing-ffi.a",
-                "-rpath=./libs/liburing/lib"
+                "-rpath=./libs/liburing/lib",
+                "-pie",
+                "-Lrelro",
+                "-Lnow",
             ],
             "targetType": "executable",
             "targetName": "dn",
@@ -37,7 +40,8 @@
         "-dip1000",
         "-preview=in",
         "-preview=fixAliasThis",
-        "-P=-D_POSIX_C_SOURCE=200809L"
+        "-P=-D_POSIX_C_SOURCE=200809L",
+        "-fPIE"
     ],
     "dependencies": {}
 }
