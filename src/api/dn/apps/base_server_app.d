@@ -132,6 +132,13 @@ abstract class BaseServerApp : CliApp
             addRule("setsockopt", ctx);
             addRule("bind", ctx);
             addRule("listen", ctx);
+            
+            // addRule("accept4", ctx);
+            // addRule("futex", ctx);
+            // addRule("madvise", ctx);
+            // addRule("epoll_create1", ctx);
+            // addRule("epoll_ctl", ctx);
+            // addRule("epoll_pwait", ctx);
 
             if (seccomp_load(ctx) != 0)
             {

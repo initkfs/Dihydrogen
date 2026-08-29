@@ -98,14 +98,7 @@ class EventLoop : LoggableUnit
         logger.infof("Liburing version: %d.%d", io_uring_major_version, io_uring_minor_version);
 
         io_uring_params params;
-        //memset(&params, 0, params.sizeof);
-
-        //TODO restrictions
-        //io_uring_restriction[2] restrictions = {
-        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_ACCEPT },
-        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_READ },
-        //    { .opcode = IORING_RESTRICTION_SQE_OP, .sqe_op = IORING_OP_WRITE },};
-        //io_uring_register_restrictions(&ring, restrictions, 3);
+        params.flags |= IORING_SETUP_R_DISABLED;
 
         assert(ringEntries > 0);
         auto initRet = io_uring_queue_init_params(ringEntries, &ring, &params);
@@ -120,6 +113,38 @@ class EventLoop : LoggableUnit
             logger.error("io_uring fast poll not available in the kernel, quiting...\n");
             return;
         }
+
+        io_uring_restriction[$] restr = [
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_ACCEPT),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_READ),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_READV),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_RECV),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_WRITE),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_SEND),
+            //io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_SEND_ZC),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_SPLICE),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_CLOSE),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_SHUTDOWN),
+
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_TIMEOUT),
+            io_uring_restriction(IORING_RESTRICTION_SQE_OP, io_uring_op.IORING_OP_TIMEOUT_REMOVE),
+
+            io_uring_restriction(IORING_RESTRICTION_REGISTER_OP, IORING_REGISTER_FILES),
+            io_uring_restriction(IORING_RESTRICTION_REGISTER_OP, IORING_REGISTER_BUFFERS),
+        ];
+
+        const regRet = io_uring_register_restrictions(&ring, restr.ptr, restr.length);
+        if (regRet != 0)
+        {
+            import std.format : format;
+
+            throw new Exception(format("Error register restrictions: %s", strerror(-regRet)
+                    .fromStringz.idup));
+        }
+
+        const enret = io_uring_enable_rings(&ring);
+        if (enret < 0)
+            throw new Exception("Error io_uring enable");
 
         //addTimer(&ring, 5);
         if (watchdogTimerSec != 0)

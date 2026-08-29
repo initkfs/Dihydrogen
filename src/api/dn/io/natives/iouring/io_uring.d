@@ -57,6 +57,8 @@ void io_uring_prep_cancel(io_uring_sqe* sqe, void* user_data, int flags);
 void io_uring_prep_splice(io_uring_sqe* sqe, int fd_in, int64_t off_in, int fd_out, int64_t off_out, uint nbytes, uint splice_flags);
 void io_uring_prep_shutdown(io_uring_sqe* sqe, int sockfd, int how);
 void io_uring_prep_read(io_uring_sqe* sqe, int fd, void* buf, uint nbytes, __u64 offset);
+int io_uring_register_restrictions(io_uring *ring, io_uring_restriction *res, uint nr_res);
+int io_uring_enable_rings(io_uring *ring);
 
 import time_libs;
 
