@@ -1,7 +1,7 @@
 module api.dn.chans.fd_chan;
 
 import api.dn.sockets.socket_connect : SocketConnectState;
-import api.dn.chans.chan_buffers : InBuffer, OutBuffer;
+import api.dn.chans.chan_buffer : ChanBuffer;
 import api.dn.chans.chan_ssl_context : ChanSSLContext;
 
 /**
@@ -25,8 +25,8 @@ struct FdChan
     int state = invalidValue;
     int stateNext = invalidValue;
 
-    InBuffer inb;
-    OutBuffer outb;
+    ChanBuffer inb;
+    ChanBuffer outb;
     bool isChain;
 
     ChanSSLContext sslContext;

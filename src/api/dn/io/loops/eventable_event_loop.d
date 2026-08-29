@@ -68,10 +68,10 @@ class EventableEventLoop : EventLoop
                 addSocketReadv(&ring, event.chan);
                 break;
             case write:
-                addSocketWrite(&ring, event.chan, event.chan.outb.buff.ptr, event.chan.outb.length);
+                addSocketWrite(&ring, event.chan, event.chan.outb.buff.ptr, event.chan.outb.size);
                 break;
             case writezc:
-                addSocketWriteZC(&ring, event.chan, event.chan.outb.buff.ptr, event.chan.outb.length);
+                addSocketWriteZC(&ring, event.chan, event.chan.outb.buff.ptr, event.chan.outb.size);
                 break;
             case close:
                 addSocketClose(&ring, event.chan);

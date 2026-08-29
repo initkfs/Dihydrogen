@@ -1,10 +1,10 @@
-module api.dn.chans.chan_buffers;
+module api.dn.chans.chan_buffer;
 
 /**
  * Authors: initkfs
  */
 
-struct InBuffer
+struct ChanBuffer
 {
     ubyte[] buff;
 
@@ -103,6 +103,8 @@ struct InBuffer
     size_t readIndex() const @nogc pure nothrow @safe => _readIndex;
     size_t writeIndex() const @nogc pure nothrow @safe => _writeIndex;
 
+    size_t size() const => buff.length;
+
     bool dispose()
     {
         if (!isMustFree || buff.length == 0)
@@ -126,60 +128,9 @@ struct InBuffer
     }
 }
 
-struct OutBuffer
-{
-    ubyte[] buff;
-    bool isMustFree;
-
-    void function(void*) closeFunc;
-
-    bool isEmpty() => buff.length == 0;
-    size_t length() const => buff.length;
-
-    void resetUnsafe()
-    {
-        isMustFree = false;
-        buff = null;
-        closeFunc = null;
-    }
-
-    void reset()
-    {
-        if (isMustFree)
-        {
-            dispose;
-            return;
-        }
-
-        resetUnsafe;
-    }
-
-    bool dispose()
-    {
-        if (!isMustFree || buff.length == 0)
-        {
-            return false;
-        }
-
-        if (closeFunc)
-        {
-            closeFunc(buff.ptr);
-        }
-        else
-        {
-            import core.memory : pureFree;
-
-            pureFree(buff.ptr);
-        }
-
-        resetUnsafe;
-        return true;
-    }
-}
-
 unittest
 {
-    InBuffer buff;
+    ChanBuffer buff;
     buff.buff = [0, 1, 2, 3, 4];
     assert(!buff.incRead(10));
     assert(!buff.incWrite(10));
