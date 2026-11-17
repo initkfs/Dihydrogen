@@ -28,6 +28,83 @@ abstract class BaseServerApp : CliApp
 
     override bool initialize(string[] args)
     {
+        import prctl_libs;
+
+        const pret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+        if (pret != 0)
+        {
+            //TODO errno
+            throw new Exception("prctl");
+        }
+        
+        import landlock_libs;
+
+         import  std.exception: ErrnoException;
+
+        //TODO native support 
+        enum long SYS_landlock_create_ruleset = 444;
+        enum long SYS_landlock_add_rule = 445;
+        enum long SYS_landlock_restrict_self = 446;
+
+        int d_landlock_create_ruleset(const(void)* attr, size_t size, uint flags)
+        {
+            return cast(int) syscall(SYS_landlock_create_ruleset, attr, size, flags);
+        }
+
+        int d_landlock_add_rule(int ruleset_fd, ulong rule_type, const(void)* rule_attr, uint flags)
+        {
+            return cast(int) syscall(SYS_landlock_add_rule, ruleset_fd, rule_type, rule_attr, flags);
+        }
+
+        int d_landlock_restrict_self(int ruleset_fd, uint flags)
+        {
+            return cast(int) syscall(SYS_landlock_restrict_self, ruleset_fd, flags);
+        }
+
+        landlock_ruleset_attr ruleset_attr;
+        ruleset_attr.handled_access_fs = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_WRITE_FILE;
+
+        auto ruleset = d_landlock_create_ruleset(&ruleset_attr, ruleset_attr.sizeof, 0);
+        if (ruleset < 0)
+        {
+            import core.stdc.errno : errno;
+
+            throw new Exception("d_landlock_create_ruleset");
+        }
+
+        landlock_path_beneath_attr path_attr;
+        path_attr.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE;
+
+        import std.string : toStringz;
+        import core.sys.posix.fcntl : O_PATH, O_CLOEXEC, open;
+        import core.sys.posix.unistd: close;
+
+        int dir_fd = open(".data/".toStringz, O_PATH | O_CLOEXEC);
+        if (dir_fd < 0)
+            throw new ErrnoException("Unable open data dir");
+
+        path_attr.parent_fd = dir_fd;
+        path_attr.allowed_access = LANDLOCK_ACCESS_FS_READ_FILE | LANDLOCK_ACCESS_FS_WRITE_FILE ;
+        const isAdd = d_landlock_add_rule(ruleset, LANDLOCK_RULE_PATH_BENEATH, &path_attr, 0);
+        if(isAdd < 0){
+            //TODO close fd?
+            throw new ErrnoException("d_landlock_add_rule");
+        }
+        close(dir_fd);
+
+        //d_landlock_add_rule(ruleset, "/usr", LANDLOCK_ACCESS_FS_READ_DIR);
+        // d_landlock_add_rule(ruleset, "/tmp", LANDLOCK_ACCESS_FS_READ_DIR);
+
+        // d_landlock_restrict_self(ruleset);
+
+        int result = d_landlock_restrict_self(ruleset, 0);
+        if(result < 0){
+            throw new ErrnoException("Landlock restrict fail");
+        }
+        //import std;
+        //writeln(result);
+        close(ruleset);
+        
         if (!super.initialize(args))
         {
             return false;
@@ -45,14 +122,7 @@ abstract class BaseServerApp : CliApp
                 AppKeys.seccompIsSupport);
         }
 
-        import prctl_libs;
-
-        const pret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
-        if (pret != 0)
-        {
-            //TODO errno
-            throw new Exception("prctl");
-        }
+        
 
         return true;
     }

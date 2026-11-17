@@ -55,6 +55,11 @@ class BaseSocketWrapper : LoggableUnit
 
         //int sendBufSize = 1024 * 1024; // 1 MB
         //setOption(_fd, SOL_SOCKET, SO_SNDBUF, &sendBufSize, sendBufSize.sizeof);
+        
+        //TODO check no SMTP, SSH
+        timeval deferTimeout;
+        deferTimeout.tv_sec = 30; //0..60
+        setOption(_fd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &deferTimeout, deferTimeout.sizeof);
     }
 
     void setOption(int socket, int level, int optionName,
